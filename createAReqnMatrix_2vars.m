@@ -47,7 +47,7 @@ function [z,ZT] = createAReqnMatrix_2vars(X, Y, p)
         error('X & Y must be vectors, p must be scalar');
     end
     if size(X,1) < size(X,2), X = X'; end % convert to column vector
-    if size(Y,1) < size(Y,2), X = X'; end % convert to column vector
+    if size(Y,1) < size(Y,2), Y = Y'; end % convert to column vector
     if length(X)<=length(Y), T = length(X); Y = Y(1:T); end
     if length(X)> length(Y), T = length(Y); X = X(1:T); end
     

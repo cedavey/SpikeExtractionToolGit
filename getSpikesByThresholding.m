@@ -18,6 +18,9 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
    dt         = double( tseries.dt );
    voltage    = double( tseries.data(:) );
    time       = double( tseries.time(:) );
+   
+   str = sprintf( '\tIdentifying possible spikes...\n' );
+   cprintf( 'Keywords', str );
 
    % threshold the voltage timeseries - remove values that are too
    % small, and positive values that remain positive for a short period
@@ -54,6 +57,7 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
    pass       = timepos>minpostime & timeneg>minnegtime; 
    if sum(pass)==0
       displayErrorMsg('No spikes have suffic positive and negative duration, abandoning ship...');
+      spikes = []; stimes = []; sindices = []; % This line to prevent run time error "not assigned during getSpikesByThresholding"
       return;
    end
    changePos  = changePos(pass);
@@ -168,6 +172,10 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
                               1:length(sp),'uniformoutput', false);
    sindices   = arrayfun(@(i) voltage( sinds{i}(peakind(i))+shift-tbefore+1 : sinds{i}(peakind(i))+shift+tafter), ...
                               1:length(spikes),'uniformoutput', false);
+                          
+                          
+   str = sprintf( '\tDone.\n' );
+   cprintf( 'Keywords', str );
 end
 
 

@@ -82,7 +82,7 @@ function params = getDefaultToolParams
          voltage.rescale.particle_filter.select_peaks.list                      = {'all', 'positive', 'negative'};
          voltage.rescale.particle_filter.select_peaks.units                     = 'voltage';
          
-         voltage.rescale.particle_filter.jump_ahead.value                       = 10;
+         voltage.rescale.particle_filter.jump_ahead.value                       = 1;
          voltage.rescale.particle_filter.jump_ahead.name                        = 'jump ahead';
          voltage.rescale.particle_filter.jump_ahead.descript                    = 'Get largest spike in this amount of time';
          voltage.rescale.particle_filter.jump_ahead.type                        = 'positive float';
@@ -390,9 +390,9 @@ function params = getDefaultToolParams
 
          voltage.extract_spikes.matched_filter.ap_peak_change.value             = 20;
          voltage.extract_spikes.matched_filter.ap_peak_change.name              = 'AP peak change';
-         voltage.extract_spikes.matched_filter.ap_peak_change.descript          = 'how much can AP peak magnitude vary across spikes';
+         voltage.extract_spikes.matched_filter.ap_peak_change.descript          = 'how quickly can AP peak magnitude change with time';
          voltage.extract_spikes.matched_filter.ap_peak_change.type              = 'percentage';
-         voltage.extract_spikes.matched_filter.ap_peak_change.units             = '%';
+         voltage.extract_spikes.matched_filter.ap_peak_change.units             = '% per second';
 
          voltage.extract_spikes.matched_filter.positive_threshold.value         = 4;
          voltage.extract_spikes.matched_filter.positive_threshold.name          = 'positive threshold';
@@ -425,8 +425,8 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.min_positive_duration.units      = 'ms';
          
          voltage.extract_spikes.matched_filter.min_negative_duration.value      = 0.1;
-         voltage.extract_spikes.matched_filter.min_negative_duration.name       = 'min positive duration';
-         voltage.extract_spikes.matched_filter.min_negative_duration.descript   = 'min duration of positive component of spike';
+         voltage.extract_spikes.matched_filter.min_negative_duration.name       = 'min negative duration';
+         voltage.extract_spikes.matched_filter.min_negative_duration.descript   = 'min duration of negative component of spike';
          voltage.extract_spikes.matched_filter.min_negative_duration.type       = 'positive float';
          voltage.extract_spikes.matched_filter.min_negative_duration.units      = 'ms';
          
@@ -507,8 +507,8 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.min_positive_duration.units           = 'ms';
          
          ap.extract_spikes.matched_filter.min_negative_duration.value           = 0.1;
-         ap.extract_spikes.matched_filter.min_negative_duration.name            = 'min positive duration';
-         ap.extract_spikes.matched_filter.min_negative_duration.descript        = 'min duration of positive component of spike';
+         ap.extract_spikes.matched_filter.min_negative_duration.name            = 'min negative duration';
+         ap.extract_spikes.matched_filter.min_negative_duration.descript        = 'min duration of negative component of spike';
          ap.extract_spikes.matched_filter.min_negative_duration.type            = 'positive float';
          ap.extract_spikes.matched_filter.min_negative_duration.units           = 'ms';
          

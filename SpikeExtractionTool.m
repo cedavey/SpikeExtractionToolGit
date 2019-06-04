@@ -330,7 +330,23 @@ function varargout = SpikeExtractionTool_OutputFcn(hObject, eventdata, handles)
 end
 
 % --- Executes on button press in load_voltage.
-function load_voltage_Callback(hObject, eventdata, handles)
+function load_voltage_Callback(hObject, eventdata, handles)   
+    % Set the mouse pointer to waiting to know the function is running.
+    set(handles.figure1, 'pointer', 'watch')
+    drawnow;
+    try
+        % Call the function
+        load_voltage(hObject, eventdata, handles);
+    catch E
+        % Mouse pointer back to normal.
+        set(handles.figure1, 'pointer', 'arrow')  
+        rethrow(E);
+    end
+    % Mouse pointer back to normal.
+    set(handles.figure1, 'pointer', 'arrow')  
+end
+
+function load_voltage(hObject, eventdata, handles)   
     last_dir = handles.data.last_dir; % keep before we write over it
     old_numtseries = handles.data.num_tseries;
 
@@ -469,13 +485,23 @@ end
 
 % --- Executes on button press in clear_voltage.
 function clear_voltage_Callback(hObject, eventdata, handles)
+   % Set the mouse pointer to waiting to know the function is running.
+   set(handles.figure1, 'pointer', 'watch')
+   drawnow;
+
    [tseries, ts_num, data_type, ts_name] = getCurrentVoltage(handles);
    response = userConfirmation(['Delete ' ts_name '?'],...
                                 'Clear current time series?');
    if strcmp(response,'No')
+      % Mouse pointer back to normal.
+      set(handles.figure1, 'pointer', 'arrow')  
       return
    end   
    removeVoltage(handles);
+   
+   
+   % Mouse pointer back to normal.
+   set(handles.figure1, 'pointer', 'arrow')   
 end
 
 % --- Executes on selection change in tool_list.
@@ -676,6 +702,22 @@ end
 
 % --- Executes on button press in run_tool.
 function run_tool_Callback(hObject, eventdata, handles)
+    % Set the mouse pointer to waiting to know the function is running.
+    set(handles.figure1, 'pointer', 'watch')
+	drawnow;
+    % Run tool
+    try
+        run_tool(hObject, eventdata, handles); 
+   catch E
+       % If an error, mouse pointer back to normal.
+       set(handles.figure1, 'pointer', 'arrow');   
+       rethrow(E);
+    end
+    % If an error, mouse pointer back to normal.
+    set(handles.figure1, 'pointer', 'arrow');   
+end
+
+function run_tool(hObject, eventdata, handles)  
    % Implement the tool using the method & params requested
    tool_list     = get(handles.tool_list, 'String');
    tool_num      = get(handles.tool_list, 'Value');
@@ -707,7 +749,6 @@ function run_tool_Callback(hObject, eventdata, handles)
                new_tseries.Rest    = Rest;
                new_tseries.params.tool   = tool;
                new_tseries.params.method = method;
-               tool_str            = [tseries.name '_' tool '_' method];
                tool_str            = [tseries.name '_' tool];
                instruct            = ['Creating ' tool_str ': rename?'];
 
@@ -724,7 +765,6 @@ function run_tool_Callback(hObject, eventdata, handles)
                new_tseries.params  = method_params;
                new_tseries.params.tool   = tool;
                new_tseries.params.method = method;
-               tool_str            = [tseries.name '_' tool '_' method];
                tool_str            = [tseries.name '_' tool];
                instruct            = ['Creating ' tool_str ': rename?'];
 
@@ -742,7 +782,6 @@ function run_tool_Callback(hObject, eventdata, handles)
                new_tseries.params.tool   = tool;
                new_tseries.params.method = method;
                new_tseries.APfamily= APfamily;
-               tool_str            = [tseries.name '_APs_' method];
                tool_str            = [tseries.name '_APs'];
                instruct            = ['Creating ' tool_str ': rename?'];              
                
@@ -765,7 +804,6 @@ function run_tool_Callback(hObject, eventdata, handles)
                new_tseries.params.method = method;
                new_tseries.APfamily= APfamily;
                new_tseries.APstimes= APtimes; % record spike times for getting rate later
-               tool_str            = [tseries.name '_spikes_' method];
                tool_str            = [tseries.name '_spikes'];
                instruct            = ['Creating ' tool_str ': rename?'];              
                           
@@ -779,7 +817,6 @@ function run_tool_Callback(hObject, eventdata, handles)
                new_tseries.params  = method_params;
                new_tseries.params.tool   = tool;
                new_tseries.params.method = method;
-               tool_str            = [tseries.name '_' tool '_' method];
                tool_str            = [tseries.name '_' method];
                instruct            = ['Creating ' tool_str ': rename?'];
 
@@ -787,7 +824,7 @@ function run_tool_Callback(hObject, eventdata, handles)
                displayErrorMsg('This tool don''t exist, give up');
                return;
          end
-         
+
       %% Action potentials
       case 'ap'
          switch lower(tool)
@@ -839,7 +876,7 @@ function run_tool_Callback(hObject, eventdata, handles)
                tool_str            = [tseries.name '_spikes_' method];
                tool_str            = [tseries.name '_spikes'];
                instruct            = ['Creating ' tool_str ': rename?'];
-               
+
             case 'merge templates'
                % get time series to apply AP templates to
                new_tseries = mergeAPtemplates( tseries, method, method_params );
@@ -849,12 +886,12 @@ function run_tool_Callback(hObject, eventdata, handles)
                tool_str            = [tseries.name '_APs_' method];
                tool_str            = [tseries.name '_APs'];
                instruct            = ['Creating ' tool_str ': rename?'];              
-               
+
             otherwise
                displayErrorMsg('This tool don''t exist, give up');
                return;
          end
-         
+
       case 'spike'
          switch lower(tool)
             case 'firing rate'
@@ -870,14 +907,14 @@ function run_tool_Callback(hObject, eventdata, handles)
                tool_str         = [tseries.name '_rates']; % _' method];
                tool_str(tool_str=='_') = ' '; % make pretty for dialogue title
                instruct         = ['Creating ' tool_str ': rename?'];
-               
+
             case 'statistics'
                generateSpikeStatistics(tseries, method, method_params);
                return;
-               
+
             case 'spike operations'
                [spikes,stimes] = runSpikeOperations(tseries, method, method_params);
-               
+
                new_tseries.type    = 'spike';
                new_tseries.data    = spikes;
                new_tseries.time    = tseries.time;
@@ -889,22 +926,22 @@ function run_tool_Callback(hObject, eventdata, handles)
                tool_str            = [tseries.name '_spikes_' method];
                tool_str            = [tseries.name '_spikes'];
                instruct            = ['Creating ' tool_str ': rename?'];              
-               
+
             otherwise
          end
-         
+
       case 'rate'
          % currently the only tool for 'rate' timeseries is generating
          % statistics, & the only statistic is autocorrelation
          generateRateStatistics(tseries, method, method_params);
          return;
-         
+
       otherwise
          displayErrorMsg('You''re making shit up, this isn''t a data type');
          return;
-   
+
    end
-   
+    
    name = getFileName(instruct, tool_str, 60);
    if isempty(name) % user cancelled process
       return

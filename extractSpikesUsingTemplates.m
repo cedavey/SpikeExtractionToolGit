@@ -34,8 +34,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
    % peakdiff function calculates diff btwn peaks, e.g. btwn total range or
    % sums diff btwn maxes & mins, & perhaps accounts for time btwn spikes
    % - weight positive peak more heavily than minimum peak
-   % peakdiff  = @(curr_peak, last_peaks) sum( abs((curr_peak - last_peaks) .* [1/2 2] ./ last_peaks), 2 );
-   peakdiff  = @(curr_peak, last_peaks) sum( abs((curr_peak - last_peaks) .* [1 1] ./ last_peaks), 2 );
+   peakdiff  = @(curr_peak, last_peaks) sum( abs((curr_peak - last_peaks) .* [1/2 2] ./ last_peaks), 2 );
    % require both +ve & -ve peaks to be within change threshold, and then
    % take spike with the min change
    peaktest  = @(curr_peak, last_peaks) abs( (curr_peak - last_peaks) ./ last_peaks );
@@ -68,7 +67,20 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
    APfamilies  = cell(nAP,1); % cell for each template, with a cell for each family inside
    change_rate = params.ap_peak_change.value/100; % allowed rate of peak amplitude change (as percentage)
    newTemplates= params.allow_new_aps.value;      % allow new AP templates or not
-   for si=1:size(spikes, 2) % for each possible spike (format: time x spike)
+   
+   % Print progress
+   str = sprintf( '\tSorting spikes...\n' );
+   cprintf( 'Keywords', str );
+   
+   nS = size(spikes, 2);
+   prevProg = 1;
+   for si=1:nS % for each possible spike (format: time x spike)
+      % Print current percentage
+      if 10*floor(si/nS*10) ~= prevProg
+          fprintf( '\t%s is approx %d%% done\n', method, 10*floor(si/nS*10) );
+          prevProg = 10*floor(si/nS*10);
+      end
+      
       curr_spike = spikes(:,si);
       curr_stime = stimes{si};
       switch matchtype
@@ -204,9 +216,11 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
    
    % get rid of families with very few spikes
    for fi=1:length( APfamilies )
-      nf = cellfun( @(fam) size( fam.spikes,2 ), APfamilies{fi} );
-      toosmall = nf <= params.min_spiking_threshold.value; 
-      APfamilies{fi}(toosmall) = [];
+      if ~isempty(APfamilies{fi})
+          nf = cellfun( @(fam) size( fam.spikes,2 ), APfamilies{fi} );
+          toosmall = nf <= params.min_spiking_threshold.value; 
+          APfamilies{fi}(toosmall) = [];
+      end
    end
    % get rid of empty families, just in case they snuck in there!
    nf = cellfun( @length, APfamilies );

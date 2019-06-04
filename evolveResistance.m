@@ -1,4 +1,8 @@
-% new_particles = evolveParticles(Rcoeff, Rsig, time) 
+% new_particles = evolveResistance(pf,old_particles,Rcoeff, Rsig, time) 
+% (The first two parameters are necessary for MATLAB's ParticleFilter. 
+%  MATLAB calls the pf.StateTransitionFcn, in this case @evolveResistance
+%  with at least 2 parameters: 
+%  stateTransitionFcn(pf,prevParticles,varargin))
 %
 % This evolves current state particles at time t, to state particles at 
 % time t+1. So, 
@@ -41,15 +45,10 @@ function new_particles = evolveResistance(pf, old_particles, Rcoeff, R, time, np
       new_particles = Rcoeff(end) * (time(end)-time(end-1)) + old_particles;
 
     else
+      X = makeRecursiveLeastSquaresMatrix( time, R, min(length(R),length(time)), npoles, nzeros );
       % estimate current resistance based on linear regression model & current
       % states of lagged resistance
 
-      % can make VAR matrix & calculate contribution from time input &
-      % lagged resistance all in one go (uncomment line below to do this)
-      % X = makeRecursiveLeastSquaresMatrix( time, R, min(length(R),length(time)), npoles, nzeros );
-
-      %%% OR %%%
-      
       % separate into regression matrix for input & autoregression matrix from
       % state variables (i.e. particles)
 
@@ -62,10 +61,11 @@ function new_particles = evolveResistance(pf, old_particles, Rcoeff, R, time, np
       a = Rcoeff(2:npoles+1);
       new_particles = input + old_particles(:,2:end) * a(:);
 
+      % now shift old particles along so we're keeping current plus na past
+      % timesteps, where 1st column is most recent timestep
+
    end
 
-   % now shift old particles along so we're keeping current plus na past
-   % timesteps, where 1st column is most recent timestep
    new_particles = [new_particles old_particles(:, 1:end-1)]; 
    
 end

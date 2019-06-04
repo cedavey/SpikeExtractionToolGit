@@ -33,16 +33,20 @@ function [voltage, time] = truncateVoltage(voltage, time)
     else
        maxT = time(end);
        maxN = length(time);
+       dt   = time(2) - time(1);
        switch truncate.type % index value
           case 1 % time
-             dt   = time(2) - time(1);
-             sInd = ternaryOp(0<truncate.min && truncate.min<maxT, round(truncate.min / dt), 1);
-             eInd = ternaryOp(0<truncate.max && truncate.max<maxT, round(truncate.max / dt), maxN);
+             sInd = ternaryOp(0<truncate.min && truncate.min<maxT, round(truncate.min/dt), 1);
+             eInd = ternaryOp(0<truncate.max && truncate.max<maxT, round(truncate.max/dt), maxN);
           case 2 % samples
              sInd = ternaryOp(0<truncate.min && truncate.min<maxN, round(truncate.min), 1);
              eInd = ternaryOp(0<truncate.max && truncate.max<maxN, round(truncate.max), maxN);
        end
        voltage = voltage(sInd:eInd);
-       time    = time(sInd:eInd);
+       % time    = time(sInd:eInd); % This line was creating an error,
+       % because the data had a new length, hence the initial sample for
+       % truncated data had to be updated to 1.
+       time    = time(1:length(voltage));
+       fprintf( "\tThe data was truncated from time %.2f to %.2f. It is, however, plotted from 0 s.\n\tAdd %.2f s if you want to know the time of original signal.\n", sInd*dt, eInd*dt, sInd*dt);
     end
 end
