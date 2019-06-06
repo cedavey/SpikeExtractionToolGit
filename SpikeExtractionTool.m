@@ -138,7 +138,7 @@ function varargout = SpikeExtractionTool(varargin)
 
 % Edit the above text to modify the response to help SpikeExtractionTool
 
-% Last Modified by GUIDE v2.5 06-Jun-2019 15:00:16
+% Last Modified by GUIDE v2.5 08-Nov-2018 18:55:15
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -1664,17 +1664,4 @@ end
 % no matter what happens with those goddam m.f. gui's, delete this one
 delete(gcf);
 
-end
-
-
-% --- Executes on scroll wheel click while the figure is in focus.
-function figure1_WindowScrollWheelFcn(hObject, eventdata, handles)
-% hObject    handle to figure1 (see GCBO)
-% eventdata  structure with the following fields (see MATLAB.UI.FIGURE)
-%	VerticalScrollCount: signed integer indicating direction and number of clicks
-%	VerticalScrollAmount: number of lines scrolled for each click
-% handles    structure with handles and user data (see GUIDATA)
-
-% Mouse pointer back to normal.
-set(handles.figure1, 'pointer', 'arrow')
 end

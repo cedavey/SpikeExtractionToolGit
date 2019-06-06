@@ -12,6 +12,8 @@
 %  templateN - number of samples in the template spike (optional)
 %  peakN     - the peak index of the template spike to allow alignment (optional)
 function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, templateN, peakN)
+%% TO DO: 
+%  - change from aligning at peak indices to aligning at maximal mutual info
    spikes = []; stimes = [];
    dt         = double( tseries.dt );
    voltage    = double( tseries.data(:) );

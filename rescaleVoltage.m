@@ -55,7 +55,7 @@ function peakfn = getPeakFn( select_peaks )
    end
 end
 
-function [vrescale, Rest_interpol, tpeak_vec] = rescaleVoltageRecursive(tseries, params, method, progress_window)
+function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, params, method, progress_window)
    voltoutlier  = params.voltage_magnitude.value;
    glitchthresh = params.glitch_magnitude.value;
    select_peaks = params.select_peaks.value;
@@ -127,7 +127,6 @@ function [vrescale, Rest_interpol, tpeak_vec] = rescaleVoltageRecursive(tseries,
    tstartpiece = 0;     % time the current linear piece started (time shift each to 0)
    timeinpiece = 0;     % counts number of samples in linear regression piece
    numpieces   = 1;     % number of pieces in piecewise linear regression
-   vrescale = zeros(size(v));
 
    % go through timeseries, extract voltage peaks & update resistance
    nP = 0;              % num voltage/spike peaks we've processed so far
@@ -171,7 +170,6 @@ function [vrescale, Rest_interpol, tpeak_vec] = rescaleVoltageRecursive(tseries,
       noisethreshprev= noisethresh;  % keep last thresh so we keep spike we stopped at
       noisethresh    = voltoutlier * noisesig;
 
-      rscltstart = prevt; % Save the previous time one more time. This var will be used for the realtime rescaling
       % set prev time pt to curr time pt, & advance current time pt to end of spike
       prevt = currt;
       [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
@@ -342,8 +340,8 @@ function [vrescale, Rest_interpol, tpeak_vec] = rescaleVoltageRecursive(tseries,
       else % still getting init samples of Rest to enable modelling
          Rest_vec(nP,1) = Rest(end);
       end
-      
       % update vectors
+
       if contains( debug, 'semi', 'ignorecase', true )
          vstd_vec(nP,1)   = vstd;
          noise_vec(nP,1)  = noisesig;
@@ -356,26 +354,6 @@ function [vrescale, Rest_interpol, tpeak_vec] = rescaleVoltageRecursive(tseries,
          if ~strcmpi( strip(lower( method )), 'recursive mean' )
             Rcoeff_vec(nP,:) = Rcoeff;
          end
-      end
-      % Rescale in semi-real time (every JA). If using it to rescale in
-      % semi-real time, we need to save all the Rest_vec and tpeak_vec in
-      % order to plot.
-      if ~exist('Rest_all', 'var'), Rest_interpol = []; end
-      rscltend = currt;
-      if rscltend > length(time), rscltend = length(time); end
-      if numel(tpeak_vec) > 1 
-         Rest_vec_realtime = Rest_vec(end -1 : end);
-         tpeak_vec_realtime = tpeak_vec(end -1 : end);
-         rscltstart = find(time == tpeak_vec(end-1),1,'first');
-      else
-         Rest_vec_realtime = Rest_vec;
-         tpeak_vec_realtime = tpeak_vec;
-      end
-      [vv, Rest_vec_realtime, Rest_interpol, tpeak_vec_realtime] = doRescale(v( rscltstart:rscltend ), tpeak_vec_realtime, Rest_vec_realtime, time( rscltstart:rscltend ), Rest_interpol);
-      vrescale(rscltstart:rscltend) = vv;
-      if strcmp('full',debug)
-         figure(1); plot(time, vrescale);
-         xlim([time(1) time(rscltend)]);
       end
    end
    % Close progress window
@@ -436,47 +414,23 @@ function [vrescale, Rest_interpol, tpeak_vec] = rescaleVoltageRecursive(tseries,
       if numel(tpeak_vec) > 1, xlim( [ tpeak_vec(1) tpeak_vec(end) ] );end
    end
 
-   % Moved this bit of code to function 'doRescale' so we can use the
-   % function recursively and rescale in semi-real time (every JA).
-   % If using it to rescale in semi-real time, we need to save all the
-   % Rest_vec and tpeak_vec in order to plot.
-%    [vrescale, ~, Rest_vec, ~] = doRescale(v, tpeak_vec, Rest_vec, time, []);
+   % interp doesn't like going outside the input timebounds, so pad Rest
+   % with end results & pad time to avoid getting NaNs (changes slowly so ok)
+   if tpeak_vec(1) > time(1)
+      tpeak_vec = [time(1); tpeak_vec(:)];
+      Rest_vec  = [Rinit; Rest_vec(:)];
+   end
+   if tpeak_vec(end) < time(end)
+      tpeak_vec = [tpeak_vec(:); time(end)];
+      Rest_vec  = [Rest_vec(:); Rest_vec(end)];
+   end
+   Rest_vec  = interp1( tpeak_vec, Rest_vec, time );
+   vrescale  = v(:) ./ Rest_vec(:);
 
    tnow = datetime('now');
    str = sprintf("\tFinished rescaling at %s\n", datestr(tnow));
    cprintf( 'Keywords', str);
 
-end
-
-% Actually performs the voltage rescaling. The function can be called at the
-% end of the resistance estimation or every period, e.g. every jump ahead.
-%
-% Inputs:
-%  v        - the original voltage or section to be rescaled
-%  Rest_vec - resistance estimate
-% Outputs:
-%  vrescale - rescaled voltage
-function [vrescale, Rest_vec_realtime, Rest_interpol, tpeak_vec_realtime] = doRescale(v, tpeak_vec_realtime, Rest_vec_realtime, time, Rest_interpol)
-   % interp doesn't like going outside the input timebounds, so pad Rest
-   % with end results & pad time to avoid getting NaNs (changes slowly so ok)
-   if tpeak_vec_realtime(1) > time(1)
-      tpeak_vec_realtime = [time(1); tpeak_vec_realtime(:)];
-      Rest_vec_realtime  = [Rest_vec_realtime(1); Rest_vec_realtime(:)];
-   end
-   if tpeak_vec_realtime(end) < time(end)
-      tpeak_vec_realtime = [tpeak_vec_realtime(:); time(end)];
-      Rest_vec_realtime  = [Rest_vec_realtime(:); Rest_vec_realtime(end)];
-   end
-   
-   zidx = tpeak_vec_realtime == 0;
-   tpeak_vec_realtime(zidx) = [];
-   Rest_vec_realtime(zidx) = [];
-   
-   Rest_interpol = [Rest_interpol Rest_vec_realtime];
-   Rest_vec_realtime  = interp1( tpeak_vec_realtime, Rest_vec_realtime, time );
-   vrescale  = v(:) ./ Rest_vec_realtime(:);
-   tpeak_vec_realtime = tpeak_vec_realtime(end);
-   Rest_vec_realtime = Rest_vec_realtime(end);
 end
 
 % Get the current spike. Or current bundle of samples that begins with a
@@ -540,6 +494,16 @@ function too_short = isSpikeTooShort(vsp, peakfn, min_pos_time, min_neg_time)
    % 0's than the desired length of the valley (negative part of the
    % spike)
    too_short = (sum(posv(stidx:endidx)) < pos_time) || (sum(~posv(stidx:endidx)) < neg_time);
+%    if too_short
+%       tooShortFig = findall(0,'type','figure','Name','Too Short');
+%       if ~isempty(tooShortFig)
+%          figure(tooShortFig.Number);
+%       else
+%          figure('Name','Too Short');
+%          hold;
+%       end
+%       plot(vsp(stidx:endidx));   
+%    end
 end
 
 % loop through noise & update mean & mse recursively
@@ -884,7 +848,7 @@ function [noisemu, noisesig, nS, noiseVector] = initNoiseStdDev(v, varargin)
       % noise, then the while loop will stop here. We haven't updated nS.
    end
 
-   if strcmp('full', debug)
+   if ~strcmp('none', debug)
       figure('Name', 'Time series white noise initial period');
       plot(v(firstS : firstS + nS));
       drawnow;
