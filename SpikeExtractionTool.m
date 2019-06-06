@@ -713,7 +713,7 @@ catch E
    set(handles.figure1, 'pointer', 'arrow');
    rethrow(E);
 end
-% If an error, mouse pointer back to normal.
+% Mouse pointer back to normal.
 set(handles.figure1, 'pointer', 'arrow');
 end
 

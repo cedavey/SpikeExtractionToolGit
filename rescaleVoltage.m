@@ -18,7 +18,7 @@
 % calcuting new mean & std & weighting by num samples
 function [rescaled_voltage, Rest] = rescaleVoltage(tseries, method, params)
    % methods: 'Variance', 'Particle filter', 'Recursive least squares', 'Recursive mean'
-   progress_window = false; % If true, create a waitbar window
+   progress_window = true; % If true, create a waitbar window
    switch lower(method)
       case 'variance'
          rescaled_voltage = rescaleVoltageVariance(tseries, params);
@@ -90,8 +90,10 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
 
    jumpahead = round( jumpahead / dt ); % convert jump ahead from time into samples
 
+   debug       = 'semi'; % 'none', 'semi', 'full'
+
    % Initialise
-   [noisemu, noisesig]   = initNoiseStdDev(v);      % init noise std to identify spikes
+   [noisemu, noisesig, initialNoiseSamples]   = initNoiseStdDev(v, debug);      % init noise std to identify spikes
    [vspike,  tspike]     = initSpikes(time, dt, peakfn(v), noisesig*voltoutlier, peakfn, glitchthresh * noisesig, jumpahead); % identify initial spikes
    [Rest, Rcoeff, Rmu, Rstd, Rcov] = initRegress(tspike-tspike(1), vspike, lambda, npoles, nzeros); % est init resistance
    a = Rcoeff(2:npoles+1); b = [Rcoeff(1) Rcoeff(npoles+2:end)];
@@ -108,12 +110,10 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
    % Adaptive regression:
    % - update regression coefficients for R at each timestep
 
-   debug       = 'semi'; % 'none', 'semi', 'full'
-
    % tracking noise mean, mse & num samples
    noisethresh = voltoutlier * noisesig;
    noisemse    = noisesig^2;
-   noiseN      = 1;
+   noiseN      = 1; % Used to be 1. Changed to the actual length of the initial white noise (initNoiseStdDev)
 
    lambda      = ternaryOp( lambda==1, 1-dt, lambda ); % make lambda 1 timestep less than 1
    R_prob      = 0.01;
@@ -131,13 +131,15 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
    % go through timeseries, extract voltage peaks & update resistance
    nP = 0;              % num voltage/spike peaks we've processed so far
    % Create new progress window
-   if progress_window, waitbar_handles = waitbar(0, [method ' is 0% done'],'Name','rescaleVoltage - close me to stop');end
+   if progress_window, waitbar_handles = waitbar(0,...
+         [method ' is 0% done'],'Name','rescaleVoltage - close me to stop');end
    prevProg = 1; % Previous progress, start with 1 because it's the first loop. It will be updated every 10 percent
    while currt < nT
       % Update Progress window
       if progress_window
          try
-            waitbar_handles = waitbar(currt/nT, waitbar_handles, [method ' is ', num2str(round( currt/nT*100 )), '% done']);
+            waitbar_handles = waitbar(currt/nT, waitbar_handles,...
+               [method ' is ', num2str(round( currt/nT*100 )), '% done']);
          catch
             delete(waitbar_handles);
             fprintf(2,['The process has been manually stopped on time: ',num2str(currt*dt),' seconds.\n']);
@@ -171,14 +173,16 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
       % set prev time pt to curr time pt, & advance current time pt to end of spike
       prevt = currt;
       [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
-      % Check three flags: no_glitch, no_noise and not_too_short
-      no_glitch = false;
-      no_noise = false;
-      not_too_short = false;
+      % Flag to re-check spike is within thresholds and it is not too short
+      confirm_is_spike = true;
       % This has to be checked in a loop cause when one of them happens, the
       % current spike is updated to the next spike, so thresholds and
       % duration have to be checked again.
-      while ~(no_glitch && no_noise && not_too_short)
+      while confirm_is_spike
+         % Make it false straight away, so it will only reenter here if the
+         % spike was too short. Meaning a new spike was chosen and it still
+         % needs to check for glitch.
+         confirm_is_spike = false;
          % if this peak is crazy big assume it's a glitch so move to next spike
          while max( peakfn(vsp) ) > glitchthresh * noisesig
             % move on to next large amplitude event
@@ -190,12 +194,7 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
             end
             prevt   = currt + startsp - 1; % update current time to where next spike is
             [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
-            % Make other 2 flags false so it checks for the next chosen
-            % spike
-            no_noise = false; %#ok<NASGU>
-            not_too_short = false; %#ok<NASGU>
          end
-         no_glitch = true;
 
          % integrity check - if no peaks in current spike jump ahead a bit & try again
          % - this can happen because we've updated noise stats between when we found
@@ -211,16 +210,13 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
             end
             % get next spike
             [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
-            no_glitch = false;
-            not_too_short = false; %#ok<NASGU>
          end
-         no_noise = true;
 
          % Check for + and - duration of peak to assess wether it should be
          % considered a spike.
          min_pos_time = 5; % Samples. We can make it a user chosen parameter
          min_neg_time = 5; % Samples. We can make it a user chosen parameter
-         sp_too_short = getSpikeDuration(vsp, peakfn, min_pos_time, min_neg_time);
+         sp_too_short = isSpikeTooShort(vsp, peakfn, min_pos_time, min_neg_time);
          while sp_too_short
             % move on to next large amplitude event
             startsp = find( peakfn(v( currt:end) ) >= noisethresh, 1, 'first' );
@@ -231,11 +227,9 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
             end
             prevt   = currt + startsp - 1; % update current time to where next spike is
             [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
-            no_noise = false;
-            no_glitch = false;
-            sp_too_short = getSpikeDuration(vsp, peakfn, min_pos_time, min_neg_time);
+            sp_too_short = isSpikeTooShort(vsp, peakfn, min_pos_time, min_neg_time);
+            confirm_is_spike = true; % So it will re-enter the while loop and check for glitch thresholds again.
          end
-         not_too_short = true;
       end
 
       % if we're here & time is invalid then we're at the end of the signal
@@ -437,169 +431,7 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
    str = sprintf("\tFinished rescaling at %s\n", datestr(tnow));
    cprintf( 'Keywords', str);
 
-   end
-
-   function plotVoltageSigma(tseries, params)
-   % voltage_prob = params.voltage_prob.value;
-   % inclneg      = params.include_neg_peaks.value;
-   % lambda       = params.forgetting_factor.value;
-
-   voltoutlier  = params.voltage_magnitude.value;
-   glitchthresh = params.glitch_magnitude.value;
-   select_peaks = params.select_peaks.value;
-   lambda       = params.forgetting_factor.value;
-   % select just positive peaks, just negative, or both
-   peakfn       = getPeakFn( select_peaks );
-   % % get prob of voltage assuming unit std dev, & scale by noise std dev later
-   % if inclneg
-   %   voltoutlier  = norminv( 1 - voltage_prob/2, 0, 1 ); % will multiply by std dev later
-   % else
-   %   voltoutlier  = norminv( 1 - voltage_prob, 0, 1 ); % will multiply by std dev later
-   % end
-   % extract time details - lambda is a forgetting factor; 1 --> normal
-   % mean calculation, 0 --> last sample is the estimate, & somewhere in
-   % between gives a recursive update, usually it should be set to ~0.9.
-   time   = tseries.time;
-   dt     = tseries.dt;
-   v      = double( tseries.data );
-   nT     = length(v);
-   npoles = 0;     % number of poles in AR model of resistance coeff
-   nzeros = 2;     % includes the dc component
-   nlags  = max(nzeros, npoles+1);
-
-   % Initialise
-   [noisemu, noisesig]   = initNoiseStdDev(v);      % init noise std to identify spikes
-   [vspike,  tspike]     = initSpikes(time, dt, peakfn(v), noisesig*voltoutlier, peakfn, glitchthresh * noisesig); % identify initial spikes
-
-
-   debug       = 'semi'; % 'none', 'semi', 'full'
-
-   % tracking noise mean, mse & num samples
-   noisethresh = voltoutlier * noisesig;
-   noisemse    = noisesig;
-   noiseN      = 1;
-
-   lambda      = ternaryOp( lambda==1, 1-dt, lambda ); % make lambda 1 timestep less than 1
-   R_prob      = 0.01;
-   jumpahead   = 5e4; % 5e2; % 5e3; % 24;
-   remsamp     = nT;
-   currt       = 1;
-   vpeak_vec   = [];    % list of all voltage peaks
-   tpeak_vec   = [];    % list of time each voltage peak occurred
-   avgpeaks    = 20;    % number of peaks to use when new piece of piecewise regression
-   timeinpiece = 0;     % number of samples in linear regression piece
-   tstartpiece = 0;     % time the current linear piece started
-   numpieces   = 1;     % number of pieces in piecewise linear regression
-
-
-   tnow = datetime('now');
-   str = sprintf("Started plotting sigma, spikethresh %i, glitchthresh %i at %s\n", voltoutlier, glitchthresh, datestr(tnow));
-   cprintf( 'Keywords', str)
-
-
-   % go through timeseries, extract voltage peaks & update resistance
-   nP = 0;              % num voltage/spike peaks we've processed so far
-   while currt < nT
-      if mod( nP, 1e3 ) == 0
-         fprintf( '\tPS is approx %d%% done\n', round( currt/nT*100 ) );
-      end
-      % find where noise ends - update est of noise mean & std dev
-      startsp = find( peakfn(v( currt:end) ) >= noisethresh, 1, 'first' );
-      % no more peaks left in timeseries so exit loop
-      if isempty( startsp )
-         break;
-      end
-      prevt  = currt;               % copy current time before it's updated
-      currt  = currt + startsp - 1; % update current time to where next spike is
-      % if start of spike is 1st index then prevt==currt & we get stuck
-      currt  = ternaryOp( prevt==currt, currt+1, currt );
-
-      % update noise mean & variance estimate - keep track of mean
-      % because noise has subthreshold spikes so mean may not be 0
-      noise = v(prevt:currt-1);
-      [noisemu, noisesig, noisemse, noiseN] = updateNoiseStats(noise, noisemu, noisesig, noisemse, noiseN, lambda);
-      noisethreshprev= noisethresh;  % keep last thresh so we keep spike we stopped at
-      noisethresh    = voltoutlier * noisesig;
-
-      % set prev time pt to curr time pt, & advance current time pt to end of spike
-      prevt = currt;
-      [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
-      % if this peak is crazy big assume it's a glitch so move to next spike
-      while max( peakfn(vsp) ) > glitchthresh * noisesig
-         % move on to next large amplitude event
-         startsp = find( peakfn(v( currt:end) ) >= noisethresh, 1, 'first' );
-         % no more peaks left in timeseries so exit loop
-         if isempty( startsp )
-            currt = prevt;
-            break;
-         end
-         prevt   = currt + startsp - 1; % update current time to where next spike is
-         [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
-      end
-
-      % integrity check - if no peaks in current spike jump ahead a bit & try again
-      % - this can happen because we've updated noise stats between when we found
-      %   the current spike by its amp being greater than noise, and here
-      while max( peakfn(vsp) ) < noisethresh
-         % find where noise ends
-         startsp = find( peakfn(v( currt:end) ) >= noisethresh, 1, 'first' );
-         prevt   = currt + startsp - 1; % update current time to where next spike is
-         % no more peaks left in timeseries so exit loop
-         if isempty( startsp )
-            currt = prevt;
-            break;
-         end
-         % get next spike
-         [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
-      end
-
-      prevpeaks   = min( avgpeaks, max(1,nP-1) ); % num peaks for avg's & std's
-      [vpeak,pind]= max( peakfn(vsp) );   % get index of peak
-      tpeak = prevt + pind - 1;           % get time ind of peak
-      nP    = nP + 1;
-
-      vpeak_vec(nP,1) = vpeak;
-      tpeak_vec(nP,1) = time(tpeak);
-
-      % if we have at least 2 voltage peaks, update state estimate
-      if length( tpeak_vec ) > (nlags+1)
-         timeinpiece = timeinpiece + 1;
-      end
-
-
-      % start a new piece of piecewise regression if prob of
-      % obtaining voltage peak from resistance is very small, plus
-      % the recent run of peak values is not white, indicating
-      % a slow drift and the need for a new regression piece (as
-      % opposed to a single large resistance value)
-
-      % update vectors
-
-      if contains( debug, 'semi', 'ignorecase', true )
-         noise_vec(nP,1)  = noisesig;
-      end
-
-   end
-
-   if ~contains( debug, 'no', 'ignorecase', true )
-      figure;
-      subplot(221), hold on;
-      plot(time,v);
-      plot(tpeak_vec, noise_vec * glitchthresh, 'r');
-      plot(tpeak_vec, noise_vec * voltoutlier, 'g');
-      subplot(223)
-      plot(tpeak_vec, noise_vec);
-      title('Noise \sigma');
-
-   end
-
-   tnow = datetime('now');
-   str = sprintf("Finished plotting sigma at %s\n", datestr(tnow));
-   cprintf( 'Keywords', str);
-
-
 end
-
 
 % Get the current spike. Or current bundle of samples that begins with a
 % sample greater than the noise threshold. Get at least 'jumpahead'
@@ -645,7 +477,7 @@ end
 %   peakfn    - peak function
 % Outputs:
 %   too_short - flag is true if spike is too short on either sign (+ or -)
-function too_short = getSpikeDuration(vsp, peakfn, min_pos_time, min_neg_time)
+function too_short = isSpikeTooShort(vsp, peakfn, min_pos_time, min_neg_time)
    pos_time = min_pos_time;
    neg_time = min_neg_time;
 
@@ -662,13 +494,42 @@ function too_short = getSpikeDuration(vsp, peakfn, min_pos_time, min_neg_time)
    % 0's than the desired length of the valley (negative part of the
    % spike)
    too_short = (sum(posv(stidx:endidx)) < pos_time) || (sum(~posv(stidx:endidx)) < neg_time);
-   if too_short
-      figure; plot(vsp(stidx:endidx));
-   end
+%    if too_short
+%       tooShortFig = findall(0,'type','figure','Name','Too Short');
+%       if ~isempty(tooShortFig)
+%          figure(tooShortFig.Number);
+%       else
+%          figure('Name','Too Short');
+%          hold;
+%       end
+%       plot(vsp(stidx:endidx));   
+%    end
 end
 
 % loop through noise & update mean & mse recursively
 function [mu_curr, sig_curr, mse_curr, N_curr] = updateNoiseStats(new_noise, mu_prev, sig_prev, mse_prev, N_prev, lambda)
+   % Check if "new_noise" is actually white noise, adjust the length of the
+   % samples like we did in initNoiseStdDev (actually using same function).
+   % If can't find at least 100 samples (or the length of the new_noise
+   % signal), then use the whole new_noise. See what to do in that case.
+   %{
+   try
+      [mu_curr, sig_curr, NN, nn] = initNoiseStdDev(new_noise, 'none');
+      % If it didn't trigger the catch statement:
+      new_noise = nn;
+      N_curr = NN;
+   catch E
+      if contains(E.message, 'find a single white period')
+         % It means it didn't find 100 samples (or whatever number) of
+         % white noise. If it came here, we will not care and just treat
+         % the whole signal new_noise as if it was actual noise.
+         N_curr = length(new_noise);
+      else
+         rethrow(E);
+      end
+   end
+   %}
+   
    recursive = false;
    N_curr    = N_prev + length( new_noise );
 
@@ -688,7 +549,6 @@ function [mu_curr, sig_curr, mse_curr, N_curr] = updateNoiseStats(new_noise, mu_
          sig_prev = sqrt(var_curr);
          mse_prev = mse_curr;
       end
-
    else
       % normal mean/sig estimates in real time
       mu_curr  = ( mu_prev * N_prev + sum( new_noise ) ) / N_curr;
@@ -917,33 +777,87 @@ function [vspike, tspike] = initSpikes(time, dt, v, noiseoutlier, peakfn, glitch
    %       tspike(ns)  = time( starttime + i );
    %       starttime = endtime + 1;
    %    end
+end
 
 
-   end
-
-
-   % initialise our estimate of noise std dev - assumes amplitudes change
-   % slowly so that initial samples will be stationary, so just search for the
-   % longest subset of samples that are white, & estimate noise from that
-   function [noisemu, noisesig] = initNoiseStdDev(v)
+% initialise our estimate of noise std dev - assumes amplitudes change
+% slowly so that initial samples will be stationary, so just search for the
+% longest subset of samples that are white, & estimate noise from that
+%
+% Inputs:
+%  v     -  input voltage vector (whatever number of samples of a recording)
+%  debug -  (optional) if true, prints the number of samples considered for
+%           the white noise. It also plots the white noise section.
+% Outputs:
+%  noisemu - Mean of the noise
+%  noisesig - standard deviation of the noise
+%  nS - Number of samples found to be white noise
+%  noiseVector - Returns the actual vector found to be white noise
+%
+% Last modified - Artemio 05-Jun-2019
+function [noisemu, noisesig, nS, noiseVector] = initNoiseStdDev(v, varargin)
    % get initial noise estimate by finding a white time series at the
    % beginning of the voltage timeseries
-   nS   = min(1e4, length(v)); % num init samples to use
-   vtmp = v(1:nS);
+   if numel(varargin) > 0, debug = varargin{1}; else, debug = 'semi'; end
+      
+   nS = min(100, (length(v) - 1)); % Initial num of samples
+   firstS = 1; % Subset starts at this sample
+   vtmp = v(firstS : firstS + nS);
+   
+   if numel(vtmp) == 1
+      % input only has 1 sample. Can't check if it's white noise.
+      noisemu = vtmp;
+      noisesig = 0;
+      nS = 1;
+      noiseVector = vtmp;
+      return
+   end
+   
    while ~iswhite(vtmp)
-      % keep halving number of samples until we get only white samples at
-      % the beginning, if we can't find a white subset of samples then just
-      % return the first 50
-      % Check if 50 is the right number to use. I tried 20 and it didn't work
-      nS = ceil( nS/2 );
-      if nS < 50
-         nS = 50;
+      % Start with a short number of samples (i.e. 30), if it doesn't
+      % evaluate as not-white, shift the window 30 samples ahead.
+      firstS = firstS + nS;
+      try
+         vtmp = v(firstS : firstS + nS);
+      catch E
+         if contains(lower(E.message), 'index exceeds the number of array elements')
+            error(['Couldn''t find a single white period of ' num2str(nS) ' continuous samples in the recording.'])
+         else
+            rethrow(E);
+         end
+      end
+   end
+
+   % If it is white noise, double the number of samples to get the highest
+   % possible number of samples that are white noise.
+   nSdouble = nS;
+   while iswhite(vtmp)
+      % If it reached this point, it means that doubling the samples in the
+      % previous loop worked and the timeseries kept being white noise,
+      % hence it is safe to update nS.
+      nS = nSdouble;
+      nSdouble = nS * 2; % Doubling the samples to test if still white
+      if firstS + nSdouble > length(v)
+         % If doubling the samples exceeds the size of the time series,
+         % stop here. nS hasn't been updated, so it's fine.
          break;
       end
-      vtmp = vtmp(1:nS);
+      vtmp = v(firstS : firstS + nSdouble);
+      % If vtmp with double samples is still white noise, the while loop
+      % will continue and we'll update nS. If the new vtmp is not white
+      % noise, then the while loop will stop here. We haven't updated nS.
    end
-   noisesig =  std( vtmp(1:nS) );
-   noisemu  = mean( vtmp(1:nS) );
+
+   if ~strcmp('none', debug)
+      figure('Name', 'Time series white noise initial period');
+      plot(v(firstS : firstS + nS));
+      drawnow;
+      fprintf('\tWhite noise initialization included %d samples, starting in sample number %d \n', nS, firstS);
+   end
+
+   noisesig =  std( v(firstS : firstS + nS) );
+   noisemu  = mean( v(firstS : firstS + nS) );
+   noiseVector = v(firstS : firstS + nS);
 end
 
 function rescaled_voltage = rescaleVoltageVariance(tseries, params)
@@ -1037,5 +951,165 @@ function rescaled_voltage = rescaleVoltageVariance(tseries, params)
       % rescale voltage using sigma
       rescaled_voltage = tseries.data ./ sig_ma;
    end
+end
 
+%%
+function plotVoltageSigma(tseries, params)
+
+   % voltage_prob = params.voltage_prob.value;
+   % inclneg      = params.include_neg_peaks.value;
+   % lambda       = params.forgetting_factor.value;
+
+   voltoutlier  = params.voltage_magnitude.value;
+   glitchthresh = params.glitch_magnitude.value;
+   select_peaks = params.select_peaks.value;
+   lambda       = params.forgetting_factor.value;
+   % select just positive peaks, just negative, or both
+   peakfn       = getPeakFn( select_peaks );
+   % % get prob of voltage assuming unit std dev, & scale by noise std dev later
+   % if inclneg
+   %   voltoutlier  = norminv( 1 - voltage_prob/2, 0, 1 ); % will multiply by std dev later
+   % else
+   %   voltoutlier  = norminv( 1 - voltage_prob, 0, 1 ); % will multiply by std dev later
+   % end
+   % extract time details - lambda is a forgetting factor; 1 --> normal
+   % mean calculation, 0 --> last sample is the estimate, & somewhere in
+   % between gives a recursive update, usually it should be set to ~0.9.
+   time   = tseries.time;
+   dt     = tseries.dt;
+   v      = double( tseries.data );
+   nT     = length(v);
+   npoles = 0;     % number of poles in AR model of resistance coeff
+   nzeros = 2;     % includes the dc component
+   nlags  = max(nzeros, npoles+1);
+
+   % Initialise
+   [noisemu, noisesig]   = initNoiseStdDev(v);      % init noise std to identify spikes
+   [vspike,  tspike]     = initSpikes(time, dt, peakfn(v), noisesig*voltoutlier, peakfn, glitchthresh * noisesig); % identify initial spikes
+
+
+   debug       = 'semi'; % 'none', 'semi', 'full'
+
+   % tracking noise mean, mse & num samples
+   noisethresh = voltoutlier * noisesig;
+   noisemse    = noisesig;
+   noiseN      = 1;
+
+   lambda      = ternaryOp( lambda==1, 1-dt, lambda ); % make lambda 1 timestep less than 1
+   R_prob      = 0.01;
+   jumpahead   = 5e4; % 5e2; % 5e3; % 24;
+   remsamp     = nT;
+   currt       = 1;
+   vpeak_vec   = [];    % list of all voltage peaks
+   tpeak_vec   = [];    % list of time each voltage peak occurred
+   avgpeaks    = 20;    % number of peaks to use when new piece of piecewise regression
+   timeinpiece = 0;     % number of samples in linear regression piece
+   tstartpiece = 0;     % time the current linear piece started
+   numpieces   = 1;     % number of pieces in piecewise linear regression
+
+
+   tnow = datetime('now');
+   str = sprintf("Started plotting sigma, spikethresh %i, glitchthresh %i at %s\n", voltoutlier, glitchthresh, datestr(tnow));
+   cprintf( 'Keywords', str)
+
+
+   % go through timeseries, extract voltage peaks & update resistance
+   nP = 0;              % num voltage/spike peaks we've processed so far
+   while currt < nT
+      if mod( nP, 1e3 ) == 0
+         fprintf( '\tPS is approx %d%% done\n', round( currt/nT*100 ) );
+      end
+      % find where noise ends - update est of noise mean & std dev
+      startsp = find( peakfn(v( currt:end) ) >= noisethresh, 1, 'first' );
+      % no more peaks left in timeseries so exit loop
+      if isempty( startsp )
+         break;
+      end
+      prevt  = currt;               % copy current time before it's updated
+      currt  = currt + startsp - 1; % update current time to where next spike is
+      % if start of spike is 1st index then prevt==currt & we get stuck
+      currt  = ternaryOp( prevt==currt, currt+1, currt );
+
+      % update noise mean & variance estimate - keep track of mean
+      % because noise has subthreshold spikes so mean may not be 0
+      noise = v(prevt:currt-1);
+      [noisemu, noisesig, noisemse, noiseN] = updateNoiseStats(noise, noisemu, noisesig, noisemse, noiseN, lambda);
+      noisethreshprev= noisethresh;  % keep last thresh so we keep spike we stopped at
+      noisethresh    = voltoutlier * noisesig;
+
+      % set prev time pt to curr time pt, & advance current time pt to end of spike
+      prevt = currt;
+      [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
+      % if this peak is crazy big assume it's a glitch so move to next spike
+      while max( peakfn(vsp) ) > glitchthresh * noisesig
+         % move on to next large amplitude event
+         startsp = find( peakfn(v( currt:end) ) >= noisethresh, 1, 'first' );
+         % no more peaks left in timeseries so exit loop
+         if isempty( startsp )
+            currt = prevt;
+            break;
+         end
+         prevt   = currt + startsp - 1; % update current time to where next spike is
+         [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
+      end
+
+      % integrity check - if no peaks in current spike jump ahead a bit & try again
+      % - this can happen because we've updated noise stats between when we found
+      %   the current spike by its amp being greater than noise, and here
+      while max( peakfn(vsp) ) < noisethresh
+         % find where noise ends
+         startsp = find( peakfn(v( currt:end) ) >= noisethresh, 1, 'first' );
+         prevt   = currt + startsp - 1; % update current time to where next spike is
+         % no more peaks left in timeseries so exit loop
+         if isempty( startsp )
+            currt = prevt;
+            break;
+         end
+         % get next spike
+         [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
+      end
+
+      prevpeaks   = min( avgpeaks, max(1,nP-1) ); % num peaks for avg's & std's
+      [vpeak,pind]= max( peakfn(vsp) );   % get index of peak
+      tpeak = prevt + pind - 1;           % get time ind of peak
+      nP    = nP + 1;
+
+      vpeak_vec(nP,1) = vpeak;
+      tpeak_vec(nP,1) = time(tpeak);
+
+      % if we have at least 2 voltage peaks, update state estimate
+      if length( tpeak_vec ) > (nlags+1)
+         timeinpiece = timeinpiece + 1;
+      end
+
+
+      % start a new piece of piecewise regression if prob of
+      % obtaining voltage peak from resistance is very small, plus
+      % the recent run of peak values is not white, indicating
+      % a slow drift and the need for a new regression piece (as
+      % opposed to a single large resistance value)
+
+      % update vectors
+
+      if contains( debug, 'semi', 'ignorecase', true )
+         noise_vec(nP,1)  = noisesig;
+      end
+
+   end
+
+   if ~contains( debug, 'no', 'ignorecase', true )
+      figure;
+      subplot(221), hold on;
+      plot(time,v);
+      plot(tpeak_vec, noise_vec * glitchthresh, 'r');
+      plot(tpeak_vec, noise_vec * voltoutlier, 'g');
+      subplot(223)
+      plot(tpeak_vec, noise_vec);
+      title('Noise \sigma');
+
+   end
+
+   tnow = datetime('now');
+   str = sprintf("Finished plotting sigma at %s\n", datestr(tnow));
+   cprintf( 'Keywords', str);
 end
