@@ -55,7 +55,7 @@ function peakfn = getPeakFn( select_peaks )
    end
 end
 
-function [vrescale, Rest_interpol, tpeak_vec] = rescaleVoltageRecursive(tseries, params, method, progress_window)
+function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, params, method, progress_window)
    voltoutlier  = params.voltage_magnitude.value;
    glitchthresh = params.glitch_magnitude.value;
    select_peaks = params.select_peaks.value;
@@ -360,7 +360,7 @@ function [vrescale, Rest_interpol, tpeak_vec] = rescaleVoltageRecursive(tseries,
       % Rescale in semi-real time (every JA). If using it to rescale in
       % semi-real time, we need to save all the Rest_vec and tpeak_vec in
       % order to plot.
-      if ~exist('Rest_all', 'var'), Rest_interpol = []; end
+      if ~exist('Rest_interpol', 'var'), Rest_interpol = []; end
       rscltend = currt;
       if rscltend > length(time), rscltend = length(time); end
       if numel(tpeak_vec) > 1 
@@ -439,8 +439,19 @@ function [vrescale, Rest_interpol, tpeak_vec] = rescaleVoltageRecursive(tseries,
    % Moved this bit of code to function 'doRescale' so we can use the
    % function recursively and rescale in semi-real time (every JA).
    % If using it to rescale in semi-real time, we need to save all the
-   % Rest_vec and tpeak_vec in order to plot.
-%    [vrescale, ~, Rest_vec, ~] = doRescale(v, tpeak_vec, Rest_vec, time, []);
+   
+   %Need to restore Rest to return it properly.
+   % interp doesn't like going outside the input timebounds, so pad Rest
+   % with end results & pad time to avoid getting NaNs (changes slowly so ok)
+   if tpeak_vec(1) > time(1)
+       tpeak_vec = [time(1); tpeak_vec(:)];
+       Rest_vec  = [Rinit; Rest_vec(:)];
+   end
+   if tpeak_vec(end) < time(end)
+       tpeak_vec = [tpeak_vec(:); time(end)];
+       Rest_vec  = [Rest_vec(:); Rest_vec(end)];
+   end
+   Rest_vec  = interp1( tpeak_vec, Rest_vec, time );
 
    tnow = datetime('now');
    str = sprintf("\tFinished rescaling at %s\n", datestr(tnow));
@@ -472,8 +483,8 @@ function [vrescale, Rest_vec_realtime, Rest_interpol, tpeak_vec_realtime] = doRe
    tpeak_vec_realtime(zidx) = [];
    Rest_vec_realtime(zidx) = [];
    
-   Rest_interpol = [Rest_interpol Rest_vec_realtime];
    Rest_vec_realtime  = interp1( tpeak_vec_realtime, Rest_vec_realtime, time );
+   Rest_interpol = [Rest_interpol; Rest_vec_realtime];
    vrescale  = v(:) ./ Rest_vec_realtime(:);
    tpeak_vec_realtime = tpeak_vec_realtime(end);
    Rest_vec_realtime = Rest_vec_realtime(end);
