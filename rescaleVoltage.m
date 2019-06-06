@@ -438,7 +438,6 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
 
    % Moved this bit of code to function 'doRescale' so we can use the
    % function recursively and rescale in semi-real time (every JA).
-   % If using it to rescale in semi-real time, we need to save all the
    
    %Need to restore Rest to return it properly.
    % interp doesn't like going outside the input timebounds, so pad Rest
