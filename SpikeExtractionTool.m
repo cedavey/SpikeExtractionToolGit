@@ -138,7 +138,7 @@ function varargout = SpikeExtractionTool(varargin)
 
 % Edit the above text to modify the response to help SpikeExtractionTool
 
-% Last Modified by GUIDE v2.5 06-Jun-2019 15:00:16
+% Last Modified by GUIDE v2.5 07-Jun-2019 10:23:50
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -200,6 +200,10 @@ set(handles.figure1, 'CloseRequestFcn', @closeGUI);
 
 % from property inspector in guide, under WindowScrollWheelFcn
 % @(hObject,eventdata)SpikeExtractionTool('figure1_WindowScrollWheelFcn',hObject,eventdata,guidata(hObject))
+
+% Initialize options for debug and loading window
+handles.loadingWindowOn = true;
+handles.debugOption = 'semi';
 
 % Update handles structure
 guidata(hObject, handles);
@@ -737,7 +741,7 @@ switch lower(type)
       handles.data.curr_tool = get(handles.select_tool, 'Value');
       switch lower(tool)
          case 'rescale'
-            [voltage, Rest] = rescaleVoltage(tseries, method, method_params);
+            [voltage, Rest] = rescaleVoltage(tseries, method, method_params, handles.debugOption, handles.loadingWindowOn);
             if isempty(voltage)
                return;
             end
@@ -1677,4 +1681,75 @@ function figure1_WindowScrollWheelFcn(hObject, eventdata, handles)
 
 % Mouse pointer back to normal.
 set(handles.figure1, 'pointer', 'arrow')
+end
+
+%% Context menu options
+% --------------------------------------------------------------------
+function loadingWindow_Callback(hObject, eventdata, handles)
+% hObject    handle to loadingWindow (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+   if strcmp('on', hObject.Checked)
+      hObject.Checked = 'off';
+      handles.loadingWindowOn = false;
+   else
+      hObject.Checked = 'on';
+      handles.loadingWindowOn = true;
+   end
+   % Update handles structure
+   guidata(hObject, handles);
+end
+
+% --------------------------------------------------------------------
+function debugNone_Callback(hObject, eventdata, handles)
+% hObject    handle to debugNone (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+   if strcmp('off', hObject.Checked)
+      hObject.Checked = 'on';
+      handles.debugFull.Checked = 'off';
+      handles.debugFull.Enable = true;
+      handles.debugSemi.Checked = 'off';
+      handles.debugSemi.Enable = true;
+      handles.debugOption = 'none';
+      hObject.Enable = false;
+   end
+   % Update handles structure
+   guidata(hObject, handles);
+end
+
+% --------------------------------------------------------------------
+function debugSemi_Callback(hObject, eventdata, handles)
+% hObject    handle to debugSemi (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+   if strcmp('off', hObject.Checked)
+      hObject.Checked = 'on';
+      handles.debugFull.Checked = 'off';
+      handles.debugFull.Enable = true;
+      handles.debugNone.Checked = 'off';
+      handles.debugNone.Enable = true;
+      handles.debugOption = 'semi';
+      hObject.Enable = false;
+   end
+   % Update handles structure
+   guidata(hObject, handles);
+end
+
+% --------------------------------------------------------------------
+function debugFull_Callback(hObject, eventdata, handles)
+% hObject    handle to debugFull (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+   if strcmp('off', hObject.Checked)
+      hObject.Checked = 'on';
+      handles.debugSemi.Checked = 'off';
+      handles.debugSemi.Enable = true;
+      handles.debugNone.Checked = 'off';
+      handles.debugNone.Enable = true;
+      handles.debugOption = 'full';
+      hObject.Enable = false;
+   end   
+   % Update handles structure
+   guidata(hObject, handles);
 end
