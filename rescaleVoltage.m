@@ -161,7 +161,7 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
          break;
       end
       prevt  = currt;               % copy current time before it's updated
-      pprevt = [pprevt(end) prevt]; % This one doesn't get modified
+      pprevt = [pprevt(end) prevt]; 
       currt  = currt + startsp - 1; % update current time to where next spike is
       % if start of spike is 1st index then prevt==currt & we get stuck
       currt  = ternaryOp( prevt==currt, currt+1, currt );
@@ -360,46 +360,99 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
             Rcoeff_vec(nP,:) = Rcoeff;
          end
       end
+      
       % Rescale in semi-real time (every JA). If using it to rescale in
       % semi-real time, we need to save all the Rest_vec and tpeak_vec in
       % order to plot.
-      rscltstart = pprevt(1); % Beginning of the period of time to rescale in this loop
-      rscltend = pprevt(end); % End of the period of time to rescale in this loop
-      if rscltend > length(time), rscltend = length(time); end % Test if we've reached the end of the recording
-      if ~exist('Rest_interpol', 'var'), Rest_interpol = []; end
-      if numel(tpeak_vec) > 1 
-         Rest_vec_realtime = Rest_vec(end -1 : end); % Resistance estimate between the last two found largest spikes
-         tpeak_vec_realtime = tpeak_vec(end -1 : end); % Time of the two last found largest spikes
-      else
-         % If it is the first loop, then there is only 1 estimated
-         % resistance
-         Rest_vec_realtime = Rest_vec;
-         tpeak_vec_realtime = tpeak_vec;
-      end
-      [vv, ~, Rest_interpol, ~] = doRescale(v( rscltstart:rscltend ),...
-         tpeak_vec_realtime, Rest_vec_realtime,...
-         time( rscltstart:rscltend ), Rest_interpol);
-      vrescale(rscltstart:rscltend) = vv;
+      % Rescaling method options: Every JA, between the peaks, every
+      % sample, or at the end (original).
+      rescaling_method = 'peaks';
       
-      % Plot the last rescaled section. (If debug is full)
-      if strcmp('full',debug)
-         figure(1);
-         if numel(tpeak_vec) > 1 && currt < numel(v)
-            plot(time(rscltstart:rscltend), vrescale(rscltstart:rscltend));
-            hold(gca,'on');
-            plot(time(rscltend : currt), v(rscltend : currt),'g');
-            plot([time(find(time == tpeak_vec(end-1),1,'first')) time(find(time == tpeak_vec(end),1,'first'))],...
-               [v(find(time == tpeak_vec(end-1),1,'first')) v(find(time == tpeak_vec(end),1,'first'))],'ro','LineWidth',2);
-            plot(time(currt), vrescale(currt),'gx','LineWidth',2);
-            plot(time(pprevt), vrescale(pprevt),'mx','LineWidth',2);
-            xlim([time(max(1,rscltstart - 100)) time(currt)]);
-            ylim([-3 3]);
-            box off;
-            grid off;
-            legend({'Rescaled voltage','Original voltage','Last 2 peaks'})
-            hold(gca,'off');
+      switch rescaling_method
+         case 'JA'
+            rscltstart = pprevt(1); % Beginning of the period of time to rescale in this loop
+            rscltend = pprevt(end); % End of the period of time to rescale in this loop
+            if rscltend > length(time), rscltend = length(time); end % Test if we've reached the end of the recording
+            if numel(tpeak_vec) > 1 
+               Rest_vec_realtime = Rest_vec(end -1 : end); % Resistance estimate between the last two found largest spikes
+               tpeak_vec_realtime = tpeak_vec(end -1 : end); % Time of the two last found largest spikes
+            else
+               % If it is the first loop, then there is only 1 estimated
+               % resistance
+               Rest_vec_realtime = Rest_vec;
+               tpeak_vec_realtime = tpeak_vec;
+            end
+         case 'peaks'
+            % Rescale only the voltage between the last two largest peaks.
+            % It will rescale from the zero cross before the spike, instead
+            % of using the acutal index of the peak, because that would
+            % change the shape of the spikes.
+            if numel(tpeak_vec) > 1 
+               rscltstart = find(time == tpeak_vec(end-1),1,'first'); % Beginning of the period of time to rescale in this loop. It is the index of the second last peak
+               Rest_vec_realtime = Rest_vec(end - 1 : end); % Resistance estimate between the last two found largest spikes
+               tpeak_vec_realtime = tpeak_vec(end - 1 : end); % Time of the two last found largest spikes
+            else
+               % If it is the first loop, then there is only 1 estimated
+               % resistance
+               rscltstart = 1;
+               Rest_vec_realtime = Rest_vec;
+               tpeak_vec_realtime = tpeak_vec;
+            end
+                        
+            % Find the index of the closest positive transition before the
+            % second last peak (rscltstart).
+            try
+               posv = v(pprevt(1): currt)>0; % Get values above 0 (ones), and below (zeros)
+            catch
+               posv = v(pprevt(1): min(currt, length(v)))>0; % Could ask for this in the previous line and avoid the try-catch statement, but tested with tic toc and it takes longer.
+            end
+            changePos  = find(diff([0; posv; 0])==1);    % location of change from 0 to 1
+            rscltstart = changePos(find(changePos < (rscltstart - pprevt(1)), 1, 'last')); % The actual spike starts on the closest positive transition before the peak
+            % Find the index of the closest positive transition after the
+            % alst peak (rscltend)
+            rscltend = find(time == tpeak_vec(end),1,'first'); % End of the period of time to rescale in this loop. It is the index of the second last peak
+            rscltend = changePos(find(changePos > (rscltend - pprevt(1)), 1, 'first')); % The actual spike ends on the closest positive transition after the peak
+            % We only looked for indexes within the current period, so we
+            % have to adjust the indexes by the start of current period.
+            rscltstart = rscltstart + pprevt(1);
+            rscltend = rscltend + pprevt(1);
+            % Check our rescaling period is within the limits of the
+            % recording
+            if (isempty(rscltstart)||rscltstart < 0), rscltstart = pprevt(1); end
+            if (isempty(rscltend) || rscltend > currt), rscltend = currt; end % Test if we've reached the end of the section
+            
+         case 'sample' 
+            % Implement a rescale every sample. How?
+      end
+      
+      if ~strcmp('atend',rescaling_method)
+         % Rescale
+         [vv, ~, ~] = doRescale(v( rscltstart:rscltend ),...
+            tpeak_vec_realtime, Rest_vec_realtime,...
+            time( rscltstart:rscltend ));
+         vrescale(rscltstart:rscltend) = vv;
+         
+         % Plot the last rescaled section. (If debug is full)
+         if strcmp('full',debug)
+            figure(1);
+            if numel(tpeak_vec) > 1 && currt < numel(v)
+               plot(time(rscltstart:rscltend), vrescale(rscltstart:rscltend));
+               hold(gca,'on');
+               plot(time(rscltend : currt), v(rscltend : currt),'g');
+               plot([time(find(time == tpeak_vec(end-1),1,'first')) time(find(time == tpeak_vec(end),1,'first'))],...
+                  [v(find(time == tpeak_vec(end-1),1,'first')) v(find(time == tpeak_vec(end),1,'first'))],'ro','LineWidth',2);
+               plot(time(currt), vrescale(currt),'kx','LineWidth',2);
+               plot(time(pprevt), vrescale(pprevt),'mx','LineWidth',2);
+               xlim([time(max(1,rscltstart - 100)) time(currt)]);
+               ylim([-3 3]);
+               box off;
+               grid off;
+               legend({'Rescaled voltage','Original voltage','Last 2 peaks','Current time'})
+               hold(gca,'off');
+            end
          end
       end
+      
    end
    % Close progress window
    if progress_window
@@ -465,51 +518,63 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
    %Need to restore Rest to return it properly.
    % interp doesn't like going outside the input timebounds, so pad Rest
    % with end results & pad time to avoid getting NaNs (changes slowly so ok)
-   if tpeak_vec(1) > time(1)
-       tpeak_vec = [time(1); tpeak_vec(:)];
-       Rest_vec  = [Rinit; Rest_vec(:)];
+   if strcmp('atend',rescaling_method)
+      [vrescale, Rest_vec, tpeak_vec] = doRescale(v, tpeak_vec, Rest_vec, time);
+   else
+      if tpeak_vec(1) > time(1)
+          tpeak_vec = [time(1); tpeak_vec(:)];
+          Rest_vec  = [Rinit; Rest_vec(:)];
+      end
+      if tpeak_vec(end) < time(end)
+          tpeak_vec = [tpeak_vec(:); time(end)];
+          Rest_vec  = [Rest_vec(:); Rest_vec(end)];
+      end
+      Rest_vec  = interp1( tpeak_vec, Rest_vec, time );
    end
-   if tpeak_vec(end) < time(end)
-       tpeak_vec = [tpeak_vec(:); time(end)];
-       Rest_vec  = [Rest_vec(:); Rest_vec(end)];
-   end
-   Rest_vec  = interp1( tpeak_vec, Rest_vec, time );
-
+   
    tnow = datetime('now');
    str = sprintf("\tFinished rescaling at %s\n", datestr(tnow));
    cprintf( 'Keywords', str);
 
 end
 
-% Actually performs the voltage rescaling. The function can be called at the
-% end of the resistance estimation or every period, e.g. every jump ahead.
+% Actually performs the voltage rescaling. The function can be called at
+% the end of the resistance estimation or every period, e.g. every jump
+% ahead. Returns the rescaled voltage over the specified period.
 %
 % Inputs:
 %  v        - the original voltage or section to be rescaled
-%  Rest_vec - resistance estimate
+% tpek_vec_realtime
+%  Rest_vec  - resistance estimate
+%  tpeak_vec - time in seconds between which the rescaling is performed. It
+%              is expected to be a 2 elements vector. If it is longer it is
+%              fine. Rest_vec should be the same size.
+%  time      - time vector in seconds. Same size as v.
 % Outputs:
 %  vrescale - rescaled voltage
-function [vrescale, Rest_vec_realtime, Rest_interpol, tpeak_vec_realtime] = doRescale(v, tpeak_vec_realtime, Rest_vec_realtime, time, Rest_interpol)
+%  Rest_vec - Updated Rest vector is an interpolation between the input
+%             values of Rest. Can be dismissed.
+%  tpek_vec - Updated tpeak_vec is an interpolation between the input
+%             values of tpeak_vec. Can be dismissed.
+function [vrescale, Rest_vec, tpeak_vec] = doRescale(v, tpeak_vec, Rest_vec, time)
    % interp doesn't like going outside the input timebounds, so pad Rest
    % with end results & pad time to avoid getting NaNs (changes slowly so ok)
-   if tpeak_vec_realtime(1) > time(1)
-      tpeak_vec_realtime = [time(1); tpeak_vec_realtime(:)];
-      Rest_vec_realtime  = [Rest_vec_realtime(1); Rest_vec_realtime(:)];
+   if tpeak_vec(1) > time(1)
+      tpeak_vec = [time(1); tpeak_vec(:)];
+      Rest_vec  = [Rest_vec(1); Rest_vec(:)];
    end
-   if tpeak_vec_realtime(end) < time(end)
-      tpeak_vec_realtime = [tpeak_vec_realtime(:); time(end)];
-      Rest_vec_realtime  = [Rest_vec_realtime(:); Rest_vec_realtime(end)];
+   if tpeak_vec(end) < time(end)
+      tpeak_vec = [tpeak_vec(:); time(end)];
+      Rest_vec  = [Rest_vec(:); Rest_vec(end)];
    end
    
-   zidx = tpeak_vec_realtime == 0;
-   tpeak_vec_realtime(zidx) = [];
-   Rest_vec_realtime(zidx) = [];
+   % Remove zeros
+   zidx = tpeak_vec == 0;
+   tpeak_vec(zidx) = [];
+   Rest_vec(zidx) = [];
    
-   Rest_vec_realtime  = interp1( tpeak_vec_realtime, Rest_vec_realtime, time );
-   Rest_interpol = [Rest_interpol; Rest_vec_realtime];
-   vrescale  = v(:) ./ Rest_vec_realtime(:);
-   tpeak_vec_realtime = tpeak_vec_realtime(end);
-   Rest_vec_realtime = Rest_vec_realtime(end);
+   Rest_vec  = interp1( tpeak_vec, Rest_vec, time );
+   vrescale  = v(:) ./ Rest_vec(:);
 end
 
 % Get the current spike. Or current bundle of samples that begins with a
