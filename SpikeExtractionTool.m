@@ -138,7 +138,7 @@ function varargout = SpikeExtractionTool(varargin)
 
 % Edit the above text to modify the response to help SpikeExtractionTool
 
-% Last Modified by GUIDE v2.5 10-Jun-2019 11:24:07
+% Last Modified by GUIDE v2.5 13-Jun-2019 17:32:14
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -204,12 +204,26 @@ set(handles.figure1, 'CloseRequestFcn', @closeGUI);
 % Initialize options for debug and loading window
 handles.loadingWindowOn = true;
 handles.debugOption = 'semi';
+handles.rescaleOption = 'at_end';
 
 % Update handles structure
 guidata(hObject, handles);
 
 % UIWAIT makes SpikeExtractionTool wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
+
+% Starts logging everything to the log file: 'log_all.log'. 
+% Everything means all the text printed in the command window, except for
+% the one that is sent by the function 'printMessage'. Use such function
+% when sending text to the command window that you don't want to be saved
+% in the log file. i.e. instead of:
+%                 cprintf('Keyword',str);
+% try:
+%                 printMessage('off','Keyword',str);
+fid = fopen('./log_all.log', 'a'); % Opens log file to append this session's string
+fprintf(fid, '\n\n-------------- %s @ %s | %s ---------------\n', getenv('Username'),getenv('UserDomain'),datestr(now, 0));
+fclose(fid); % Close log file
+diary('log_all.log'); % Activates the diary function, i.e. save all the activity into a file.
 end
 
 % --- Executes when user attempts to close figure1.
@@ -217,6 +231,7 @@ function figure1_CloseRequestFcn(hObject, eventdata, handles)
 % hObject    handle to figure1 (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+diary off % Deactivates the log. Hence nothing else will be added after closing the GUI.
 
 % don't get user confirmation if there's no user data!
 handles = guidata(src);
@@ -234,6 +249,7 @@ switch response
    case 'Yes'
       delete(gcf)
    case 'No'
+      diary on % Reactivates the log
       return
 end
 end
@@ -336,6 +352,23 @@ end
 % --- Executes on button press in load_voltage.
 function load_voltage_Callback(hObject, eventdata, handles)
 % Set the mouse pointer to waiting to know the function is running.
+
+% Warn if there is user data
+okToClear = false;
+if handles.data.num_tseries == 0
+   okToClear = true;
+end
+% Ask for confirmation
+if ~okToClear
+   response = userConfirmation('All the currently loaded data will be cleared. Do you accept?', 'Don''t lose your data.');
+   switch response
+      case 'Yes'
+         okToClear = true;
+      case 'No'
+         return
+   end
+end
+
 set(handles.figure1, 'pointer', 'watch')
 drawnow;
 try
@@ -1607,6 +1640,8 @@ end
 % function closeGUI(hObject, eventdata, handles) % is format below from old
 % version of matlab??
 function closeGUI(src, evnt)
+diary off
+
 handles  = guidata(src);
 % if here we've got figure handles - check if there's user data, &
 % quite immediately if there isn't
@@ -1624,6 +1659,7 @@ if isfield(handles, 'data') && handles.data.num_tseries>0
       case 'Yes'
          % do nothing yet
       case 'No'
+         diary on
          return;
    end
 end
@@ -1752,4 +1788,83 @@ function debugFull_Callback(hObject, eventdata, handles)
    end   
    % Update handles structure
    guidata(hObject, handles);
+end
+
+% --------------------------------------------------------------------
+function addVoltageMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to addVoltageMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+end
+
+% --------------------------------------------------------------------
+function clearVoltageMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to clearVoltageMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+end
+
+% --------------------------------------------------------------------
+function rescaleAtTheEnd_Callback(hObject, eventdata, handles)
+% hObject    handle to rescaleAtTheEnd (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+   if strcmp('off', hObject.Checked)
+      hObject.Checked = 'on';
+      handles.rescalePeaks.Checked = 'off';
+      handles.rescalePeaks.Enable = true;
+      handles.rescaleJumpAhead.Checked = 'off';
+      handles.rescaleJumpAhead.Enable = true;
+      handles.rescaleOption = 'at_end';
+      hObject.Enable = false;
+   end   
+   % Update handles structure
+   guidata(hObject, handles);
+end
+
+% --------------------------------------------------------------------
+function rescalePeaks_Callback(hObject, eventdata, handles)
+% hObject    handle to rescalePeaks (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+   if strcmp('off', hObject.Checked)
+      hObject.Checked = 'on';
+      handles.rescaleAtTheEnd.Checked = 'off';
+      handles.rescaleAtTheEnd.Enable = true;
+      handles.rescaleJumpAhead.Checked = 'off';
+      handles.rescaleJumpAhead.Enable = true;
+      handles.rescaleOption = 'peaks';
+      hObject.Enable = false;
+   end   
+   % Update handles structure
+   guidata(hObject, handles);
+end
+
+% --------------------------------------------------------------------
+function rescaleJumpAhead_Callback(hObject, eventdata, handles)
+% hObject    handle to rescaleJumpAhead (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+   if strcmp('off', hObject.Checked)
+      hObject.Checked = 'on';
+      handles.rescaleAtTheEnd.Checked = 'off';
+      handles.rescaleAtTheEnd.Enable = true;
+      handles.rescalePeaks.Checked = 'off';
+      handles.rescalePeaks.Enable = true;
+      handles.rescaleOption = 'JA';
+      hObject.Enable = false;
+   end   
+   % Update handles structure
+   guidata(hObject, handles);
+end
+
+
+% --------------------------------------------------------------------
+function clearDifferentMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to clearDifferentMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+   % TODO
 end

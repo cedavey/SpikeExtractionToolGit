@@ -45,7 +45,7 @@ function handles = toggleSETGUIstate(handles,state)
    set(handles.load_panel,     'Visible', 'on');
    set(handles.load_voltage,   'Visible', 'on'); % can always load a new datastruct
    set(handles.add_voltage,    'Visible', state);
-  
+    
  % Display voltage
    % curr_signal UI - setting depends on state we're toggling to 
    set(handles.curr_signal,    'Visible', state);
@@ -93,6 +93,10 @@ function handles = toggleSETGUIstate(handles,state)
    
    switch state
       case 'on'
+         % Right click menu
+         handles.addVoltageMenu.Enable = true;
+         handles.clearVoltageMenu.Enable = true;
+         
          % curr_signal UI 
          if haveData
             % set font of drop down lists
@@ -136,6 +140,10 @@ function handles = toggleSETGUIstate(handles,state)
          end
          
       case 'off'
+         % Right click menu
+         handles.addVoltageMenu.Enable = false;
+         handles.clearVoltageMenu.Enable = false;
+         
          set(handles.tool_list,  'String',  []);
          set(handles.tool_list,  'Value',   1);
          set(handles.method_list,'String',  []);

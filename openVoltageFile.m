@@ -48,7 +48,7 @@ function [data, success] = openVoltageFile(data)
       end
       if isempty(newdata)
          str = sprintf('SpikeExtractionTool - LoadError: %s does not contain valid data, ignoring...', fname);
-         cprintf('*Errors', str);
+         printMessage('off', '*Errors', str);
         return;
       end
       
@@ -104,7 +104,7 @@ function [data, success] = openVoltageFile(data)
    success = 1;
    tnow = datetime('now');
    str = sprintf( "\tSuccessfully opened voltage file %s at %s\n", fname, datestr(tnow) );
-   cprintf( 'Keywords', str);
+   printMessage('off',  'Keywords', str);
    
    
 end

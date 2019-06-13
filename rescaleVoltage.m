@@ -26,7 +26,7 @@ function [rescaled_voltage, Rest] = rescaleVoltage(tseries, method, params, debu
 
       case {'particle filter', 'recursive least squares', 'recursive mean'}
          str = sprintf( '\tRescaling voltage, this may take a whiles...\n' );
-         cprintf( 'Keywords', str );
+         printMessage('off', 'Keywords', str);
          [rescaled_voltage, Rest] = rescaleVoltageRecursive(tseries, params, method, progress_window, debug);
 
       case 'plot sigma'
@@ -81,11 +81,13 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
    npoles = 0;     % number of poles in AR model of resistance coeff
    nzeros = 2;     % includes the dc component
    nlags  = max(nzeros, npoles+1);
+   rescaling_method = 'at_end'; % Chose scaling method: 'at_end', 'peaks', or 'JA' 
+      
 
    tnow = datetime('now');
    str = sprintf("\tStarted rescaling, method %s, spikethresh %i, glitchthresh %i, jump ahead %g, at %s\n", ...
       method, voltoutlier, glitchthresh, jumpahead, datestr(tnow));
-   cprintf( 'Keywords', str);
+   printMessage('off', 'Keywords', str);
 
 
    jumpahead = round( jumpahead / dt ); % convert jump ahead from time into samples
@@ -144,14 +146,16 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
                [method ' is ', num2str(round( currt/nT*100 )), '% done']);
          catch
             delete(waitbar_handles);
-            fprintf(2,['The process has been manually stopped on time: ',num2str(currt*dt),' seconds.\n']);
+            str = ['The process has been manually stopped on time: ',num2str(currt*dt),' seconds.\n'];
+            printMessage('off','Error',str);
             break;
          end
       end
 
       % Print current percentage
       if 10*floor(currt/nT*10) ~= prevProg
-         fprintf( '\t%s is approx %d%% done\n', method, 10*floor(currt/nT*10) );
+         str = sprintf( '\t%s is approx %d%% done\n', method, 10*floor(currt/nT*10) );
+         printMessage('off','Text', str);
          prevProg = 10*floor(currt/nT*10);
       end
       % find where noise ends - update est of noise mean & std dev
@@ -366,8 +370,6 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
       % order to plot.
       % Rescaling method options: Every JA, between the peaks, every
       % sample, or at the end (original).
-      rescaling_method = 'peaks';
-      
       switch rescaling_method
          case 'JA'
             rscltstart = pprevt(1); % Beginning of the period of time to rescale in this loop
@@ -420,12 +422,9 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
             % recording
             if (isempty(rscltstart)||rscltstart < 0), rscltstart = pprevt(1); end
             if (isempty(rscltend) || rscltend > currt), rscltend = currt; end % Test if we've reached the end of the section
-            
-         case 'sample' 
-            % Implement a rescale every sample. How?
       end
       
-      if ~strcmp('atend',rescaling_method)
+      if ~strcmp('at_end',rescaling_method)
          % Rescale
          [vv, ~, ~] = doRescale(v( rscltstart:rscltend ),...
             tpeak_vec_realtime, Rest_vec_realtime,...
@@ -518,7 +517,7 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
    %Need to restore Rest to return it properly.
    % interp doesn't like going outside the input timebounds, so pad Rest
    % with end results & pad time to avoid getting NaNs (changes slowly so ok)
-   if strcmp('atend',rescaling_method)
+   if strcmp('at_end',rescaling_method)
       [vrescale, Rest_vec, tpeak_vec] = doRescale(v, tpeak_vec, Rest_vec, time);
    else
       if tpeak_vec(1) > time(1)
@@ -534,7 +533,7 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
    
    tnow = datetime('now');
    str = sprintf("\tFinished rescaling at %s\n", datestr(tnow));
-   cprintf( 'Keywords', str);
+   printMessage('off', 'Keywords', str);
 
 end
 
@@ -758,7 +757,7 @@ function [Rest, Rcoeff, Rmu, Rsig, Rcov] = initRegress(tspike, vspike, lambda, n
       Rcov = eye(2,2) / Rsig;
       Rest = vspike;
       str  = sprintf( 'Init regression for R estimate only has 1 sample!' );
-      cprintf( 'Errors', str );
+      printMessage('off', 'Errors', str );
       return;
    end
 
@@ -993,7 +992,8 @@ function [noisemu, noisesig, nS, noiseVector] = initNoiseStdDev(v, varargin)
       figure('Name', 'Time series white noise initial period');
       plot(v(firstS : firstS + nS));
       drawnow;
-      fprintf('\tWhite noise initialization included %d samples, starting in sample number %d \n', nS, firstS);
+      str = sprintf('\tWhite noise initialization included %d samples, starting in sample number %d \n', nS, firstS);
+      printMessage('off','Text', str);
    end
 
    noisesig =  std( v(firstS : firstS + nS) );
@@ -1151,14 +1151,15 @@ function plotVoltageSigma(tseries, params)
 
    tnow = datetime('now');
    str = sprintf("Started plotting sigma, spikethresh %i, glitchthresh %i at %s\n", voltoutlier, glitchthresh, datestr(tnow));
-   cprintf( 'Keywords', str)
+   printMessage('off', 'Keywords', str)
 
 
    % go through timeseries, extract voltage peaks & update resistance
    nP = 0;              % num voltage/spike peaks we've processed so far
    while currt < nT
       if mod( nP, 1e3 ) == 0
-         fprintf( '\tPS is approx %d%% done\n', round( currt/nT*100 ) );
+         str = sprintf( '\tPS is approx %d%% done\n', round( currt/nT*100 ) );
+         printMessage('off','Text', str);
       end
       % find where noise ends - update est of noise mean & std dev
       startsp = find( peakfn(v( currt:end) ) >= noisethresh, 1, 'first' );
@@ -1252,5 +1253,5 @@ function plotVoltageSigma(tseries, params)
 
    tnow = datetime('now');
    str = sprintf("Finished plotting sigma at %s\n", datestr(tnow));
-   cprintf( 'Keywords', str);
+   printMessage('off', 'Keywords', str);
 end

@@ -69,7 +69,7 @@ function params = getDefaultToolParams
          voltage.rescale.particle_filter.glitch_magnitude.type                  = 'positive float';
          voltage.rescale.particle_filter.glitch_magnitude.units                 = 'std dev';
          
-         voltage.rescale.particle_filter.forgetting_factor.value                = 0.8;
+         voltage.rescale.particle_filter.forgetting_factor.value                = 1;
          voltage.rescale.particle_filter.forgetting_factor.name                 = 'forgetting factor';
          voltage.rescale.particle_filter.forgetting_factor.descript             = 'Controls how quickly we forget past samples (0 - forget fastest, 1 - forget slowest)';
          voltage.rescale.particle_filter.forgetting_factor.type                 = 'normalised float';
