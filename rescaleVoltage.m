@@ -479,8 +479,10 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
          plot(tpeak_vec, vpeak_vec, 'kx', 'markersize', marker_size);
          plot(tpeak_vec, Rest_vec,  'm',  'linewidth', 3);
          plot(tpeak_vec, noise_vec * voltoutlier,  'r');
+         plot(tpeak_vec, -noise_vec * voltoutlier,  '--r');
          plot(tpeak_vec, noise_vec * glitchthresh, 'r');
-         legend('voltage', 'voltage peaks', 'resistance est', 'noise thresh', 'glitch thresh');
+         plot(tpeak_vec, -noise_vec * glitchthresh, '--r');
+         legend('Voltage', 'V peaks', 'R estimate', 'Th+', 'Th-');
          if numel(tpeak_vec) > 1, xlim( [ tpeak_vec(1) tpeak_vec(end) ] );end
       catch ME
          if strcmp('Vectors must be the same length.', ME.message) && isempty(tpeak_vec)
@@ -514,12 +516,12 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
    % Moved this bit of code to function 'doRescale' so we can use the
    % function recursively and rescale in semi-real time (every JA).
    
-   %Need to restore Rest to return it properly.
    % interp doesn't like going outside the input timebounds, so pad Rest
    % with end results & pad time to avoid getting NaNs (changes slowly so ok)
    if strcmp('at_end',rescaling_method)
       [vrescale, Rest_vec, tpeak_vec] = doRescale(v, tpeak_vec, Rest_vec, time);
    else
+      %Need to restore Rest to return it properly.
       if tpeak_vec(1) > time(1)
           tpeak_vec = [time(1); tpeak_vec(:)];
           Rest_vec  = [Rinit; Rest_vec(:)];
@@ -653,23 +655,30 @@ function [mu_curr, sig_curr, mse_curr, N_curr] = updateNoiseStats(new_noise, mu_
    % samples like we did in initNoiseStdDev (actually using same function).
    % If can't find at least 100 samples (or the length of the new_noise
    % signal), then use the whole new_noise. See what to do in that case.
-   %{
-   try
-      [mu_curr, sig_curr, NN, nn] = initNoiseStdDev(new_noise, 'none');
-      % If it didn't trigger the catch statement:
-      new_noise = nn;
-      N_curr = NN;
-   catch E
-      if contains(E.message, 'find a single white period')
-         % It means it didn't find 100 samples (or whatever number) of
-         % white noise. If it came here, we will not care and just treat
-         % the whole signal new_noise as if it was actual noise.
-         N_curr = length(new_noise);
-      else
-         rethrow(E);
+   
+   % If new_noise contains too few samples, mantain the previous noise
+   % value.
+   if length(new_noise) < 30
+      N_curr = length(new_noise);
+   else
+      try
+         nn = length(new_noise);
+         [mu_curr, sig_curr, NN, nn] = initNoiseStdDev(new_noise, 'none', 30, 0.15);
+         % If it didn't trigger the catch statement:
+         new_noise = nn;
+         N_curr = NN;
+      catch E
+         if contains(E.message, 'find a single white period')
+            % It means it didn't find 100 samples (or whatever number) of
+            % white noise. If it came here, we will not care and just treat
+            % the whole signal new_noise as if it was actual noise.
+            N_curr = length(new_noise);
+         else
+            rethrow(E);
+         end
       end
    end
-   %}
+   
    
    recursive = false;
    N_curr    = N_prev + length( new_noise );
@@ -939,8 +948,10 @@ function [noisemu, noisesig, nS, noiseVector] = initNoiseStdDev(v, varargin)
    % get initial noise estimate by finding a white time series at the
    % beginning of the voltage timeseries
    if numel(varargin) > 0, debug = varargin{1}; else, debug = 'semi'; end
-      
-   nS = min(100, (length(v) - 1)); % Initial num of samples
+   if numel(varargin) > 1, minimumSamples = varargin{2}; else, minimumSamples = 100; end
+   if numel(varargin) > 2, alpha = varargin{3}; else, alpha = 0.05; end
+
+   nS = min(minimumSamples, (length(v) - 1)); % Initial num of samples
    firstS = 1; % Subset starts at this sample
    vtmp = v(firstS : firstS + nS);
    
@@ -953,7 +964,7 @@ function [noisemu, noisesig, nS, noiseVector] = initNoiseStdDev(v, varargin)
       return
    end
    
-   while ~iswhite(vtmp)
+   while ~iswhite(vtmp, 'lb', alpha, 3)
       % Start with a short number of samples (i.e. 30), if it doesn't
       % evaluate as not-white, shift the window 30 samples ahead.
       firstS = firstS + nS;
@@ -995,7 +1006,7 @@ function [noisemu, noisesig, nS, noiseVector] = initNoiseStdDev(v, varargin)
       str = sprintf('\tWhite noise initialization included %d samples, starting in sample number %d \n', nS, firstS);
       printMessage('off','Text', str);
    end
-
+   
    noisesig =  std( v(firstS : firstS + nS) );
    noisemu  = mean( v(firstS : firstS + nS) );
    noiseVector = v(firstS : firstS + nS);

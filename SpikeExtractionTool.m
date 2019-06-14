@@ -138,7 +138,7 @@ function varargout = SpikeExtractionTool(varargin)
 
 % Edit the above text to modify the response to help SpikeExtractionTool
 
-% Last Modified by GUIDE v2.5 13-Jun-2019 17:32:14
+% Last Modified by GUIDE v2.5 14-Jun-2019 12:19:58
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -351,8 +351,6 @@ end
 
 % --- Executes on button press in load_voltage.
 function load_voltage_Callback(hObject, eventdata, handles)
-% Set the mouse pointer to waiting to know the function is running.
-
 % Warn if there is user data
 okToClear = false;
 if handles.data.num_tseries == 0
@@ -369,6 +367,7 @@ if ~okToClear
    end
 end
 
+% Set the mouse pointer to waiting to know the function is running.
 set(handles.figure1, 'pointer', 'watch')
 drawnow;
 try
@@ -1543,16 +1542,22 @@ end
 end
 
 % Remove voltage from handles
-function removeVoltage(handles)
-remove_tseries = handles.data.curr_tseries;
-tseries_str    = handles.data.tseries_str{remove_tseries};
-last_tseries   = handles.data.last_tseries;
-num_tseries    = handles.data.num_tseries;
+function varargout = removeVoltage(handles, varargin)
+
+if numel(varargin) == 0
+   remove_tseries = handles.data.curr_tseries;
+else
+   remove_tseries = varargin{1}; % In case we are removing a voltage different to the currently active
+end
+   tseries_str    = handles.data.tseries_str{remove_tseries};
+   last_tseries   = handles.data.last_tseries;
+   num_tseries    = handles.data.num_tseries;
 
 % if the last remaining timeseries is being deleted, clear gui
 if num_tseries==1
    handles = toggleSETGUIstate(handles, 'off');
    guidata(handles.figure1, handles);
+   if numel(varargin) == 1,varargout = {handles};end % When removing multiple voltages at once, we want to update the state of handles for the caller method
    return;
    
    % last time series may be the same as current time series (being removed)
@@ -1583,6 +1588,7 @@ handles.data.num_tseries              = handles.data.num_tseries - 1;
 
 if handles.data.num_tseries==0
    handles = toggleGUIstate(handles,'off');
+   if numel(varargin) == 1,varargout = {handles};end % When removing multiple voltages at once, we want to update the state of handles for the caller method
    return
 end
 % update our indices for last tseries if necessary
@@ -1602,6 +1608,8 @@ set(handles.curr_signal, 'String', handles.data.tseries_str);
 set(handles.curr_signal, 'Value', handles.data.last_tseries);
 handles.data.curr_tseries = handles.data.last_tseries;
 guidata(handles.figure1, handles);
+
+if numel(varargin) == 1,varargout = {handles};end % When removing multiple voltages at once, we want to update the state of handles for the caller method
 
 end
 
@@ -1791,22 +1799,6 @@ function debugFull_Callback(hObject, eventdata, handles)
 end
 
 % --------------------------------------------------------------------
-function addVoltageMenu_Callback(hObject, eventdata, handles)
-% hObject    handle to addVoltageMenu (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-end
-
-% --------------------------------------------------------------------
-function clearVoltageMenu_Callback(hObject, eventdata, handles)
-% hObject    handle to clearVoltageMenu (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-
-end
-
-% --------------------------------------------------------------------
 function rescaleAtTheEnd_Callback(hObject, eventdata, handles)
 % hObject    handle to rescaleAtTheEnd (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
@@ -1866,5 +1858,41 @@ function clearDifferentMenu_Callback(hObject, eventdata, handles)
 % hObject    handle to clearDifferentMenu (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-   % TODO
+   if handles.data.num_tseries == 1
+      displayErrorMsg('There is only one voltage loaded.');
+      return
+   else
+      % Find position of current mouse
+      get(handles.figure1,'Parent')
+      screenHandle = get(handles.figure1,'Parent');
+      pos = screenHandle.PointerLocation;
+      mainData = guidata(gcbf);
+      clearVoltageWindow = figure('Name','Clear','MenuBar','none',...
+         'ToolBar','none','Position',[pos(1),pos(2),212,266],...
+         'WindowStyle','modal','Resize','off','DockControls','off');
+      vtc = uicontrol('parent',clearVoltageWindow,'Style','listbox',...
+         'String',mainData.data.tseries_str,'InnerPosition',[14,56,187,205],...
+         'Enable','on','Max',mainData.data.num_tseries,'Tag','vtc');
+      uicontrol('parent',clearVoltageWindow,'Style','pushbutton',...
+         'String','Clear','Position',[130,15,69,30],'Callback',@(hObject,eventdata)SpikeExtractionTool('clearVoltages',hObject,eventdata,mainData,vtc));
+   end
+end
+
+function clearVoltages(hObject, eventdata, mainData, vtc)
+   % Set the mouse pointer to waiting to know the function is running.
+   set(mainData.figure1, 'pointer', 'watch')
+   drawnow;
+   try
+      vtc = vtc.Value;
+      delete(hObject.Parent);
+      for i = numel(vtc):-1:1
+         mainData = removeVoltage(mainData, vtc(i));
+      end
+   catch E
+      % Mouse pointer back to normal.
+      set(mainData.figure1, 'pointer', 'arrow')
+      rethrow(E);
+   end
+   % Mouse pointer back to normal.
+   set(mainData.figure1, 'pointer', 'arrow')
 end
