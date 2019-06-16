@@ -411,7 +411,7 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
             changePos  = find(diff([0; posv; 0])==1);    % location of change from 0 to 1
             rscltstart = changePos(find(changePos < (rscltstart - pprevt(1)), 1, 'last')); % The actual spike starts on the closest positive transition before the peak
             % Find the index of the closest positive transition after the
-            % alst peak (rscltend)
+            % last peak (rscltend)
             rscltend = find(time == tpeak_vec(end),1,'first'); % End of the period of time to rescale in this loop. It is the index of the second last peak
             rscltend = changePos(find(changePos > (rscltend - pprevt(1)), 1, 'first')); % The actual spike ends on the closest positive transition after the peak
             % We only looked for indexes within the current period, so we
