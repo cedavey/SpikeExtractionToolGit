@@ -123,15 +123,17 @@ tscale=1; tlabel='s';
             lind = 1:numaxons;
          else
             % get the first max_lines indices from numspikes
-            % instead of the random: lind  = randperm( numaxons, max_lines );
-            maxLength = zeros(1,size(x,2));   
+            lind  = randperm( numaxons, max_lines );
             if isnumeric(x)
-               for j = 1:size(x,2), maxLength(j) = length(find(x(:,j)~=0));end
+               [~, idx] = sort(max(abs(x(:,lind))),'descend');
             else
-               for j = 1:size(x,2), maxLength(j) = length(find(cell2mat(x(j))~=0));end
+               xMax = zeros(1,(numel(lind)));
+               for ii = 1:numel(lind)
+                  xMax(ii) = max(abs(cell2mat(x(lind(ii)))));
+               end
+               [~, idx] = sort(xMax,'descend');
             end
-            [~, lind] = sort(maxLength,'descend'); 
-            lind = lind(1:10);
+            lind = lind(idx);
          end
          
          [vscale, vlabel] = getUnitScale( vlim(2)*10, 'V' );
