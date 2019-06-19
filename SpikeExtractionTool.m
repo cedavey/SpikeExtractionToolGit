@@ -708,6 +708,7 @@ catch ME
    str = getCatchMEstring( ME, 'Error setting parameters', false );
    displayErrorMsg( 'Error setting parameters, reverting to old values' );
    userids = [];
+   runtimeErrorHandler(ME,'ignore');
    return;
 end
 if cancel
@@ -779,6 +780,7 @@ catch ME
    str = getCatchMEstring( ME, 'Error setting parameters', false );
    displayErrorMsg( 'Error setting parameters, reverting to old values' );
    userids = [];
+   runtimeErrorHandler(ME,'ignore');
    return;
 end
 if cancel
@@ -1928,7 +1930,7 @@ function clearDifferentMenu_Callback(hObject, eventdata, handles)
       return
    else
       % Find position of current mouse
-      get(handles.figure1,'Parent')
+      get(handles.figure1,'Parent');
       screenHandle = get(handles.figure1,'Parent');
       pos = screenHandle.PointerLocation;
       mainData = guidata(gcbf);
@@ -1939,7 +1941,8 @@ function clearDifferentMenu_Callback(hObject, eventdata, handles)
          'String',mainData.data.tseries_str,'InnerPosition',[14,56,187,205],...
          'Enable','on','Max',mainData.data.num_tseries,'Tag','vtc');
       uicontrol('parent',clearVoltageWindow,'Style','pushbutton',...
-         'String','Clear','Position',[130,15,69,30],'Callback',@(hObject,eventdata)SpikeExtractionTool('clearVoltages',hObject,eventdata,mainData,vtc));
+         'String','Clear','Position',[130,15,69,30],'Callback',...
+         @(hObject,eventdata)SpikeExtractionTool('clearVoltages',hObject,eventdata,mainData,vtc));
    end
 end
 
@@ -1956,7 +1959,7 @@ function clearVoltages(hObject, eventdata, mainData, vtc)
    catch E
       % Mouse pointer back to normal.
       set(mainData.figure1, 'pointer', 'arrow')
-      rethrow(E);
+      runtimeErrorHandler(E);
    end
    % Mouse pointer back to normal.
    set(mainData.figure1, 'pointer', 'arrow')

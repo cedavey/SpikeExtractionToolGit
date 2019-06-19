@@ -191,7 +191,9 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
          % needs to check for glitch.
          confirm_is_spike = false;
          % if this peak is crazy big assume it's a glitch so move to next spike
+         countLoops = 0; % Checking how often it enters this loop
          while max( peakfn(vsp) ) > glitchthresh * noisesig
+            countLoops = countLoops + 1;
             % move on to next large amplitude event
             startsp = find( peakfn(v( currt:end) ) >= noisethresh, 1, 'first' );
             % no more peaks left in timeseries so exit loop
@@ -201,8 +203,13 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
             end
             prevt   = currt + startsp - 1; % update current time to where next spike is
             [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
+            
+            if(countLoops > 19)
+               str = sprintf('\tIt looks like you haven''t chosen the best parameters.\n\tThere were at least %d consecutive spikes that were not\n\tunder the glitch threshold.\n',countLoops);
+               printMessage('off', 'Errors', str);
+               break
+            end
          end
-
          % integrity check - if no peaks in current spike jump ahead a bit & try again
          % - this can happen because we've updated noise stats between when we found
          %   the current spike by its amp being greater than noise, and here
@@ -488,7 +495,7 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
                clear('waitbar_handles');
             end
          else
-            rethrow(ME);
+            runtimeErrorHandler(ME);
          end
       end
    end
@@ -515,7 +522,7 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
             error('It looks like there were no spikes found. Check the parameter selection.\nThe value of ''currt'' is: %d', currt);
             %             warning('It looks like there were no spikes found. Check the parameter selection.\nThe value of ''currt'' is: %d', currt);
          else
-            rethrow(ME);
+            runtimeErrorHandler(ME);
          end
       end
 
@@ -678,7 +685,7 @@ end
 function [mu_curr, sig_curr, mse_curr, N_curr] = updateNoiseStats(new_noise, mu_prev, sig_prev, mse_prev, N_prev, lambda)
    % Check if "new_noise" is actually white noise, adjust the length of the
    % samples like we did in initNoiseStdDev (actually using same function).
-   % If can't find at least 100 samples (or the length of the new_noise
+   % If can't find at least 30 samples (or the length of the new_noise
    % signal), then use the whole new_noise. See what to do in that case.
    
    % If new_noise contains too few samples, mantain the previous noise
@@ -694,17 +701,18 @@ function [mu_curr, sig_curr, mse_curr, N_curr] = updateNoiseStats(new_noise, mu_
          N_curr = NN;
       catch E
          if contains(E.message, 'find a single white period')
-            % It means it didn't find 100 samples (or whatever number) of
+            % It means it didn't find 30 samples (or whatever number) of
             % white noise. If it came here, we will not care and just treat
             % the whole signal new_noise as if it was actual noise.
             N_curr = length(new_noise);
+            str = sprintf('\tCouldn''t find at least 30 samples of white noise\n');
+            runtimeErrorHandler(E,'message',str);
          else
-            rethrow(E);
-         end
+            runtimeErrorHandler(E);
+         end 
       end
    end
-   
-   
+      
    recursive = false;
    N_curr    = N_prev + length( new_noise );
 
@@ -999,7 +1007,7 @@ function [noisemu, noisesig, nS, noiseVector] = initNoiseStdDev(v, varargin)
          if contains(lower(E.message), 'index exceeds the number of array elements')
             error(['Couldn''t find a single white period of ' num2str(nS) ' continuous samples in the recording.'])
          else
-            rethrow(E);
+            runtimeErrorHandler(E,'rethrow');
          end
       end
    end

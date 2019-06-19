@@ -241,7 +241,7 @@ tscale=1; tlabel='s';
    [vscale, vlabel] = getUnitScale(max(data(:))*10, 'V');
 
    fopts= {'fontsize', fontsize, 'fontweight', 'bold'};
-   subplot(1,1,1); % Clear the axes to prevent having empty little subplots
+   subplot(1,1,1, 'Parent', panel); % Clear the axes to prevent having empty little subplots
    for i=1:Np
       ax1 = subplot(nr, nc, i, 'Parent', panel); hold off;
          % try plotting data at chosen scale

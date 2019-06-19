@@ -28,7 +28,7 @@ function mouseWaitingFunction(fig1,fun,varargin)
       % Mouse pointer back to normal.
       set(fig1, 'pointer', 'arrow');
       % Propagate the error
-      rethrow(E);
+      runtimeErrorHandler(E);
    end
    
    % Mouse pointer back to normal.
