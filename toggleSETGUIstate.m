@@ -96,6 +96,12 @@ function handles = toggleSETGUIstate(handles,state)
          % Right click menu
          handles.addVoltageMenu.Enable = true;
          handles.clearVoltageMenu.Enable = true;
+         % Menu Bar
+         handles.addVoltageMenuBar.Enable = true;
+         handles.clearMenuBar.Enable = true;
+         handles.plotNewFigMenuBar.Enable = true;
+         handles.accessVoltageMenuBar.Enable = true;
+         handles.saveVoltageMenuBar.Enable = true;
          
          % curr_signal UI 
          if haveData
@@ -143,6 +149,12 @@ function handles = toggleSETGUIstate(handles,state)
          % Right click menu
          handles.addVoltageMenu.Enable = false;
          handles.clearVoltageMenu.Enable = false;
+         % Menu Bar
+         handles.addVoltageMenuBar.Enable = false;
+         handles.clearMenuBar.Enable = false;
+         handles.plotNewFigMenuBar.Enable = false;
+         handles.accessVoltageMenuBar.Enable = false;
+         handles.saveVoltageMenuBar.Enable = false;
          
          set(handles.tool_list,  'String',  []);
          set(handles.tool_list,  'Value',   1);

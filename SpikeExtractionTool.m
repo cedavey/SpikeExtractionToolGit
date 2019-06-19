@@ -138,7 +138,7 @@ function varargout = SpikeExtractionTool(varargin)
 
 % Edit the above text to modify the response to help SpikeExtractionTool
 
-% Last Modified by GUIDE v2.5 14-Jun-2019 12:19:58
+% Last Modified by GUIDE v2.5 17-Jun-2019 19:42:57
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -192,11 +192,13 @@ handles = toggleSETGUIstate(handles,'off'); % switch everything off until data's
 
 % assign gui a name
 set(hObject, 'Name', 'Spike Extraction Tool');
-set(gcf, 'menubar', 'figure') % turn the figure menu on (so can save etc)
+% set(gcf, 'menubar', 'figure') % turn the figure menu on (so can save etc) % I don't think it is a good idea to have this on, better to make a custom menu bar.
+
 
 % prepare for user confirmation when GUI is closed
 set(handles.figure1, 'CloseRequestFcn', @closeGUI);
 %     set(gcf, 'WindowScrollWheelFcn', {@figure1_figScroll, handles});
+removeToolBarButtons();
 
 % from property inspector in guide, under WindowScrollWheelFcn
 % @(hObject,eventdata)SpikeExtractionTool('figure1_WindowScrollWheelFcn',hObject,eventdata,guidata(hObject))
@@ -1868,7 +1870,7 @@ function clearDifferentMenu_Callback(hObject, eventdata, handles)
       pos = screenHandle.PointerLocation;
       mainData = guidata(gcbf);
       clearVoltageWindow = figure('Name','Clear','MenuBar','none',...
-         'ToolBar','none','Position',[pos(1),pos(2),212,266],...
+         'ToolBar','none','Position',[pos(1),pos(2)-266,212,266],...
          'WindowStyle','modal','Resize','off','DockControls','off');
       vtc = uicontrol('parent',clearVoltageWindow,'Style','listbox',...
          'String',mainData.data.tseries_str,'InnerPosition',[14,56,187,205],...
@@ -1895,4 +1897,49 @@ function clearVoltages(hObject, eventdata, mainData, vtc)
    end
    % Mouse pointer back to normal.
    set(mainData.figure1, 'pointer', 'arrow')
+end
+
+
+% --------------------------------------------------------------------
+function exitMenuBar_Callback(hObject, eventdata, handles)
+% hObject    handle to exitMenuBar (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+closeGUI(hObject,eventdata);
+end
+
+
+% --------------------------------------------------------------------
+function plotNewFigMenuBar_Callback(hObject, eventdata, handles)
+% hObject    handle to plotNewFigMenuBar (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+new_figure_Callback(hObject,eventdata,handles);
+end
+
+
+% --------------------------------------------------------------------
+function accessVoltageMenuBar_Callback(hObject, eventdata, handles)
+% hObject    handle to accessVoltageMenuBar (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+access_voltage_Callback(hObject, eventdata, handles);
+end
+
+
+% --------------------------------------------------------------------
+function saveVoltageMenuBar_Callback(hObject, eventdata, handles)
+% hObject    handle to saveVoltageMenuBar (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+save_voltage_Callback(hObject, eventdata, handles);
+end
+
+function removeToolBarButtons()
+removeItems = ([{'Save Figure'}, {'New Figure'}, {'Open File'}, {'Print Figure'}, {'Link Plot'}, {'Open Property Inspector'}, {'Insert Colorbar'}]);
+for i = 1:size(removeItems,2)
+   listOfElements = findall(gcf);
+   element = findall(listOfElements,'ToolTipString',string(removeItems(i)));
+   set(element,'Visible','off');
+end
 end

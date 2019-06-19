@@ -450,6 +450,31 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
                hold(gca,'off');
             end
          end
+      else
+         % If rescaling at the end, we still have to fix the time of the
+         % rescaling, so it does not change the shape of a spike. I.e. it
+         % should not start rescaling with a different value during a peak,
+         % rather during the closest zero cross.
+         %
+         % Find the index of the closest positive transition before the
+         % second last peak (rscltstart).
+         try
+            posv = v(pprevt(1): currt)>0; % Get values above 0 (ones), and below (zeros)
+         catch
+            posv = v(pprevt(1): min(currt, length(v)))>0; % Could ask for this in the previous line and avoid the try-catch statement, but tested with tic toc and it takes longer.
+         end
+         changePos  = find(diff([0; posv; 0])==1);    % location of change from 0 to 1% Find the index of the closest positive transition after the
+         % last peak (rscltend)
+         rscltend = find(time == tpeak_vec(end),1,'first'); % End of the period of time to rescale in this loop. It is the index of the second last peak
+         rscltend = changePos(find(changePos > (rscltend - pprevt(1)), 1, 'first')); % The actual spike ends on the closest positive transition after the peak
+         % We only looked for indexes within the current period, so we
+         % have to adjust the indexes by the start of current period.
+         rscltend = rscltend + pprevt(1);
+         % Check our rescaling period is within the limits of the
+         % recording
+         if (isempty(rscltend) || rscltend > currt), rscltend = currt; end % Test if we've reached the end of the recording
+         % Update the index where Rest changes
+         tpeak_vec(end) = rscltend * dt;
       end
       
    end
@@ -765,7 +790,7 @@ function [Rest, Rcoeff, Rmu, Rsig, Rcov] = initRegress(tspike, vspike, lambda, n
       Rmu  = vspike;
       Rcov = eye(2,2) / Rsig;
       Rest = vspike;
-      str  = sprintf( 'Init regression for R estimate only has 1 sample!' );
+      str  = sprintf( '\tInit regression for R estimate only has 1 sample!\n' );
       printMessage('off', 'Errors', str );
       return;
    end

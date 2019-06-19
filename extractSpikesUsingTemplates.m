@@ -85,7 +85,9 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
       curr_stime = stimes{si};
       switch matchtype
             case 'corr'
-               rho = corr(APtemplates, curr_spike);
+               % rho = corr(APtemplates, curr_spike); % This line was not
+               % being used. I commented it to save time. It was taking
+               % several minutes to run it in every iteration.
                
                % use autocorrelation to allow spikes to not be perfectly
                % aligned
@@ -95,7 +97,6 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                   % use max autocorr
                   rho(ap) = max( abs(c) );
                end
- 
             case 'cov'
                % to compare using covariance means that the APs have to have
                % the same amplitude to be considered part of the same family.
