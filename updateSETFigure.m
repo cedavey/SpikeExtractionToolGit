@@ -138,7 +138,7 @@ tscale=1; tlabel='s';
                lh = plot(ax1, (1:size(x,1))*dt/tscale, x(:,lind)/vscale);
                if ~warn % don't print over and over
                   str = sprintf('Warning: size of time and data didn''t match, reconstructing time vector\n');
-                  cprintf('Comments*', str);
+                  printMessage('off','Comments*', str);
                   warn= true;
                end
             end
@@ -241,7 +241,7 @@ tscale=1; tlabel='s';
             lh = plot(ax1, (1:size(data(:, plot_ax(i))))*dt/tscale, data(:, plot_ax(i))/vscale);
             if ~warn % don't print over and over
                str = sprintf('Warning: size of time and data didn''t match, reconstructing time vector\n');
-               cprintf('Comments*', str);
+               printMessage('off','Comments*', str);
                warn= true;
             end
          end

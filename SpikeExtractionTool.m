@@ -369,19 +369,7 @@ if ~okToClear
    end
 end
 
-% Set the mouse pointer to waiting to know the function is running.
-set(handles.figure1, 'pointer', 'watch')
-drawnow;
-try
-   % Call the function
-   load_voltage(hObject, eventdata, handles);
-catch E
-   % Mouse pointer back to normal.
-   set(handles.figure1, 'pointer', 'arrow')
-   rethrow(E);
-end
-% Mouse pointer back to normal.
-set(handles.figure1, 'pointer', 'arrow')
+mouseWaitingFunction(handles.figure1,@load_voltage,hObject,eventdata,handles);
 end
 
 function load_voltage(hObject, eventdata, handles)
@@ -501,6 +489,10 @@ end
 
 % --- Executes on button press in add_voltage.
 function add_voltage_Callback(hObject, eventdata, handles)
+mouseWaitingFunction(handles.figure1,@add_voltage,hObject,eventdata,handles);
+end
+
+function add_voltage(hObject,eventdata,handles)
 last_tseries    = handles.data.curr_tseries;
 new_num_tseries = handles.data.num_tseries + 1;
 
@@ -523,23 +515,15 @@ end
 
 % --- Executes on button press in clear_voltage.
 function clear_voltage_Callback(hObject, eventdata, handles)
-% Set the mouse pointer to waiting to know the function is running.
-set(handles.figure1, 'pointer', 'watch')
-drawnow;
-
 [tseries, ts_num, data_type, ts_name] = getCurrentVoltage(handles);
 response = userConfirmation(['Delete ' ts_name '?'],...
    'Clear current time series?');
 if strcmp(response,'No')
-   % Mouse pointer back to normal.
-   set(handles.figure1, 'pointer', 'arrow')
    return
 end
-removeVoltage(handles);
 
+mouseWaitingFunction(handles.figure1,@removeVoltage,handles); % Instead of removeVoltage(handles);
 
-% Mouse pointer back to normal.
-set(handles.figure1, 'pointer', 'arrow')
 end
 
 % --- Executes on selection change in tool_list.
@@ -740,19 +724,7 @@ end
 
 % --- Executes on button press in run_tool.
 function run_tool_Callback(hObject, eventdata, handles)
-% Set the mouse pointer to waiting to know the function is running.
-set(handles.figure1, 'pointer', 'watch')
-drawnow;
-% Run tool
-try
-   run_tool(hObject, eventdata, handles);
-catch E
-   % If an error, mouse pointer back to normal.
-   set(handles.figure1, 'pointer', 'arrow');
-   rethrow(E);
-end
-% Mouse pointer back to normal.
-set(handles.figure1, 'pointer', 'arrow');
+mouseWaitingFunction(handles.figure1,@run_tool,hObject,eventdata,handles);
 end
 
 function run_tool(hObject, eventdata, handles)
@@ -1495,6 +1467,10 @@ end
 
 % --- Executes on slider movement.
 function scroll_axes_Callback(hObject, eventdata, handles)
+mouseWaitingFunction(handles.figure1, @scroll_axes, hObject, eventdata, handles);
+end
+
+function scroll_axes(hObject, eventdata, handles)
 tseries = getCurrentVoltage(handles);
 handles = updateSETFigure(handles, tseries);
 guidata(hObject, handles);
