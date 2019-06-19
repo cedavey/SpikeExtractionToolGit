@@ -32,6 +32,9 @@ function methods = getSETToolMethodsList(tool, data_type)
                
             case 'merge templates'
                methods = {'User selection'};
+               
+            case 'delete templates'
+               methods = {'User selection'};
          end
          
       case 'spike'

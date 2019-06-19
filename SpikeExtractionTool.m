@@ -13,8 +13,6 @@
 %         templates are not stationary, but evolve over time
 %
 %% TO DO:
-% - allow deleting a voltage from the gui without having to displat it
-%   first, which can take ages for large axon families
 % - when extracting spikes, families can become v.similar in size so also
 %   use correlation to determine which family within the template
 % - also whene extracting spikes a one-off large spike spawns a new family,
@@ -638,6 +636,16 @@ if ~cancel && any( strcmpi( 'number_of_templates_to_merge', names ) )
    % parameter
    tseries.mergeAPs = mergeids;
    handles.data.tseries{ ts_num } = tseries;
+elseif ~cancel && any( strcmpi( 'number_of_templates_to_remove', names ) )
+   % If deleting templates
+   deleteids = getUserTemplateDeleteIDs( tseries, method_params );
+   if isempty( deleteids )
+      return;
+   end
+   % add merge ids to tseries datastruct since it isn't actually a user
+   % parameter
+   tseries.deleteAPs = deleteids;
+   handles.data.tseries{ ts_num } = tseries;
 end
 
 params = setToolAndMethodParams(params, method_params, data_type, tool, method);
@@ -710,6 +718,77 @@ end
 % replace list indices with template ids
 names = fieldnames (userparams );
 for i=1:nmerge
+   % for the list types extract value from index into list
+   userparams.( names{i} ) = formats(i).items( userparams.( names{i} ) );
+end
+
+% if any template ids are repeated, delete repeat
+userids = cellfun( @(f) userparams.(f), names );
+if length( unique( userids ) ) ~= length( userids )
+   displayErrorMsg( 'Ignoring repeat template IDs' );
+end
+userids = unique( userids );
+end
+
+% if removing templates. User has chosen how many to remove.
+function userids = getUserTemplateDeleteIDs( tseries, method_params )
+% user configuration parameters:
+%   ap.merge_templates.user_selection.template_to_merge_with.value = 1;
+%   ap.merge_templates.user_selection.number_of_templates_to_merge.value   = 1;
+userids = [];
+nap     = size( tseries.data, 2 );
+ndelete  = method_params.number_of_templates_to_remove.value;
+% make sure there's enough templates to merge as many as user requested
+if ndelete >= nap
+   str = 'You''re trying to delete more templates than you actually have, try again';
+   displayErrorMsg(str);
+   return;
+end
+
+% get IDs of templates available to merge
+ids = 1:nap;
+list = struct('type','list', 'format','integer', 'style','popupmenu', 'size',0);
+for ii=1:ndelete
+   def{ii,1}    = ids( ii );
+   descript     = sprintf( 'Delete %d templates');
+   name         = sprintf( 'ap%d', ii ); % ids( ii ) );
+   units        = 'integer';
+   prompt{ii,1} = sprintf( 'Select template ID to remove');
+   prompt{ii,2} = name;    % name of struct field for result
+   prompt{ii,3} = units;   % units of parameter
+   
+   % list options
+   options      = ids;
+   tmp          = list;
+   tmp.limits   = [1 length(options)];
+   tmp.items    = options;
+   formats(ii,1)= tmp;
+   
+   % need to update default value for lists from being string to
+   % being index into list, else inputsdlg has a hissy
+   def{ii,1}    = find( def{ii,1} == options );
+end
+other.Resize      = 'on';
+other.WindowStyle = 'normal';
+other.Interpreter = 'tex';
+
+dlg_title = sprintf( 'Select AP templates to remove');
+try
+   [userparams, cancel] = inputsdlg(prompt, dlg_title, formats, def, other);
+catch ME
+   str = getCatchMEstring( ME, 'Error setting parameters', false );
+   displayErrorMsg( 'Error setting parameters, reverting to old values' );
+   userids = [];
+   return;
+end
+if cancel
+   userids = [];
+   return;
+end
+
+% replace list indices with template ids
+names = fieldnames (userparams );
+for i=1:ndelete
    % for the list types extract value from index into list
    userparams.( names{i} ) = formats(i).items( userparams.( names{i} ) );
 end
@@ -896,7 +975,15 @@ switch lower(type)
             tool_str            = [tseries.name '_APs_' method];
             tool_str            = [tseries.name '_APs'];
             instruct            = ['Creating ' tool_str ': rename?'];
-            
+         
+         case 'delete templates'
+            % get time series to apply AP templates to
+            new_tseries = deleteAPtemplates( tseries, method, method_params );
+            if isempty(new_tseries)
+               return;
+            end
+            tool_str            = [tseries.name '_APs'];
+            instruct            = ['Creating ' tool_str ': rename?'];
          otherwise
             displayErrorMsg('This tool don''t exist, give up');
             return;

@@ -542,11 +542,11 @@ function params = getDefaultToolParams
          ap.merge_templates.user_selection.number_of_templates_to_merge.type    = 'positive integer';
          ap.merge_templates.user_selection.number_of_templates_to_merge.units   = 'template ID';
 
-         ap.remove_templates.user_selection.number_of_templates_to_remove.value = 1;
-         ap.remove_templates.user_selection.number_of_templates_to_remove.name  = 'number of templates to remove';
-         ap.remove_templates.user_selection.number_of_templates_to_remove.descript = 'number of templates to be removed';
-         ap.remove_templates.user_selection.number_of_templates_to_remove.type  = 'positive integer';
-         ap.remove_templates.user_selection.number_of_templates_to_remove.units = 'template ID';
+         ap.delete_templates.user_selection.number_of_templates_to_remove.value = 1;
+         ap.delete_templates.user_selection.number_of_templates_to_remove.name  = 'number of templates to remove';
+         ap.delete_templates.user_selection.number_of_templates_to_remove.descript = 'number of templates to be removed';
+         ap.delete_templates.user_selection.number_of_templates_to_remove.type  = 'positive integer';
+         ap.delete_templates.user_selection.number_of_templates_to_remove.units = 'template ID';
 
          
 %       % Extract spikes by matching with AP templates as mother wavelets
