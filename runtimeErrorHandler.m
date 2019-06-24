@@ -27,7 +27,7 @@ function runtimeErrorHandler(varargin)
    fid = fopen('logFile.log','a+');
    % write the error to file
    % first line: message
-   fprintf(fid,'Error handled (%s) %s:\n%s\n',action,string(datetime),ME.message);
+   fprintf(fid,'\nError handled (%s) %s:\n%s\n',action,string(datetime),ME.message);
    % following lines: stack
    for e=1:length(ME.stack)
       fprintf(fid,' in %s at %i\n',ME.stack(e).name,ME.stack(e).line);
