@@ -71,6 +71,7 @@ function handles = toggleSETGUIstate(handles,state)
    set(handles.time_min,       'Visible', state);
    set(handles.save_voltage,   'Visible', state);
    set(handles.new_figure,     'Visible', state);
+   set(handles.toggleZoomButton,'Visible', state);
    % if gui is deployed as stand alone then can't access variables
    if isdeployed
       set(handles.access_voltage, 'Visible', 'off');
@@ -102,6 +103,9 @@ function handles = toggleSETGUIstate(handles,state)
          handles.plotNewFigMenuBar.Enable = true;
          handles.accessVoltageMenuBar.Enable = true;
          handles.saveVoltageMenuBar.Enable = true;
+         % Slide bar update:
+         handles.time_slider.Value = handles.data.zoomPercentage(1);
+         handles.voltage_slider.Value = handles.data.zoomPercentage(2);
          
          % curr_signal UI 
          if haveData
@@ -219,13 +223,11 @@ function handles = toggleSETGUIstate(handles,state)
          % set time slider and time max/min text boxes from time length of data
          set(handles.time_slider,    'Max',   1);
          set(handles.time_slider,    'Min',   0);
-         set(handles.time_slider,    'Value', 1);
          set(handles.time_max,       'Value', tlim(2));
          set(handles.time_min,       'Value', tlim(1));
          % set time slider and time max/min text boxes from scale of data
          set(handles.voltage_slider, 'Max',   1);
          set(handles.voltage_slider, 'Min',   0);
-         set(handles.voltage_slider, 'Value', 1);
          set(handles.voltage_max,    'Value', vlim(2));
          set(handles.voltage_min,    'Value', vlim(1));
          set(handles.scroll_axes,    'Max',   1);
