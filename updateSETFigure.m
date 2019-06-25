@@ -241,6 +241,7 @@ tscale=1; tlabel='s';
    [vscale, vlabel] = getUnitScale(max(data(:))*10, 'V');
 
    fopts= {'fontsize', fontsize, 'fontweight', 'bold'};
+   figure(handles.figure1); % Change focus to main window
    subplot(1,1,1, 'Parent', panel); % Clear the axes to prevent having empty little subplots
    for i=1:Np
       ax1 = subplot(nr, nc, i, 'Parent', panel); hold off;
@@ -269,11 +270,11 @@ tscale=1; tlabel='s';
 
          case 'ap'
             fontsize  = 10; % make font smaller cuz looks silly!
-            set(lh, 'color', 'k', 'linewidth', 4);
+            set(lh, 'color', 'k', 'linewidth', 3);
             try
                hold on; 
                nlines = min( max_lines, size( tseries.APfamily{plot_ax(i)}, 2) );
-               lh2 = plot(ax1, time/tscale, tseries.APfamily{plot_ax(i)}(sind:eind,1:nlines)/vscale);
+               plot(ax1, time/tscale, tseries.APfamily{plot_ax(i)}(sind:eind,1:nlines)/vscale);
                vlim(2) = max( toVec(tseries.APfamily{plot_ax(i)}(sind:eind,1:nlines)) );
                % if APs normalised we know they'll be btwn -3/3 so make lims the same
                if tseries.params.normalise_aps.value
@@ -294,7 +295,17 @@ tscale=1; tlabel='s';
                end
 
             catch ME
-               pause;
+               if strcmp('Invalid or deleted object.', ME.message)
+                  set(handles.figure1,'CurrentAxes',ax1)
+                  if ~ishold
+                     hold(ax1,'on');
+                  end
+                  plot((1:size(data(:,...
+                     plot_ax(i))))*dt/tscale, data(:, plot_ax(i))/vscale,...
+                     'k','LineWidth',3);
+               else
+                  runtimeErrorHandler(ME,'message');
+               end
             end
       end
    end

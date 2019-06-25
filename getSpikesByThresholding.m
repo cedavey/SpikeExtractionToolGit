@@ -18,7 +18,7 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
    time       = double( tseries.time(:) );
    
    str = sprintf( '\tIdentifying possible spikes...\n' );
-   cprintf( 'Keywords', str );
+   printMessage('off', 'Keywords', str );
 
    % threshold the voltage timeseries - remove values that are too
    % small, and positive values that remain positive for a short period
@@ -173,7 +173,7 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
                           
                           
    str = sprintf( '\tDone.\n' );
-   cprintf( 'Keywords', str );
+   printMessage('off', 'Keywords', str );
 end
 
 

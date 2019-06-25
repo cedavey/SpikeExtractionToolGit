@@ -10,6 +10,7 @@ function method_params = getToolAndMethodParams(params, data_type, tool, method)
    catch ME
       str = sprintf('Something funky''s going on with tool list for %s data type, setting to something safe', data_type);
       displayErrorMsg(str);
+      runtimeErrorHandler(ME,'message',str);
       % set tool & method list to something vanilla that will always work
       fnames = fieldnames(params.(data_type));
       tool   = fnames{1};

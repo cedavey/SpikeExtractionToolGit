@@ -863,7 +863,7 @@ switch lower(type)
             
          case 'identify ap templates'
             % get time series to apply AP templates to
-            [APtemplates, APfamily] = identifyAPs(tseries, method, method_params);
+            [APtemplates, APfamily] = identifyAPs(tseries, method, method_params,  handles.debugOption);
             if isempty(APtemplates)
                return;
             end
@@ -881,24 +881,45 @@ switch lower(type)
          case 'extract spikes'
             % allows user to generate spikes directly from voltage
             % timeseries, by generating AP templates enroute
-            [APtemplates, APfamily]= identifyAPs(tseries, 'threshold', method_params);
-            if isempty(APtemplates)
-               return;
+            if strcmpi(method,'k means') 
+               % Extracting spikes directly from voltage through K-means
+               % clustering
+               [APtemplates, APfamily]= identifyAPs(tseries, 'k means', method_params, handles.debugOption);
+               if isempty(APtemplates)
+                  return;
+               end               
+               new_tseries.type    = 'spike';
+               new_tseries.data    = APspikes;
+               new_tseries.time    = tseries.time;
+               new_tseries.dt      = tseries.dt;
+               new_tseries.params  = method_params;
+               new_tseries.params.tool   = tool;
+               new_tseries.params.method = method;
+               new_tseries.APfamily= APfamily;
+               new_tseries.APstimes= APtimes; % record spike times for getting rate later
+               tool_str            = [tseries.name '_spikes'];
+               instruct            = ['Creating ' tool_str ': rename?'];
+               
+            else
+               [APtemplates, APfamily]= identifyAPs(tseries, 'threshold', method_params);
+               if isempty(APtemplates)
+                  return;
+               end
+               APnumsamples        = cellfun(@(f) size(f,2), APfamily);
+               normAPs             = method_params.normalise_aps.value; % separate for when gen APs separately
+               [APspikes,APtimes]  = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, method_params, normAPs );
+               new_tseries.type    = 'spike';
+               new_tseries.data    = APspikes;
+               new_tseries.time    = tseries.time;
+               new_tseries.dt      = tseries.dt;
+               new_tseries.params  = method_params;
+               new_tseries.params.tool   = tool;
+               new_tseries.params.method = method;
+               new_tseries.APfamily= APfamily;
+               new_tseries.APstimes= APtimes; % record spike times for getting rate later
+               tool_str            = [tseries.name '_spikes'];
+               instruct            = ['Creating ' tool_str ': rename?'];
             end
-            APnumsamples        = cellfun(@(f) size(f,2), APfamily);
-            normAPs             = method_params.normalise_aps.value; % separate for when gen APs separately
-            [APspikes,APtimes]  = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, method_params, normAPs );
-            new_tseries.type    = 'spike';
-            new_tseries.data    = APspikes;
-            new_tseries.time    = tseries.time;
-            new_tseries.dt      = tseries.dt;
-            new_tseries.params  = method_params;
-            new_tseries.params.tool   = tool;
-            new_tseries.params.method = method;
-            new_tseries.APfamily= APfamily;
-            new_tseries.APstimes= APtimes; % record spike times for getting rate later
-            tool_str            = [tseries.name '_spikes'];
-            instruct            = ['Creating ' tool_str ': rename?'];
             
          case 'utilities'
             new_tseries = voltageUtilities(tseries, method, method_params);
@@ -2098,6 +2119,8 @@ function toggleZoomButton_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
 
 % Toggles between arrows (displacement) and magnifier (zoom) icons
+   warning('off','MATLAB:imagesci:png:libraryWarning'); % Ignore PNG associated warning
+
    if strcmp('zoom',hObject.UserData)
       % Displacement function has been selected
       [x,~]=imread('fig/arrowsIcon.png');% Load the displacement icon

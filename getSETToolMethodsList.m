@@ -14,10 +14,10 @@ function methods = getSETToolMethodsList(tool, data_type)
                methods = {'Wavelets', 'Threshold', 'Filter'};
                
             case 'identify ap templates'
-               methods = {'Threshold', 'Wavelets'};
+               methods = {'Threshold', 'Wavelets', 'K means'};
                
             case 'extract spikes'
-               methods = {'Matched Filter'};
+               methods = {'Matched Filter', 'K means'};
 
             case 'utilities'
                methods = {'Downsample', 'Truncate'};
