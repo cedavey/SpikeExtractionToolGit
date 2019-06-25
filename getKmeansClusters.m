@@ -13,6 +13,8 @@
 function [APspikes, APtemplates] = getKmeansClusters(spikes,stimes,varargin)
    if nargin > 0, debug = varargin{1}; else, debug = 'none'; end
    NS = size(spikes,2);
+   max_k = 100;
+   min_k = 10;
 %    pos_peak = zeros(1,NS);
 %    neg_peak = zeros(1,NS);
 %    pos_duration = zeros(1,NS);
@@ -32,19 +34,19 @@ function [APspikes, APtemplates] = getKmeansClusters(spikes,stimes,varargin)
    [~,score,l] = pca(spikes'); % Principal component analysis
    score = score(:,1:5); % Get only the projection on the highest latent component
   
-   sse = zeros(30,1);
-   idx = zeros(30,NS);
+   sse = zeros(max_k,1);
+   idx = zeros(max_k,NS);
    % Find the clusters with a range of initial number of clusters (k)
-   for k = 5:30
+   for k = min_k:max_k
       sse(k) = 0;
 %       [idx(k,:), c] = kmeans([pos_peak;neg_peak;diff_peaks;pos_duration;neg_duration;score]',k); % K-means with k clusters
       [idx(k,:), c, e, ~] = kmeans(score(:,1:5),k, 'EmptyAction','drop','MaxIter',200); % K-means with k clusters
       sse(k) = sum(e.^2);
    end
    % Find the elbow
-   elbow = find(abs(diff(diff(sse(5:30)))) < mean(abs(diff(diff(sse(5:30)))))/10, 1, 'first') + 4;
+   elbow = find(abs(diff(diff(sse(min_k:max_k)))) < mean(abs(diff(diff(sse(min_k:max_k)))))/10, 1, 'first') + 4;
    if ~strcmp('none',debug)
-      figure('Name','K-means elbow test'); plot(5:30,sse(5:30),'-o');hold('on');
+      figure('Name','K-means elbow test'); plot(min_k:max_k,sse(min_k:max_k),'-o');hold('on');
       plot(elbow, sse(elbow),'xr', 'LineWidth', 2, 'MarkerSize', 10);
       xlabel('K');
       ylabel('SSE');

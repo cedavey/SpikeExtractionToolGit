@@ -830,7 +830,18 @@ switch lower(type)
       handles.data.curr_tool = get(handles.select_tool, 'Value');
       switch lower(tool)
          case 'rescale'
-            [voltage, Rest] = rescaleVoltage(tseries, method, method_params, handles.debugOption, handles.loadingWindowOn);
+            if ~strcmp('separate',method_params.select_peaks.value)
+               [voltage, Rest] = rescaleVoltage(tseries, method, method_params, handles.debugOption, handles.loadingWindowOn);
+            else
+               method_params.select_peaks.value = 'positive';
+               [voltage, Rest] = rescaleVoltage(tseries, method, method_params, handles.debugOption, handles.loadingWindowOn);
+               voltage = voltage.*heaviside(voltage);
+               method_params.select_peaks.value = 'negative';
+               [nvoltage, Nest] = rescaleVoltage(tseries, method, method_params, handles.debugOption, handles.loadingWindowOn);
+               nvoltage = -nvoltage;
+               nvoltage = nvoltage.*heaviside(nvoltage);
+               voltage = voltage - nvoltage;
+            end
             if isempty(voltage)
                return;
             end

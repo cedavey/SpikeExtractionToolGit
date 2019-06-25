@@ -79,7 +79,7 @@ function params = getDefaultToolParams
          voltage.rescale.particle_filter.select_peaks.name                      = 'select peaks';
          voltage.rescale.particle_filter.select_peaks.descript                  = 'Select positive, negative, or both positive and negative peaks ';
          voltage.rescale.particle_filter.select_peaks.type                      = 'list';
-         voltage.rescale.particle_filter.select_peaks.list                      = {'all', 'positive', 'negative'};
+         voltage.rescale.particle_filter.select_peaks.list                      = {'all', 'positive', 'negative','separate'};
          voltage.rescale.particle_filter.select_peaks.units                     = 'voltage';
          
          voltage.rescale.particle_filter.jump_ahead.value                       = 1;
@@ -111,7 +111,7 @@ function params = getDefaultToolParams
          voltage.rescale.recursive_least_squares.select_peaks.name              = 'select peaks';
          voltage.rescale.recursive_least_squares.select_peaks.descript          = 'Select positive, negative, or both positive and negative peaks ';
          voltage.rescale.recursive_least_squares.select_peaks.type              = 'list';
-         voltage.rescale.recursive_least_squares.select_peaks.list              = {'positive', 'negative', 'all'};
+         voltage.rescale.recursive_least_squares.select_peaks.list              = {'positive', 'negative', 'all','separate'};
          voltage.rescale.recursive_least_squares.select_peaks.units             = 'voltage';
          
          voltage.rescale.recursive_least_squares.jump_ahead.value               = 10;
@@ -143,7 +143,7 @@ function params = getDefaultToolParams
          voltage.rescale.recursive_mean.select_peaks.name                       = 'select peaks';
          voltage.rescale.recursive_mean.select_peaks.descript                   = 'Select positive, negative, or both positive and negative peaks ';
          voltage.rescale.recursive_mean.select_peaks.type                       = 'list';
-         voltage.rescale.recursive_mean.select_peaks.list                       = {'positive', 'negative', 'all'};
+         voltage.rescale.recursive_mean.select_peaks.list                       = {'positive', 'negative', 'all','separate'};
          voltage.rescale.recursive_mean.select_peaks.units                      = 'voltage';
 
       % Voltage utilities - downsample
