@@ -69,20 +69,20 @@ function params = getDefaultToolParams
          voltage.rescale.particle_filter.glitch_magnitude.type                  = 'positive float';
          voltage.rescale.particle_filter.glitch_magnitude.units                 = 'std dev';
          
-         voltage.rescale.particle_filter.forgetting_factor.value                = 1;
+         voltage.rescale.particle_filter.forgetting_factor.value                = 0.99;
          voltage.rescale.particle_filter.forgetting_factor.name                 = 'forgetting factor';
          voltage.rescale.particle_filter.forgetting_factor.descript             = 'Controls how quickly we forget past samples (0 - forget fastest, 1 - forget slowest)';
          voltage.rescale.particle_filter.forgetting_factor.type                 = 'normalised float';
          voltage.rescale.particle_filter.forgetting_factor.units                = '\in [0, 1]';
          
-         voltage.rescale.particle_filter.select_peaks.value                     = 'all';
+         voltage.rescale.particle_filter.select_peaks.value                     = 'positive';
          voltage.rescale.particle_filter.select_peaks.name                      = 'select peaks';
          voltage.rescale.particle_filter.select_peaks.descript                  = 'Select positive, negative, or both positive and negative peaks ';
          voltage.rescale.particle_filter.select_peaks.type                      = 'list';
          voltage.rescale.particle_filter.select_peaks.list                      = {'all', 'positive', 'negative','separate'};
          voltage.rescale.particle_filter.select_peaks.units                     = 'voltage';
          
-         voltage.rescale.particle_filter.jump_ahead.value                       = 1;
+         voltage.rescale.particle_filter.jump_ahead.value                       = 10;
          voltage.rescale.particle_filter.jump_ahead.name                        = 'jump ahead';
          voltage.rescale.particle_filter.jump_ahead.descript                    = 'Get largest spike in this amount of time';
          voltage.rescale.particle_filter.jump_ahead.type                        = 'positive float';

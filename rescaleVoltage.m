@@ -13,10 +13,7 @@
 %   or quickly so that all peaks tend towards same amplitude where earlier
 %   they didn't
 
-%% TO DO:
-% - recursive update of noise in updateNoiseStats can be sped up by
-% calcuting new mean & std & weighting by num samples
-function [rescaled_voltage, Rest] = rescaleVoltage(tseries, method, params, debug, progress_window)
+function [rescaled_voltage, Rest] = rescaleVoltage(tseries, method, params, debug, progress_window, rsclng_method)
    % methods: 'Variance', 'Particle filter', 'Recursive least squares', 'Recursive mean'
    
    switch lower(method)
@@ -27,7 +24,7 @@ function [rescaled_voltage, Rest] = rescaleVoltage(tseries, method, params, debu
       case {'particle filter', 'recursive least squares', 'recursive mean'}
          str = sprintf( '\tRescaling voltage, this may take a whiles...\n' );
          printMessage('off', 'Keywords', str);
-         [rescaled_voltage, Rest] = rescaleVoltageRecursive(tseries, params, method, progress_window, debug);
+         [rescaled_voltage, Rest] = rescaleVoltageRecursive(tseries, params, method, progress_window, debug, rsclng_method);
 
       case 'plot sigma'
          plotVoltageSigma(tseries, params);
@@ -55,7 +52,7 @@ function peakfn = getPeakFn( select_peaks )
    end
 end
 
-function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, params, method, progress_window, debug)
+function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, params, method, progress_window, debug, rsclng_method)
    voltoutlier  = params.voltage_magnitude.value;
    glitchthresh = params.glitch_magnitude.value;
    select_peaks = params.select_peaks.value;
@@ -81,7 +78,7 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
    npoles = 0;     % number of poles in AR model of resistance coeff
    nzeros = 2;     % includes the dc component
    nlags  = max(nzeros, npoles+1);
-   rescaling_method = 'at_end'; % Chose scaling method: 'at_end', 'peaks', or 'JA' 
+   rescaling_method = rsclng_method; % Chose scaling method: 'at_end', 'peaks', or 'JA' 
       
 
    tnow = datetime('now');
@@ -114,8 +111,8 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
 
    % tracking noise mean, mse & num samples
    noisethresh = voltoutlier * noisesig;
-   noisemse    = noisesig^2;
-   noiseN      = 1; % Used to be 1. Changed to the actual length of the initial white noise (initNoiseStdDev)
+   noisemse    = (noisesig^2)*initialNoiseSamples;
+   noiseN      = initialNoiseSamples; % Used to be 1. Changed to the actual length of the initial white noise (initNoiseStdDev)
 
    lambda      = ternaryOp( lambda==1, 1-dt, lambda ); % make lambda 1 timestep less than 1
    R_prob      = 0.01;
@@ -158,6 +155,8 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
          printMessage('off','Text', str);
          prevProg = 10*floor(currt/nT*10);
       end
+      
+      %% Shifting the 'noise period' until a reasonable number of samples contain white noise
       % find where noise ends - update est of noise mean & std dev
       startsp = find( peakfn(v( currt:end) ) >= noisethresh, 1, 'first' );
       % no more peaks left in timeseries so exit loop
@@ -173,7 +172,30 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
       % update noise mean & variance estimate - keep track of mean
       % because noise has subthreshold spikes so mean may not be 0
       noise = v(prevt:currt-1);
-      [noisemu, noisesig, noisemse, noiseN] = updateNoiseStats(noise, noisemu, noisesig, noisemse, noiseN, lambda);
+      [noisemu, noisesig, noisemse, noiseN, is_noise, returned_noise] = updateNoiseStats(noise, noisemu, noisesig, noisemse, noiseN, lambda);
+      % If the length wasn't at least 30** samples, it will concatenate
+      % them to our noise_vector vector until we have 30** samples. It
+      % has restored the noise estimate to whatever was before this
+      % new noise try. **NOTE: 30 means, min_noise.
+      if ~isempty(returned_noise), noise = returned_noise; end
+      if ~is_noise
+         if ~exist('noise_vector','var')
+            noise_vector = noise;
+         else
+            % If there is already a vector being saved, concatenate the
+            % new few samples and check again. If it is still too small,
+            % it will again just use the previous noise estimate and
+            % exit the loop.
+            noise_vector = [noise_vector; noise];
+            [noisemu, noisesig, noisemse, noiseN, is_noise] = updateNoiseStats(noise_vector, noisemu, noisesig, noisemse, noiseN, lambda);
+            % If it is still smaller than min_noise samples, it will keep
+            % the noise estimate and exit the loop. If it happens to be
+            % larger than min_noise samples, and is noise, then we will
+            % clear the nosie_vector and still exit the loop.
+            if is_noise, clear('noise_vector'); end
+         end
+      end
+      %%
       noisethreshprev= noisethresh;  % keep last thresh so we keep spike we stopped at
       noisethresh    = voltoutlier * noisesig;
 
@@ -204,7 +226,7 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
             prevt   = currt + startsp - 1; % update current time to where next spike is
             [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
             
-            if(countLoops > 19)
+            if(countLoops > 29)
                str = sprintf('\tIt looks like you haven''t chosen the best parameters.\n\tThere were at least %d consecutive spikes that were not\n\tunder the glitch threshold.\n',countLoops);
                printMessage('off', 'Errors', str);
                break
@@ -646,14 +668,6 @@ function [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethres
    currt   = prevt + endsp + 1;
 end
 
-% Returns the index differences from the two last found largest spike
-% peaks. This will be used to rescale in real time, instead of using the
-% JA, using the last two found spikes, not at the peak, but at the
-% previous and next zero crossing.
-function varargout = optimumRescalePeriod(varargin)
-   % TODO
-end
-
 % Checks if the duration of positive and negative parts of the highest
 % spike are reasonable.
 %
@@ -681,8 +695,8 @@ function too_short = isSpikeTooShort(vsp, peakfn, min_pos_time, min_neg_time)
    too_short = (sum(posv(stidx:endidx)) < pos_time) || (sum(~posv(stidx:endidx)) < neg_time);
 end
 
-% loop through noise & update mean & mse recursively
-function [mu_curr, sig_curr, mse_curr, N_curr] = updateNoiseStats(new_noise, mu_prev, sig_prev, mse_prev, N_prev, lambda)
+%--- loop through noise & update mean & mse recursively ---
+function [mu_curr, sig_curr, mse_curr, N_curr, is_noise, returned_noise] = updateNoiseStats(new_noise, mu_prev, sig_prev, mse_prev, N_prev, lambda)
    % Check if "new_noise" is actually white noise, adjust the length of the
    % samples like we did in initNoiseStdDev (actually using same function).
    % If can't find at least 30 samples (or the length of the new_noise
@@ -690,35 +704,59 @@ function [mu_curr, sig_curr, mse_curr, N_curr] = updateNoiseStats(new_noise, mu_
    
    % If new_noise contains too few samples, mantain the previous noise
    % value.
-   if length(new_noise) < 30
-      N_curr = length(new_noise);
+   is_noise = true;
+   min_noise = 30;
+   returned_noise = [];
+   if length(new_noise) < min_noise
+%       str = sprintf('\tCouldn''t find %d samples between Spikes\n',min_noise);
+%       printMessage('off','Text',str);
+      is_noise = false;
+      mu_curr = mu_prev;
+      sig_curr = sig_prev;
+      mse_curr = mse_prev;
+      N_curr = N_prev;
+      return
    else
       try
-         nn = length(new_noise);
-         [mu_curr, sig_curr, NN, nn] = initNoiseStdDev(new_noise, 'none', 30, 0.15);
-         % If it didn't trigger the catch statement:
-         new_noise = nn;
-         N_curr = NN;
+         [~, ~, ~, nn] = initNoiseStdDev(new_noise, 'none', min_noise, 0.15);
+         new_noise = nn; % If it didn't trigger the catch statement
       catch E
          if contains(E.message, 'find a single white period')
             % It means it didn't find 30 samples (or whatever number) of
             % white noise. If it came here, we will not care and just treat
             % the whole signal new_noise as if it was actual noise.
-            N_curr = length(new_noise);
-            str = sprintf('\tCouldn''t find at least 30 samples of white noise\n');
-            runtimeErrorHandler(E,'message',str);
+            str = sprintf('\tCouldn''t find at least %d samples of white noise. %d \n', min_noise, N_prev + length(new_noise));
+            printMessage('off','Errors',str);
+            
+            is_noise = false;
+            mu_curr = mu_prev;
+            sig_curr = sig_prev;
+            mse_curr = mse_prev;
+            N_curr = N_prev;
+            return
+%             is_noise = false;
+%             mu_curr = mu_prev;
+%             sig_curr = sig_prev;
+%             mse_curr = mse_prev;
+%             N_curr = N_prev;
+%             idx = randi( numel(new_noise) - floor(min_noise/3),1 );
+%             returned_noise = new_noise(idx: idx + floor(min_noise/3) - 1);
+%             return
+            % Try again with a smaller no of samples
+%             [~, ~, ~, nn] = initNoiseStdDev(new_noise, 'none', 10, 0.15);
          else
             runtimeErrorHandler(E);
          end 
       end
    end
       
-   recursive = false;
+   recursive = true;
    N_curr    = N_prev + length( new_noise );
 
    % update noise using either recursive mean or, if assumed stationary,
    % using normal mean/sig calculations in real time
    if recursive
+      % ASSUMES NOISE IS NON-STATIONARY
       % recursive updating of noise, with forgetting
       % init curr vars cuz I seem to have a problem with new noise
       % sometimes being empty?!
@@ -733,12 +771,13 @@ function [mu_curr, sig_curr, mse_curr, N_curr] = updateNoiseStats(new_noise, mu_
          mse_prev = mse_curr;
       end
    else
+      % ASSUMES NOISE IS STATIONARY 
       % normal mean/sig estimates in real time
       mu_curr  = ( mu_prev * N_prev + sum( new_noise ) ) / N_curr;
-      mse_curr = mse_prev + sum( (new_noise - mu_curr) .* (new_noise - mu_prev) );
+      mse_curr = mse_prev + (sum(new_noise) - mu_curr)*(sum(new_noise) - mu_prev); % mse_curr = mse_prev + sum( (new_noise - mu_curr) .* (new_noise - mu_prev) );
    end
 
-   sig_curr = sqrt( mse_curr / (N_curr-1) );
+   sig_curr = sqrt( mse_curr / (N_curr - 1) );
 end
 
 function [mu_curr, var_curr] = recursiveUpdate( mu_prev, var_prev, lambda, new_obs )
@@ -805,13 +844,23 @@ function [Rest, Rcoeff, Rmu, Rsig, Rcov] = initRegress(tspike, vspike, lambda, n
 
    % get init estimate of VAR model to initialise recursive least squares
    p      = max(npoles,nzeros);      ndim = npoles + nzeros;
-   [Rcoeff, ~, vest] = getARcoeff_2vars( vspike, tspike, p );
-   % NOTE (Artemio): I think this two lines are wrong. I believe a
-   % is the first 3 elements <p + 1>, and b is the last 2 <p>.
+   if numel(tspike) > 4*p+2
+      % Validate length of the time series (even if it was larger than 1)
+      [Rcoeff, ~, vest] = getARcoeff_2vars( vspike, tspike, p );
+   else
+      Rcoeff(2) = 0;
+      Rcoeff(1) = vspike(end);
+      Rsig = vspike(end);
+      Rmu  = vspike(end);
+      Rcov = eye(2,2) / Rsig;
+      Rest = vspike(end);
+      str  = sprintf( '\tInit regression for R estimate has too few samples!\n' );
+      printMessage('off', 'Errors', str );
+      return;
+   end
+   
    a      =  Rcoeff(2:npoles+1)'; % autoregression coeffs
    b      = [Rcoeff(1) Rcoeff(p+2:(p+nzeros))']; % DC + input coeffs
-   % a = Rcoeff(1:p+1)'; % This is my shot (Artemio)
-   % b = Rcoeff(p+2:end)'; % This is my shot (Artemio)
 
    % if the estimate is shit (e.g. negative) then redo as univar AR &
    % regression (i.e. separate out from VAR into separate equations)
@@ -1000,7 +1049,7 @@ function [noisemu, noisesig, nS, noiseVector] = initNoiseStdDev(v, varargin)
    while ~iswhite(vtmp, 'lb', alpha, 3)
       % Start with a short number of samples (i.e. 30), if it doesn't
       % evaluate as not-white, shift the window 30 samples ahead.
-      firstS = firstS + nS;
+      firstS = firstS + floor(nS/3);
       try
          vtmp = v(firstS : firstS + nS);
       catch E
@@ -1036,6 +1085,7 @@ function [noisemu, noisesig, nS, noiseVector] = initNoiseStdDev(v, varargin)
       figure('Name', 'Time series white noise initial period');
       plot(v(firstS : firstS + nS));
       drawnow;
+      ylim([-0.15 0.15]);
       str = sprintf('\tWhite noise initialization included %d samples, starting in sample number %d \n', nS, firstS);
       printMessage('off','Text', str);
    end
@@ -1177,7 +1227,7 @@ function plotVoltageSigma(tseries, params)
 
    % tracking noise mean, mse & num samples
    noisethresh = voltoutlier * noisesig;
-   noisemse    = noisesig;
+   noisemse    = sqrt(noisesig);
    noiseN      = 1;
 
    lambda      = ternaryOp( lambda==1, 1-dt, lambda ); % make lambda 1 timestep less than 1

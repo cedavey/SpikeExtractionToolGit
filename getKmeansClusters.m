@@ -10,11 +10,19 @@
 %     spclusters - Clusters
 %
 % Created by Artemio - 24/June/2019
-function [APspikes, APtemplates] = getKmeansClusters(spikes,stimes,varargin)
-   if nargin > 0, debug = varargin{1}; else, debug = 'none'; end
+function varargout = getKmeansClusters(spikes,stimes,varargin)
+   if nargin > 2, debug = varargin{1}; else, debug = 'none'; end
+   if nargin > 3
+      cluster_range = varargin{2};
+      min_k = cluster_range(1);
+      max_k = cluster_range(2);
+      extracting = 'spikes';
+   else
+      max_k = 30;
+      min_k = 5;
+      extracting = 'families';
+   end
    NS = size(spikes,2);
-   max_k = 100;
-   min_k = 10;
 %    pos_peak = zeros(1,NS);
 %    neg_peak = zeros(1,NS);
 %    pos_duration = zeros(1,NS);
@@ -55,10 +63,12 @@ function [APspikes, APtemplates] = getKmeansClusters(spikes,stimes,varargin)
    % Get the clusters with the best k value.
    idx = idx(elbow,:);
    APspikes = cell(1,elbow);
+   APtimes = cell(1,elbow);
    APtemplates = zeros(size(spikes,1),elbow);
    if strcmp('full',debug), ff = figure('Name','Templates');end
    for i = 1:elbow
       APspikes(i) = cell({spikes(:,idx==i)});
+      APtimes(i) = cell({stimes(:,idx==i)});
       APtemplates(:,i) = mean(spikes(:,idx==i),2)';
       if strcmp('full',debug)
          % If DEBUG, plot the first 10 spikes found for each of the
@@ -78,6 +88,15 @@ function [APspikes, APtemplates] = getKmeansClusters(spikes,stimes,varargin)
       plot3(score(idx(1,:)==4,1), score(idx(1,:)==4,2), score(idx(1,:)==4,3),'om','LineWidth',2);
       plot3(score(idx(1,:)==5,1), score(idx(1,:)==5,2), score(idx(1,:)==5,3),'oy','LineWidth',2);
       xlabel('X');ylabel('Y');zlabel('Z');
+   end
+   
+   switch extracting
+      case 'APS'
+         varargout = {APspikes, APtemplates};
+      case 'spikes'
+         varargout = {APspikes, APtimes};
+      otherwise
+         error('Invalid option. This function either extracts spikes or AP families.');
    end
    
    % Print 'Done' message

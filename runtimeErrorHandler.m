@@ -45,7 +45,7 @@ function runtimeErrorHandler(varargin)
          
       case 'message'
          if nargin < 3
-            str = sprintf('\tFollowing error catched:\n\t%s\n',ME.message);
+            str = sprintf('\tFollowing error catched:\n\t%s\n\tFunction: %s > Line: %d.\n',ME.message, ME.stack(1).name, ME.stack(1).line);
          else
             str = sprintf('%s',varargin{3});
          end

@@ -19,7 +19,7 @@ function [APtemplates, componentAPs] = identifyAPs(tseries, method, params, vara
          [spikes, stimes] = getWaveletSpikes(tseries, params);
       case 'k means'
          [spikes, stimes, ~] = getSpikesByThresholding(tseries, params);
-         [componentAPs, APtemplates] = getKmeansClusters(spikes,stimes, debug);
+         [componentAPs, APtemplates] = getKmeansClusters(spikes,stimes, varargin);
          return
       otherwise 
          str = 'No such method for identifying AP templates, ...exiting';

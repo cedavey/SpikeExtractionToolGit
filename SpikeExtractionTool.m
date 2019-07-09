@@ -831,13 +831,13 @@ switch lower(type)
       switch lower(tool)
          case 'rescale'
             if ~strcmp('separate',method_params.select_peaks.value)
-               [voltage, Rest] = rescaleVoltage(tseries, method, method_params, handles.debugOption, handles.loadingWindowOn);
+               [voltage, Rest] = rescaleVoltage(tseries, method, method_params, handles.debugOption, handles.loadingWindowOn, handles.rescaleOption);
             else
                method_params.select_peaks.value = 'positive';
-               [voltage, Rest] = rescaleVoltage(tseries, method, method_params, handles.debugOption, handles.loadingWindowOn);
+               [voltage, Rest] = rescaleVoltage(tseries, method, method_params, handles.debugOption, handles.loadingWindowOn, handles.rescaleOption);
                voltage = voltage.*heaviside(voltage);
                method_params.select_peaks.value = 'negative';
-               [nvoltage, Nest] = rescaleVoltage(tseries, method, method_params, handles.debugOption, handles.loadingWindowOn);
+               [nvoltage, Nest] = rescaleVoltage(tseries, method, method_params, handles.debugOption, handles.loadingWindowOn, handles.rescaleOption);
                nvoltage = -nvoltage;
                nvoltage = nvoltage.*heaviside(nvoltage);
                voltage = voltage - nvoltage;
@@ -894,9 +894,9 @@ switch lower(type)
             % timeseries, by generating AP templates enroute
             if strcmpi(method,'k means') 
                % Extracting spikes directly from voltage through K-means
-               % clustering
-               [APtemplates, APfamily]= identifyAPs(tseries, 'k means', method_params, handles.debugOption);
-               if isempty(APtemplates)
+               % clustering. Not using APs
+               [APspikes, APtimes, APfamily] = extractSpikesUsingKmeans(tseries, method_params, handles.debugOption);
+               if isempty(APspikes)
                   return;
                end               
                new_tseries.type    = 'spike';
@@ -906,7 +906,7 @@ switch lower(type)
                new_tseries.params  = method_params;
                new_tseries.params.tool   = tool;
                new_tseries.params.method = method;
-               new_tseries.APfamily= APfamily;
+               new_tseries.APfamily= APfamily; % Here the AP templates are the same as the different axons
                new_tseries.APstimes= APtimes; % record spike times for getting rate later
                tool_str            = [tseries.name '_spikes'];
                instruct            = ['Creating ' tool_str ': rename?'];
@@ -1274,6 +1274,11 @@ else
    handles.data.tlim(2) = min( disp_max, tseries.time(end) );
      
 end
+
+% Update time (horizontal) text boxes
+handles.time_min.String = handles.data.tlim(1);
+handles.time_max.String = handles.data.tlim(2);
+
 tseries = getCurrentVoltage(handles);
 handles = updateSETFigure(handles, tseries);
    
@@ -1343,6 +1348,10 @@ set(handles.time_max, 'String', sprintf('%.2f',newt)); % reset to new val
 % set(handles.time_slider, 'Value', 1);
 handles.data.tlim(2) = newt;
 handles.data.tlim(1) = mint;
+
+% Update time sliders
+updateTimeSlider(hObject,eventdata,handles);
+
 handles = updateSETFigure(handles, tseries);
 
 % if there are any other SET gui's open, update their lims if current
@@ -1426,6 +1435,10 @@ set(handles.time_min, 'String', sprintf('%.2f',newt)); % reset to new val
 set(handles.time_slider, 'Value', 1);
 handles.data.tlim(1) = newt;
 handles.data.tlim(2) = maxt;
+
+% Update time sliders
+updateTimeSlider(hObject,eventdata,handles);
+
 handles = updateSETFigure(handles, tseries);
 guidata(hObject, handles);
 
@@ -1530,6 +1543,10 @@ else
    handles.data.vlim(2) = min( disp_max, max(tseries.data));
 end
 
+% Update voltage (vertical) text boxes
+handles.voltage_min.String = handles.data.vlim(1);
+handles.voltage_max.String = handles.data.vlim(2);
+
 tseries = getCurrentVoltage(handles);
 handles = updateSETFigure(handles, tseries);
 guidata(hObject, handles);
@@ -1578,9 +1595,13 @@ end
 % (zoom allows you to zoom in from text box mins/maxes)
 [~,minv] = checkStringInput(get(handles.voltage_min, 'String'), 'float'); % we know str is valid
 set(handles.voltage_max, 'String', sprintf('%.2f',newv)); % reset to new val
-set(handles.voltage_slider, 'Value', 1);
+
 handles.data.vlim(2) = newv;
 handles.data.vlim(1) = minv;
+
+% Update voltage sliders
+updateVoltageSlider(hObject,eventdata,handles);
+
 handles = updateSETFigure(handles, tseries);
 guidata(hObject, handles);
 end
@@ -1616,9 +1637,13 @@ end
 % (zoom allows you to zoom in from text box mins/maxes)
 [~,maxv] = checkStringInput(get(handles.voltage_max, 'String'), 'float'); % we know str is valid
 set(handles.voltage_min, 'String', sprintf('%.2f',newv)); % reset to new val
-set(handles.voltage_slider, 'Value', 1);
+
 handles.data.vlim(1) = newv;
 handles.data.vlim(2) = maxv;
+
+% Update voltage sliders
+updateVoltageSlider(hObject,eventdata,handles);
+
 handles = updateSETFigure(handles, tseries);
 guidata(hObject, handles);
 end
@@ -2122,6 +2147,51 @@ for i = 1:size(removeItems,2)
 end
 end
 
+% --- Updates voltage sliders ---
+function updateVoltageSlider(hObject,eventdata,handles)
+
+   maxv = handles.data.vlim(2);
+   minv = handles.data.vlim(1);
+   currtseries = handles.data.curr_tseries;
+   
+   if strcmp('zoom',handles.toggleZoomButton.UserData)      
+      handles.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(handles.data.tseries{currtseries}.data) - min(handles.data.tseries{currtseries}.data)));
+      handles.voltage_slider.Value = handles.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
+      handles.voltage_slider.SliderStep =  [0.01 0.1];%max(handles.voltage_slider.SliderStep(1) , handles.data.displacementPercentage(2)); %  Change the size of the vertical slider indicator to match the value displaced in.
+      
+   else      
+      handles.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(handles.data.tseries{currtseries}.data) - min(handles.data.tseries{currtseries}.data)));
+      handles.data.displacementPercentage(2) = 1 - maxv / max(handles.data.tseries{currtseries}.data);
+      handles.voltage_slider.Value = handles.data.displacementPercentage(2); % Update the position of the slider to represent displacement.
+      handles.voltage_slider.SliderStep(2) = max(handles.voltage_slider.SliderStep(1) , handles.data.zoomPercentage(2));% Change the size of the vertical slider indicator to match the value zoomed in.
+      handles.voltage_slider.SliderStep(1) = 0.1 * handles.voltage_slider.SliderStep(2);
+      
+   end
+   
+end
+
+% --- Updates time sliders ---
+function updateTimeSlider(hObject,eventdata,handles)
+
+   maxt = handles.data.tlim(2);
+   mint = handles.data.tlim(1);
+   currtseries = handles.data.curr_tseries;
+   
+   if strcmp('zoom',handles.toggleZoomButton.UserData)      
+      handles.data.zoomPercentage(1) = 1 - ((maxt-mint) / (handles.data.tseries{currtseries}.time(end) - handles.data.tseries{currtseries}.time(1)));
+      handles.time_slider.Value = handles.data.zoomPercentage(1); % Update the position of the slider to represent zoom.
+      handles.time_slider.SliderStep =  [0.01 0.1];%max(handles.voltage_slider.SliderStep(1) , handles.data.displacementPercentage(2)); %  Change the size of the vertical slider indicator to match the value displaced in.
+      
+   else      
+      handles.data.zoomPercentage(1) = 1 - ((maxt-mint) / (handles.data.tseries{currtseries}.time(end) - handles.data.tseries{currtseries}.time(1)));
+      handles.data.displacementPercentage(1) = 1 - maxt / handles.data.tseries{currtseries}.time(end);
+      handles.time_slider.Value = handles.data.displacementPercentage(1); % Update the position of the slider to represent displacement.
+      handles.time_slider.SliderStep(1) = max(handles.time_slider.SliderStep(1) , handles.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
+      handles.time_slider.SliderStep(1) = 0.1 * handles.time_slider.SliderStep(2);
+      
+   end
+   
+end
 
 % --- Executes on button press in toggleZoomButton.
 function toggleZoomButton_Callback(hObject, eventdata, handles)
