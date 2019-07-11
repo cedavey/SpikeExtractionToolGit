@@ -6,7 +6,7 @@
 %
 % Created by Artemio - 24/June/2019
 function [APspikes, APtimes, APfamilies] = extractSpikesUsingKmeans(tseries, method_params, debugOption)
-error('This function hasn''t been finished');
+% error('This function hasn''t been finished');
    [spikes, stimes, ~] = getSpikesByThresholding(tseries, method_params);
    [APfamilies, APtimes] = getKmeansClusters(spikes,stimes, debugOption, [10 100]);
    
@@ -24,7 +24,7 @@ error('This function hasn''t been finished');
    APspikes = cell(1,nAP);
    % Each valid spike has been allocated to an APfamiliy. Now for each 
    % AP family we need to construct a timeseries
-   if ~params.plot_spikes_consecutively.value
+   if ~method_params.plot_spikes_consecutively.value
       for ti=1:nAP % for each AP template
          fam = APfamilies{ti}; 
          nF  = length(fam);
@@ -63,20 +63,22 @@ error('This function hasn''t been finished');
       % determine which family has the most spikes, because we'll make all
       % timeseries accommodate that length (currently time limits are
       % common to whole dataset)
-      maxspikes = max( cellfun(@(template) max( cellfun(@(family) length(family.stimes), template ) ), APfamilies ) );
-      for ti=1:nAP % for each AP template
-         fam = APfamilies{ti}; 
-         nF  = length(fam);
-         fam_tseries = zeros(maxspikes * nT, nF); % max spikes*spike length x num families
-         fam_stimes  = cell(nF, 1);
-         for ff=1:nF % for each family within the AP templates
-            nspikes = size(fam{ff}.stimes, 2); % number of spikes for this family
-            % populate family timeseries by running spikes one after the other
-            fam_tseries(1:(nspikes*nT), ff) = toVec(fam{ff}.spikes(:));
-            fam_stimes{ff} = fam{ff}.stimes(peakN,:);
+      maxspikes = 0;
+      for i = 1:size(APfamilies)
+         if size(APfamilies{i}{1}.spikes,1) > maxspikes
+            maxspikes = size(APfamilies{i}{1}.spikes,1);
          end
-         APspikes{ti} = fam_tseries;
-         APtimes{ti}  = fam_stimes;
+      end
+      spikesize = maxspikes * size(APfamilies{1}{1}.spikes,2);
+      APspikes = cell(size(APtimes'));
+      APtimes = cell(size(APspikes));
+      for ti=1:nAP % for each AP template
+         fam = APfamilies{ti}{1}; 
+         APspikes{ti} = zeros(spikesize, 1);
+         fam_tseries = toVec(fam.spikes');
+         APspikes{ti}(1: length(fam_tseries)) = fam_tseries;
+         APtimes{1,ti} = cell(1);
+         APtimes{1,ti}  = fam.last_time;
       end
       
    end

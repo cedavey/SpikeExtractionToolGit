@@ -20,7 +20,7 @@ function varargout = getKmeansClusters(spikes,stimes,varargin)
    else
       max_k = 30;
       min_k = 5;
-      extracting = 'families';
+      extracting = 'APS';
    end
    NS = size(spikes,2);
 %    pos_peak = zeros(1,NS);
@@ -28,6 +28,7 @@ function varargout = getKmeansClusters(spikes,stimes,varargin)
 %    pos_duration = zeros(1,NS);
 %    neg_duration = zeros(1,NS);
 %    diff_peaks = zeros(1,NS); % Distance between positive and negative peaks
+
    % Display message of progress
    str = sprintf('\tFinding cluster classification of %d spikes...\n',NS);
    printMessage('off','Keywords',str);
@@ -52,10 +53,13 @@ function varargout = getKmeansClusters(spikes,stimes,varargin)
       sse(k) = sum(e.^2);
    end
    % Find the elbow
-   elbow = find(abs(diff(diff(sse(min_k:max_k)))) < mean(abs(diff(diff(sse(min_k:max_k)))))/10, 1, 'first') + 4;
+   elbow_a = find(abs(diff(diff(sse(min_k:max_k)))) < mean(abs(diff(diff(sse(min_k:max_k)))))/10, 1, 'first') + min_k - 1;
+   elbow_b = find(sse(min_k:max_k) > 2*mean(sse(min_k:max_k)),1, 'last') + min_k - 1;
+   elbow = min(elbow_a,elbow_b);
    if ~strcmp('none',debug)
       figure('Name','K-means elbow test'); plot(min_k:max_k,sse(min_k:max_k),'-o');hold('on');
       plot(elbow, sse(elbow),'xr', 'LineWidth', 2, 'MarkerSize', 10);
+      plot([min_k max_k],[2*mean(sse(min_k:max_k)) 2*mean(sse(min_k:max_k))], '--');
       xlabel('K');
       ylabel('SSE');
    end
@@ -94,7 +98,23 @@ function varargout = getKmeansClusters(spikes,stimes,varargin)
       case 'APS'
          varargout = {APspikes, APtemplates};
       case 'spikes'
-         varargout = {APspikes, APtimes};
+         % peak function calculates the peak of the spike - e.g. using total diff
+         % btwn min & max, or just max 
+         peakind   = getMaxInd( APtemplates, 1 );
+         peakN     = round( mean( peakind ) );
+         peakfn    = @(sp) [ min(sp) sp(peakN) ]; 
+         timefn    = @(st) st(peakN);
+         
+         APfams = cell(length(APspikes),1);
+         for i = 1:length(APspikes)
+            APfams{i}{1} = struct;
+            APfams{i}{1}.spikes = cell2mat(APspikes(i))';
+            APfams{i}{1}.stimes = APtimes(i)';
+            APfams{i}{1}.meanspike = mean( APfams{i}{1}.spikes, 2 );
+            APfams{i}{1}.last_peak = [min(APfams{i}{1}.meanspike) max(APfams{i}{1}.meanspike)]; % APfams{i}{1}.last_peak = peakfn( APfams{i}{1}.meanspike ); % size of last spike in family;
+            APfams{i}{1}.last_time = max(max(cell2mat(APfams{i}{1}.stimes{end}))); % APfams{i}{1}.last_time = max(cell2mat(timefn( APfams{i}{1}.stimes{end} ))); % APfams{i}{1}.last_time = max(timefn( APfams{i}{1}.stimes{end} )); % time of last spike
+         end
+         varargout = {APfams, APtimes'};
       otherwise
          error('Invalid option. This function either extracts spikes or AP families.');
    end
