@@ -136,7 +136,7 @@ function varargout = SpikeExtractionTool(varargin)
 
 % Edit the above text to modify the response to help SpikeExtractionTool
 
-% Last Modified by GUIDE v2.5 20-Jun-2019 11:42:21
+% Last Modified by GUIDE v2.5 15-Jul-2019 14:01:01
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -204,9 +204,12 @@ removeToolBarButtons();
 % @(hObject,eventdata)SpikeExtractionTool('figure1_WindowScrollWheelFcn',hObject,eventdata,guidata(hObject))
 
 % Initialize options for debug and loading window
-handles.loadingWindowOn = true;
-handles.debugOption = 'semi';
-handles.rescaleOption = 'at_end';
+handles.options.loadingWindowOn = true;
+handles.options.debugOption = 'semi';
+handles.options.rescaleOption = 'at_end';
+
+% Initialize tooltips
+handles = setTooltips(handles);
 
 % Update handles structure
 guidata(hObject, handles);
@@ -536,6 +539,13 @@ tool_name = get(hObject, 'String');
 methods   = getSETToolMethodsList(tool_name{tool_num}, data_type);
 set(handles.method_list, 'String', methods);
 set(handles.method_list, 'Value', 1);
+
+% update the tooltips
+tooltip_name = {['run_tool_' lower(tool_name{tool_num})]};
+handles = setTooltips(handles, {'run_tool'}, getTooltips(tooltip_name));
+tooltip_name = {['tool_list_' lower(tool_name{tool_num})]};
+handles = setTooltips(handles, {'tool_list'}, getTooltips(tooltip_name));
+
 guidata(hObject,handles); % saves changes to handles
 end
 
@@ -548,6 +558,9 @@ end
 
 % --- Executes on selection change in method_list.
 function method_list_Callback(hObject, eventdata, handles)
+% update the tooltips
+tooltip_name = {['method_list_' lower(handles.method_list.String{handles.method_list.Value})]};
+handles = setTooltips(handles, {'method_list'}, getTooltips(tooltip_name));
 end
 
 % --- Executes during object creation, after setting all properties.
@@ -831,13 +844,13 @@ switch lower(type)
       switch lower(tool)
          case 'rescale'
             if ~strcmp('separate',method_params.select_peaks.value)
-               [voltage, Rest] = rescaleVoltage(tseries, method, method_params, handles.debugOption, handles.loadingWindowOn, handles.rescaleOption);
+               [voltage, Rest] = rescaleVoltage(tseries, method, method_params, handles.options);
             else
                method_params.select_peaks.value = 'positive';
-               [voltage, Rest] = rescaleVoltage(tseries, method, method_params, handles.debugOption, handles.loadingWindowOn, handles.rescaleOption);
+               [voltage, Rest] = rescaleVoltage(tseries, method, method_params, handles.options);
                voltage = voltage.*heaviside(voltage);
                method_params.select_peaks.value = 'negative';
-               [nvoltage, Nest] = rescaleVoltage(tseries, method, method_params, handles.debugOption, handles.loadingWindowOn, handles.rescaleOption);
+               [nvoltage, Nest] = rescaleVoltage(tseries, method, method_params, handles.options);
                nvoltage = -nvoltage;
                nvoltage = nvoltage.*heaviside(nvoltage);
                voltage = voltage - nvoltage;
@@ -874,7 +887,7 @@ switch lower(type)
             
          case 'identify ap templates'
             % get time series to apply AP templates to
-            [APtemplates, APfamily] = identifyAPs(tseries, method, method_params,  handles.debugOption);
+            [APtemplates, APfamily] = identifyAPs(tseries, method, method_params,  handles.options.debugOption);
             if isempty(APtemplates)
                return;
             end
@@ -895,7 +908,7 @@ switch lower(type)
             if strcmpi(method,'k means') 
                % Extracting spikes directly from voltage through K-means
                % clustering. Not using APs
-               [APspikes, APtimes, APfamily] = extractSpikesUsingKmeans(tseries, method_params, handles.debugOption);
+               [APspikes, APtimes, APfamily] = extractSpikesUsingKmeans(tseries, method_params, handles.options.debugOption);
                if isempty(APspikes)
                   return;
                end               
@@ -1936,10 +1949,10 @@ function loadingWindow_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
    if strcmp('on', hObject.Checked)
       hObject.Checked = 'off';
-      handles.loadingWindowOn = false;
+      handles.options.loadingWindowOn = false;
    else
       hObject.Checked = 'on';
-      handles.loadingWindowOn = true;
+      handles.options.loadingWindowOn = true;
    end
    % Update handles structure
    guidata(hObject, handles);
@@ -1956,7 +1969,7 @@ function debugNone_Callback(hObject, eventdata, handles)
       handles.debugFull.Enable = true;
       handles.debugSemi.Checked = 'off';
       handles.debugSemi.Enable = true;
-      handles.debugOption = 'none';
+      handles.options.debugOption = 'none';
       hObject.Enable = false;
    end
    % Update handles structure
@@ -1974,7 +1987,7 @@ function debugSemi_Callback(hObject, eventdata, handles)
       handles.debugFull.Enable = true;
       handles.debugNone.Checked = 'off';
       handles.debugNone.Enable = true;
-      handles.debugOption = 'semi';
+      handles.options.debugOption = 'semi';
       hObject.Enable = false;
    end
    % Update handles structure
@@ -1992,7 +2005,7 @@ function debugFull_Callback(hObject, eventdata, handles)
       handles.debugSemi.Enable = true;
       handles.debugNone.Checked = 'off';
       handles.debugNone.Enable = true;
-      handles.debugOption = 'full';
+      handles.options.debugOption = 'full';
       hObject.Enable = false;
    end   
    % Update handles structure
@@ -2010,7 +2023,7 @@ function rescaleAtTheEnd_Callback(hObject, eventdata, handles)
       handles.rescalePeaks.Enable = true;
       handles.rescaleJumpAhead.Checked = 'off';
       handles.rescaleJumpAhead.Enable = true;
-      handles.rescaleOption = 'at_end';
+      handles.options.rescaleOption = 'at_end';
       hObject.Enable = false;
    end   
    % Update handles structure
@@ -2028,7 +2041,7 @@ function rescalePeaks_Callback(hObject, eventdata, handles)
       handles.rescaleAtTheEnd.Enable = true;
       handles.rescaleJumpAhead.Checked = 'off';
       handles.rescaleJumpAhead.Enable = true;
-      handles.rescaleOption = 'peaks';
+      handles.options.rescaleOption = 'peaks';
       hObject.Enable = false;
    end   
    % Update handles structure
@@ -2046,7 +2059,7 @@ function rescaleJumpAhead_Callback(hObject, eventdata, handles)
       handles.rescaleAtTheEnd.Enable = true;
       handles.rescalePeaks.Checked = 'off';
       handles.rescalePeaks.Enable = true;
-      handles.rescaleOption = 'JA';
+      handles.options.rescaleOption = 'JA';
       hObject.Enable = false;
    end   
    % Update handles structure
@@ -2241,4 +2254,55 @@ function toggleZoomButton_CreateFcn(hObject, eventdata, handles)
    hObject.BackgroundColor = [1 0.6 0.6]; % Change color to match other buttons
    hObject.String = ''; % Remove string
    hObject.UserData = 'zoom'; % Change state to zoom     
+end
+
+
+% --------------------------------------------------------------------
+function helpMenuItem_Callback(hObject, eventdata, handles)
+% hObject    handle to helpMenuItem (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+end
+
+% --------------------------------------------------------------------
+function aboutMenuItem_Callback(hObject, eventdata, handles)
+% hObject    handle to aboutMenuItem (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+   aboutWindow = dialog();
+   str = sprintf(['','\n',...
+                  'The University of Melbourne','\n',...
+                  '','\n',...
+                  'Biomedical Engineering','\n',...
+                  '','\n',...
+                  'Dr. Katie Davey','\n',...
+                  'Dr. Martin Stebbing','\n',...
+                  'Dr. Artemio Soto Breceda','\n',...
+                  '']);
+   uicontrol('parent',aboutWindow,'Style','text',...
+         'String', str,'Position',[187,0,187,200],'FontSize',11);
+      
+   logo = uicontrol('parent',aboutWindow,'Style','pushbutton',...
+         'Position',[187,200,187,187]);
+   [x,map]=imread('fig/unimelb.png'); % Load the zoom icon
+   I2=imresize(x, [187 187]); % Resize icon
+%    imshow(I2);
+   logo.CData = I2; % Assign icon to the button
+end
+
+
+% --- Executes on button press in automatic_params.
+function automatic_params_Callback(hObject, eventdata, handles)
+% hObject    handle to automatic_params (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+   if hObject.Value
+      handles.set_tool_params.Enable = 'off';
+      handles.options.auto_params = true;
+   else
+      handles.set_tool_params.Enable = 'on';
+      handles.options.auto_params = false;
+   end
+   guidata(hObject,handles); % saves changes to handles
 end
