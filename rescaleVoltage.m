@@ -13,7 +13,7 @@
 %   or quickly so that all peaks tend towards same amplitude where earlier
 %   they didn't
 
-function [rescaled_voltage, Rest] = rescaleVoltage(tseries, method, params, varargin)
+function [rescaled_voltage, Rest, params] = rescaleVoltage(tseries, method, params, varargin)
    % methods: 'Variance', 'Particle filter', 'Recursive least squares', 'Recursive mean'
    
    % Check if options input variable exist
@@ -25,12 +25,9 @@ function [rescaled_voltage, Rest] = rescaleVoltage(tseries, method, params, vara
          Rest = [];
 
       case {'particle filter', 'recursive least squares', 'recursive mean'}
-         if isfield(opts, 'auto_params') && opts.auto_params == true
-            params = getAutomaticParams(tseries, method);
-         end
          str = sprintf( '\tRescaling voltage, this may take a whiles...\n' );
          printMessage('off', 'Keywords', str);
-         [rescaled_voltage, Rest] = rescaleVoltageRecursive(tseries, params, method, opts);
+         [rescaled_voltage, Rest, ~, params] = rescaleVoltageRecursive(tseries, params, method, opts);
 
       case 'plot sigma'
          plotVoltageSigma(tseries, params);
@@ -58,19 +55,13 @@ function peakfn = getPeakFn( select_peaks )
    end
 end
 
-function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, params, method, opts)
+function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseries, params, method, opts)
    % Check that options variable 'opts' contains fields
    if isfield(opts,'debugOption'), debug = opts.debugOption; else, debug = 'semi'; end % debug is now selected from the GUI's context menu (right click). Default is 'semi'.
    if isfield(opts,'loadingWindowOn'), progress_window = opts.loadingWindowOn; else, progress_window = false; end
    if isfield(opts,'rescaleOption'), rescaling_method = opts.rescaleOption; else, rescaling_method = 'at_end';end
    if isfield(opts,'auto_params'), auto_params = opts.auto_params; else auto_params = false; end
 
-   voltoutlier  = params.voltage_magnitude.value;
-   glitchthresh = params.glitch_magnitude.value;
-   select_peaks = params.select_peaks.value;
-   lambda       = params.forgetting_factor.value;
-   jumpahead    = params.jump_ahead.value;
-   peakfn       = getPeakFn( select_peaks ); % select just positive peaks, just negative, both or separate
    % extract time details - lambda is a forgetting factor; 1 --> normal
    % mean calculation, 0 --> last sample is the estimate, & somewhere in
    % between gives a recursive update, usually it should be set to ~0.9.
@@ -78,24 +69,43 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
    dt     = double( tseries.dt );
    v      = double( tseries.data );
    nT     = min( length(v), length(time) );
-   v      = toVec( v(1:nT) );    % for some reason time & v can be 1 sample out
    time   = toVec( time(1:nT) );
+   v      = toVec( v(1:nT) );    % for some reason time & v can be 1 sample out
+   % Initialize noise and define automatic parameters
+   [noisemu, noisesig, initialNoiseSamples]   = initNoiseStdDev(v, debug);      % init noise std to identify spikes
+   if auto_params
+      % Get auto params
+      pp = getAutomaticParams(tseries, noisesig, method, params);
+      % Save the select_peaks parameter (positive or negative)
+      select_peaks = params.select_peaks.value;
+      % If returned value is empty, leave the default parameters untouched
+      if ~isempty(pp)
+         params = pp;
+         params.select_peaks.value = select_peaks; % Restore the value (This is not chosen automatically)
+      end
+   end
+   
+   voltoutlier  = params.voltage_magnitude.value;
+   glitchthresh = params.glitch_magnitude.value;
+   select_peaks = params.select_peaks.value;
+   lambda       = params.forgetting_factor.value;
+   jumpahead    = params.jump_ahead.value;
+   peakfn       = getPeakFn( select_peaks ); % select just positive peaks, just negative, both or separate
    npoles = 0;     % number of poles in AR model of resistance coeff
    nzeros = 2;     % includes the dc component
    nlags  = max(nzeros, npoles+1);
    jumpahead = round( jumpahead / dt ); % convert jump ahead from time into samples
    
    tnow = datetime('now');
-   str = sprintf("\tStarted rescaling, method %s, spikethresh %i, glitchthresh %i, jump ahead %g, at %s\n", ...
-      method, voltoutlier, glitchthresh, jumpahead, datestr(tnow));
+   str = sprintf("\tStarted rescaling, method %s, spikethresh %i, glitchthresh %i, jump ahead %g s, at %s\n", ...
+      method, voltoutlier, glitchthresh, jumpahead*dt, datestr(tnow));
    printMessage('off', 'Keywords', str);
 
-   % Initialise
-   [noisemu, noisesig, initialNoiseSamples]   = initNoiseStdDev(v, debug);      % init noise std to identify spikes
+   % Initialise the rest of the values
    [vspike,  tspike]     = initSpikes(time, dt, peakfn(v), noisesig*voltoutlier, peakfn, glitchthresh * noisesig, jumpahead); % identify initial spikes
    [Rest, Rcoeff, Rmu, Rstd, Rcov] = initRegress(tspike-tspike(1), vspike, lambda, npoles, nzeros, debug); % est init resistance
    a = Rcoeff(2:npoles+1); b = [Rcoeff(1) Rcoeff(npoles+2:end)];
-   Rinit    = Rest(1); % Rest(end); % The initial estimate is what might be causing the initial change in rescalings %TODO
+   Rinit    = Rest(end); % The initial estimate is what might be causing the initial change in rescalings %TODO
    Rcovprev = Rcov;
    vmu      = mean( vspike );
    vstd     = std( vspike );
@@ -136,6 +146,7 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
          'Name','rescaleVoltage - close me to stop');
    end
    prevProg = 1; % Previous progress, start with 1 because it's the first loop. It will be updated every 10 percent
+   firstRun = 1;
    while currt < nT
       % Update Progress window
       if progress_window
@@ -317,9 +328,13 @@ function [vrescale, Rest_vec, tpeak_vec] = rescaleVoltageRecursive(tseries, para
                correct( pf, Rtmp, Rstd );
                % Use corrected Rest to update regression coeffs
                Rest  = getStateEstimate(pf);
-
+                  
                Rcurr  = Rest(1); % if multiple lagged states get current only
-
+               % If this is the first run, Rest_vec contains the initalized
+               % Rest, which seems to be wrong. Fill Rest_vec with Rcurr,
+               % which is the first value that seems alright.
+               if firstRun == 1, Rest_vec = ones(size(Rest_vec))*Rcurr; firstRun = 0;end
+                  
                % if not modelling change in resistance as linear
                % regression then force it to change slowly
                % Rest  = Rprev*lambda + Rcurr*(1-lambda);
@@ -1017,9 +1032,12 @@ end
 % longest subset of samples that are white, & estimate noise from that
 %
 % Inputs:
-%  v     -  input voltage vector (whatever number of samples of a recording)
-%  debug -  (optional) if true, prints the number of samples considered for
+%  v     - input voltage vector (whatever number of samples of a recording)
+%  debug - (optional) if true, prints the number of samples considered for
 %           the white noise. It also plots the white noise section.
+%  minimumSamples - (optional)
+%  alpha - (optional)
+%
 % Outputs:
 %  noisemu - Mean of the noise
 %  noisesig - standard deviation of the noise
