@@ -10,6 +10,9 @@ function [APspikes, APtimes, APfamilies] = extractSpikesUsingKmeans(tseries, met
    [spikes, stimes, ~] = getSpikesByThresholding(tseries, method_params);
    [APfamilies, APtimes] = getKmeansClusters(spikes,stimes, debugOption, [10 100]);
    
+   % Get peakN (index of peak value
+   [~, idx] = max(APfamilies{1}{1}.spikes');
+   peakN = round(mean(idx));
       % get rid of empty families, just in case they snuck in there!
    nf = cellfun( @length, APfamilies );
    loner = nf <= 0; % get empty families
@@ -38,15 +41,20 @@ function [APspikes, APtimes, APfamilies] = extractSpikesUsingKmeans(tseries, met
                % if we're creating the timeseries extract spikes at
                % appropriate times & copy into voltage timeseries
                sind = round(fam{ff}.stimes(:) / tseries.dt);
-               fam_tseries(sind,ff) = fam{ff}.spikes(:);
-               fam_stimes{ff}  = fam{ff}.stimes(peakN,:);
+               sind(sind == 0) = [];
+               fam_tseries(abs(sind),ff) = fam{ff}.spikes(:);
+               if size(fam{ff}.stimes,1) == 1
+                  fam_stimes{ff}  = fam{ff}.stimes(1,peakN);
+               else
+                  fam_stimes{ff}  = fam{ff}.stimes(peakN,:);
+               end
             end
             APspikes{ti} = fam_tseries;
             APtimes{ti}  = fam_stimes;
             
          catch ME
             % running outta memory so treat each family separately so it's
-            % event based rather than disrete time
+            % event based rather than discrete time
             for ff=1:nF 
                % for each family within the AP templates, extract the times of
                % spike peaks
@@ -78,7 +86,7 @@ function [APspikes, APtimes, APfamilies] = extractSpikesUsingKmeans(tseries, met
          fam_tseries = toVec(fam.spikes');
          APspikes{ti}(1: length(fam_tseries)) = fam_tseries;
          APtimes{1,ti} = cell(1);
-         APtimes{1,ti}  = fam.last_time;
+         APtimes{1,ti}  = {fam.stimes(:,peakN)};
       end
       
    end

@@ -49,6 +49,7 @@ function varargout = getKmeansClusters(spikes,stimes,varargin)
    for k = min_k:max_k
       sse(k) = 0;
 %       [idx(k,:), c] = kmeans([pos_peak;neg_peak;diff_peaks;pos_duration;neg_duration;score]',k); % K-means with k clusters
+      warning('off','stats:kmeans:FailedToConverge')
       [idx(k,:), c, e, ~] = kmeans(score(:,1:5),k, 'EmptyAction','drop','MaxIter',200); % K-means with k clusters
       sse(k) = sum(e.^2);
    end
@@ -109,10 +110,10 @@ function varargout = getKmeansClusters(spikes,stimes,varargin)
          for i = 1:length(APspikes)
             APfams{i}{1} = struct;
             APfams{i}{1}.spikes = cell2mat(APspikes(i))';
-            APfams{i}{1}.stimes = APtimes(i)';
+            APfams{i}{1}.stimes = cell2mat(APtimes{i})';
             APfams{i}{1}.meanspike = mean( APfams{i}{1}.spikes, 2 );
             APfams{i}{1}.last_peak = [min(APfams{i}{1}.meanspike) max(APfams{i}{1}.meanspike)]; % APfams{i}{1}.last_peak = peakfn( APfams{i}{1}.meanspike ); % size of last spike in family;
-            APfams{i}{1}.last_time = max(max(cell2mat(APfams{i}{1}.stimes{end}))); % APfams{i}{1}.last_time = max(cell2mat(timefn( APfams{i}{1}.stimes{end} ))); % APfams{i}{1}.last_time = max(timefn( APfams{i}{1}.stimes{end} )); % time of last spike
+            APfams{i}{1}.last_time = max(max(APfams{i}{1}.stimes(end))); % APfams{i}{1}.last_time = max(cell2mat(timefn( APfams{i}{1}.stimes{end} ))); % APfams{i}{1}.last_time = max(timefn( APfams{i}{1}.stimes{end} )); % time of last spike
          end
          varargout = {APfams, APtimes'};
       otherwise
