@@ -60,7 +60,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    if isfield(opts,'debugOption'), debug = opts.debugOption; else, debug = 'semi'; end % debug is now selected from the GUI's context menu (right click). Default is 'semi'.
    if isfield(opts,'loadingWindowOn'), progress_window = opts.loadingWindowOn; else, progress_window = false; end
    if isfield(opts,'rescaleOption'), rescaling_method = opts.rescaleOption; else, rescaling_method = 'at_end';end
-   if isfield(opts,'auto_params'), auto_params = opts.auto_params; else auto_params = false; end
+   if isfield(opts,'auto_params'), auto_params = opts.auto_params; else, auto_params = false; end
 
    % extract time details - lambda is a forgetting factor; 1 --> normal
    % mean calculation, 0 --> last sample is the estimate, & somewhere in
@@ -741,8 +741,8 @@ function [mu_curr, sig_curr, mse_curr, N_curr, is_noise, returned_noise] = updat
             % It means it didn't find 30 samples (or whatever number) of
             % white noise. If it came here, we will not care and just treat
             % the whole signal new_noise as if it was actual noise.
-            str = sprintf('\tCouldn''t find at least %d samples of white noise. %d \n', min_noise, N_prev + length(new_noise));
-            printMessage('off','Errors',str);
+%             str = sprintf('\tCouldn''t find at least %d samples of white noise. %d \n', min_noise, N_prev + length(new_noise));
+%             printMessage('off','Errors',str);
             
             is_noise = false;
             mu_curr = mu_prev;

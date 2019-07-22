@@ -28,21 +28,23 @@ function params = getAutomaticParams(tseries, noisestd, method, params)
    switch lower(tseries.type)
       case 'voltage'
          % Check method
-         switch lower(method)
-            case 'particle filter'
-               try
+         try
+            switch lower(method)
+               case 'particle filter'
                   params = calculateAutomaticParams(tseries, noisestd, params);
-               catch E
-                  str = sprintf('\tSomething went wrong with the automatic parameters configuration\n');
-                  runtimeErrorHandler(E, 'message', str);
+               case 'recursive least squares'
+                  params = calculateAutomaticParams(tseries, noisestd, params);
+               otherwise
+                  % There is no automatic parameter configuration for the
+                  % current data type and method combination.
+                  str = sprintf('\tThere is no automatic parameter configuration for the data type: ''%s'' and method: ''%s''\n\tUsing the default parameters\n',tseries.type, method);
+                  printMessage('off','Errors',str);
                   return
-               end
-            otherwise
-               % There is no automatic parameter configuration for the
-               % current data type and method combination.
-               str = sprintf('\tThere is no automatic parameter configuration for the data type: ''%s'' and method: ''%s''\n\tUsing the default parameters\n',tseries.type, method);
-               printMessage('off','Errors',str);
-               return
+            end
+         catch E
+            str = sprintf('\tSomething went wrong with the automatic parameters configuration\n');
+            runtimeErrorHandler(E, 'message', str);
+            return
          end
       otherwise
          % There is no automatic parameter configuration for the current
