@@ -16,10 +16,12 @@ function varargout = getKmeansClusters(spikes,stimes,varargin)
       cluster_range = varargin{2};
       min_k = cluster_range(1);
       max_k = cluster_range(2);
+      mean_threshold = 2;
       extracting = 'spikes';
    else
       max_k = 30;
       min_k = 5;
+      mean_threshold = 1;
       extracting = 'APS';
    end
    NS = size(spikes,2);
@@ -48,19 +50,21 @@ function varargout = getKmeansClusters(spikes,stimes,varargin)
    % Find the clusters with a range of initial number of clusters (k)
    for k = min_k:max_k
       sse(k) = 0;
-%       [idx(k,:), c] = kmeans([pos_peak;neg_peak;diff_peaks;pos_duration;neg_duration;score]',k); % K-means with k clusters
       warning('off','stats:kmeans:FailedToConverge')
-      [idx(k,:), c, e, ~] = kmeans(score(:,1:5),k, 'EmptyAction','drop','MaxIter',200); % K-means with k clusters
+      [idx(k,:), c, e, ~] = kmeans(score(:,1:5),k, 'EmptyAction','drop','MaxIter',200); % K-means with k clusters Other option: % [idx(k,:), c] = kmeans([pos_peak;neg_peak;diff_peaks;pos_duration;neg_duration;score]',k);
       sse(k) = sum(e.^2);
    end
+   
    % Find the elbow
    elbow_a = find(abs(diff(diff(sse(min_k:max_k)))) < mean(abs(diff(diff(sse(min_k:max_k)))))/10, 1, 'first') + min_k - 1;
-   elbow_b = find(sse(min_k:max_k) > 2*mean(sse(min_k:max_k)),1, 'last') + min_k - 1;
-   elbow = min(elbow_a,elbow_b);
+   elbow_b = find(sse(min_k:max_k) > mean_threshold*mean(sse(min_k:max_k)),2, 'last') + min_k - 1;
+   [~, minelb_b] = min(sse(elbow_b)); % This two lines are to prevent chosing a peak (wrong elbow) on the SSE plot
+   elbow_b = elbow_b(minelb_b);
+    elbow = min(elbow_a,elbow_b);
    if ~strcmp('none',debug)
       figure('Name','K-means elbow test'); plot(min_k:max_k,sse(min_k:max_k),'-o');hold('on');
       plot(elbow, sse(elbow),'xr', 'LineWidth', 2, 'MarkerSize', 10);
-      plot([min_k max_k],[2*mean(sse(min_k:max_k)) 2*mean(sse(min_k:max_k))], '--');
+      plot([min_k max_k],[mean_threshold*mean(sse(min_k:max_k)) mean_threshold*mean(sse(min_k:max_k))], '--');
       xlabel('K');
       ylabel('SSE');
    end

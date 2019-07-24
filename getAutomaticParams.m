@@ -81,10 +81,10 @@ function params = calculateAutomaticParams(tseries, noisestd, params)
       spike_smp = [spike_smp; idxst+b-1];
    end
    
-   rms = sqrt((sum(spike_amp.^2))/numel(spike_amp));
-   varn = noisestd^2; % Variance of the noise
-   vars = var(spike_amp); % Variance of the spike amplitudes
-   SNR = abs(10*log10(rms/varn));
+   rms = (sum(spike_amp.^2))/numel(spike_amp); % rms^2: sqrt(x)^2 = (x)
+   var_n = noisestd^2; % Variance of the noise
+   var_s = var(spike_amp); % Variance of the spike amplitudes
+   SNR = abs(10*log10(rms/var_n));
    sp_rate = numel(spike_amp) / (spike_smp(end) * dt); % Firing rate
    
    % Chose automatic parameters based on spike rate and SNR. The factors

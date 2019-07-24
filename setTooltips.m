@@ -1,10 +1,10 @@
 % SETTOOLTIPS Assigns each item in the application its tooltip (description
 % on mouse hover).
 %
-% Syntax: h = setTooltips(h); % Sets all the default tooltips to all the
+% Syntax: 
+%     h = setTooltips(h); % Sets all the default tooltips to all the
 %                               default elements
-%           
-%      h = setTooltips(h, {'object1' 'object2'}, {'String 1', 'String 2'});
+%     h = setTooltips(h, {'object1' 'object2'}, {'String 1', 'String 2'});
 %
 % Inputs:
 %     h        - GUI handles
@@ -23,7 +23,7 @@ function h = setTooltips(h, varargin)
          'toggleZoomButton', 'time_slider', 'voltage_slider',...
          'new_figure', 'access_voltage', 'save_voltage',...
          'set_tool_params', 'run_tool', 'tool_list', 'method_list',...
-         'scroll_axes', 'automatic_params'};
+         'scroll_axes', 'automatic_params', 'curr_signal'};
       
       str = getTooltips(object);
 

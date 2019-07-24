@@ -21,7 +21,6 @@
 % - button to reset axes (& perhaps to refresh?)
 % - implement mean-shift clustering & PCA to separate neurons
 % - if I find crazy voltage values, should I set them to 0?
-% - allow user to remove AP templates from the set
 % - align spikes based on min squared distance, rather than peak??
 % - pointer in voltage plot window should give info on data
 % - evaluate spike separation tool
@@ -1092,7 +1091,15 @@ switch lower(type)
       
 end
 
-name = getFileName(instruct, tool_str, 60);
+try
+   name = getFileName(instruct, tool_str, 60);
+catch E
+   if strcmp('MATLAB:inputdlg:InvalidInput',E.identifier)
+      runtimeErrorHandler(E,'ignore');
+      name = 'voltage';
+   end
+end
+
 if isempty(name) % user cancelled process
    return
 end
@@ -1540,7 +1547,7 @@ if strcmp('zoom',method)
    tseries = getCurrentVoltage(handles);
    vrange = max(tseries.data) - min(tseries.data);
    zoom_min = mean([handles.data.vlim(1) handles.data.vlim(2)]) - vrange * (1-percent);
-   zoom_max = mean([handles.data.vlim(1) handles.data.vlim(2)]) + vrange * (1-percent);
+   zoom_max = mean([handles.data.vlim(1) handles.data.vlim(2)]) + vrange * (1-min(percent,0.999));
 
    handles.data.vlim(1) = max( zoom_min, min(tseries.data));
    handles.data.vlim(2) = min( zoom_max, max(tseries.data));
@@ -1588,8 +1595,15 @@ if isnumeric( tseries.data )
    minv = min(tseries.data)*1.2;
    maxv = max(tseries.data)*1.2;
 elseif iscell( tseries.data )
-   minv = min( cellfun( @(d) min( d(:) ), tseries.data ) );
-   maxv = max( cellfun( @(d) max( d(:) ), tseries.data ) );
+   try
+      minv = min( cellfun( @(d) min( d(:) ), tseries.data ) );
+      maxv = max( cellfun( @(d) max( d(:) ), tseries.data ) );
+   catch
+      % If there is an error, it means the cell structure is a bit more
+      % complicated. Set the min and max based on the first template
+      minv = min(min(tseries.data{1}{1}.spikes)) * 1.2;
+      maxv = max(max(tseries.data{1}{1}.spikes)) * 1.2;
+   end
 end
 str     = get(handles.voltage_max, 'String');
 [ok, newv] = checkStringInput(str, 'float', minv, maxv);
@@ -2171,14 +2185,32 @@ function updateVoltageSlider(hObject,eventdata,handles)
    minv = handles.data.vlim(1);
    currtseries = handles.data.curr_tseries;
    
-   if strcmp('zoom',handles.toggleZoomButton.UserData)      
-      handles.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(handles.data.tseries{currtseries}.data) - min(handles.data.tseries{currtseries}.data)));
+   if strcmp('zoom',handles.toggleZoomButton.UserData)
+      try
+         handles.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(handles.data.tseries{currtseries}.data) - min(handles.data.tseries{currtseries}.data)));
+         handles.data.zoomPercentage(2) = max(handles.data.zoomPercentage(2), 0); % Prevents the zoom to be less than 0
+      catch E
+         if strcmp('MATLAB:max:wrongInput',E.identifier)
+            handles.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(max(handles.data.tseries{currtseries}.data{1}{1}.spikes)) - min(min(handles.data.tseries{currtseries}.data{1}{1}.spikes))));
+         else
+            rethrow(E);
+         end
+      end
       handles.voltage_slider.Value = handles.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
       handles.voltage_slider.SliderStep =  [0.01 0.1];%max(handles.voltage_slider.SliderStep(1) , handles.data.displacementPercentage(2)); %  Change the size of the vertical slider indicator to match the value displaced in.
       
-   else      
-      handles.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(handles.data.tseries{currtseries}.data) - min(handles.data.tseries{currtseries}.data)));
-      handles.data.displacementPercentage(2) = 1 - maxv / max(handles.data.tseries{currtseries}.data);
+   else
+      try
+         handles.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(max(handles.data.tseries{currtseries}.data{1}{1}.spikes)) - min(min(handles.data.tseries{currtseries}.data{1}{1}.spikes))));
+         handles.data.displacementPercentage(2) = 1 - maxv / max(max(handles.data.tseries{currtseries}.data{1}{1}.spikes));
+      catch E
+         if strcmp('MATLAB:max:wrongInput',E.identifier)
+            handles.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(handles.data.tseries{currtseries}.data) - min(handles.data.tseries{currtseries}.data)));
+            handles.data.displacementPercentage(2) = 1 - maxv / max(handles.data.tseries{currtseries}.data);
+         else
+            rethrow(E);
+         end
+      end
       handles.voltage_slider.Value = handles.data.displacementPercentage(2); % Update the position of the slider to represent displacement.
       handles.voltage_slider.SliderStep(2) = max(handles.voltage_slider.SliderStep(1) , handles.data.zoomPercentage(2));% Change the size of the vertical slider indicator to match the value zoomed in.
       handles.voltage_slider.SliderStep(1) = 0.1 * handles.voltage_slider.SliderStep(2);
