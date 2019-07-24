@@ -77,11 +77,11 @@
 
 %% UI objects
 %  Select dataset
-%    load_voltage    - press button to load new data file & erase current data
-%    add_voltage     - button to add a new data file but retain all current data
+%    load_voltage_button    - press button to load new data file & erase current data
+%    add_voltage_button     - button to add a new data file but retain all current data
 %  Display voltage
 %    curr_signal     - pop up list to choose current time series displayed
-%    clear_voltage   - button to delete current voltage time series, but keep the rest
+%    clear_voltage_button   - button to delete current voltage time series, but keep the rest
 %  Generation parameters
 %    param1(2,3...)  - text display of name of parameter used to generate display tseries
 %    val1(2,3,...)   - text display of param value used to generate display tseries
@@ -90,7 +90,7 @@
 %    tool_list       - popup menu showing tools to apply to displayed tseries
 %    select_method   - text display of select method instruction
 %    method_list     - popup menu showing methods to apply current tool to displayed tseries
-%    run_tool        - initiate implementation of tool using select method
+%    run_tool_button        - initiate implementation of tool using select method
 %    set_tool_params - button to launch gui to configure tool parameters
 %  Figure
 %    plot_panel      - panel within which we put a variable number of axes
@@ -101,7 +101,7 @@
 %    time_max        - text entry to allow user to set max time on axis
 %    time_min        - text entry to allow user to set min time on axis
 %    save_voltage    - pops up a save dialogue box
-%    scroll_axes     - if have more axes in figure than can be viewed allow scrolling
+%    scroll_axes_slider     - if have more axes in figure than can be viewed allow scrolling
 %    access_voltage  - saves current voltage to workspace
 %    new_figure      - plot current tseries in new figure
 %
@@ -135,7 +135,7 @@ function varargout = SpikeExtractionTool(varargin)
 
 % Edit the above text to modify the response to help SpikeExtractionTool
 
-% Last Modified by GUIDE v2.5 15-Jul-2019 14:01:01
+% Last Modified by GUIDE v2.5 24-Jul-2019 17:32:01
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -353,8 +353,8 @@ varargout{1} = handles.data;
 varargout{2} = handles.output;
 end
 
-% --- Executes on button press in load_voltage.
-function load_voltage_Callback(hObject, eventdata, handles)
+% --- Executes on button press in load_voltage_button.
+function load_voltage_button_Callback(hObject, eventdata, handles)
 % Warn if there is user data
 okToClear = false;
 if handles.data.num_tseries == 0
@@ -489,8 +489,8 @@ set(hObject, 'String', '');
 set(hObject, 'Value', 1);
 end
 
-% --- Executes on button press in add_voltage.
-function add_voltage_Callback(hObject, eventdata, handles)
+% --- Executes on button press in add_voltage_button.
+function add_voltage_button_Callback(hObject, eventdata, handles)
 mouseWaitingFunction(handles.figure1,@add_voltage,hObject,eventdata,handles);
 end
 
@@ -515,8 +515,8 @@ set(handles.curr_signal, 'Value', new_num_tseries);
 curr_signal_Callback(handles.curr_signal, eventdata, handles);
 end
 
-% --- Executes on button press in clear_voltage.
-function clear_voltage_Callback(hObject, eventdata, handles)
+% --- Executes on button press in clear_voltage_button.
+function clear_voltage_button_Callback(hObject, eventdata, handles)
 [tseries, ts_num, data_type, ts_name] = getCurrentVoltage(handles);
 response = userConfirmation(['Delete ' ts_name '?'],...
    'Clear current time series?');
@@ -817,8 +817,8 @@ end
 userids = unique( userids );
 end
 
-% --- Executes on button press in run_tool.
-function run_tool_Callback(hObject, eventdata, handles)
+% --- Executes on button press in run_tool_button.
+function run_tool_button_Callback(hObject, eventdata, handles)
 mouseWaitingFunction(handles.figure1,@run_tool,hObject,eventdata,handles);
 end
 
@@ -1125,7 +1125,7 @@ handles.data.used_names  = used_names;
 
 set(handles.curr_signal, 'String', tseries_str);
 set(handles.curr_signal, 'Value',  new_numtseries);
-guidata(handles.run_tool,handles); % saves the change to handles
+guidata(handles.run_tool_button,handles); % saves the change to handles
 curr_signal_Callback(handles.curr_signal, [], handles);
 
 end
@@ -1260,17 +1260,7 @@ if strcmp('zoom',method)
    tseries = getCurrentVoltage(handles);
    zoom_min = handles.data.tlim(1);
    zoom_max = handles.data.tlim(1) + ((tseries.time(end) - tseries.time(1))*(1-percent));
-   
-%    if zoom_max > tseries.time(end)
-%       zoom_min = tseries.time(end) - zoom_max;
-%       zoom_max = tseries.time(end);
-%    end
-%    
-%    if zoom_min < tseries.time(1)
-%       zoom_max = tseries.time(1) + zoom_min;
-%       zoom_min = tseries.time(1);
-%    end
-   
+
    handles.data.tlim(1) = max( zoom_min, tseries.time(1) );
    handles.data.tlim(2) = min( zoom_max, tseries.time(end) );
 else
@@ -1504,33 +1494,6 @@ if ~haveUserData(handles)
 end
 
 mouseWaitingFunction(handles.figure1,@voltage_slider_updated,hObject,eventdata,handles);
-% % slider zooms in/out to max/min values given in text boxes, so that
-% % slider is a percentage of possible max/mins. If move slider to 80%,
-% % then increase min by 10% and reduce max by 10%
-% percent    = get(handles.voltage_slider, 'Value'); % get old voltage
-% str        = get(handles.voltage_min, 'String');
-% [ok, minv] = checkStringInput(str, 'float');
-% str        = get(handles.voltage_max, 'String');
-% [ok, maxv] = checkStringInput(str, 'float');
-% 
-% tseries    = getCurrentVoltage( handles );
-% switch lower( tseries.type )
-%    case 'voltage'
-%       zoom_min   =  minv * percent;
-%       zoom_max   =  maxv * percent;
-%    otherwise
-%       zoom_min   = (maxv - minv)*((1-percent)/2) + minv;
-%       zoom_max   =  maxv - (maxv - minv)*((1-percent)/2);
-% end
-% if iscell( tseries.data )
-%    % get min/max from 1st column of each cell's matrix, cuz it's taking
-%    % f*cking ages t
-%    handles.data.vlim(1) = max( zoom_min, min( cellfun(@(d) min(d(:,1)), tseries.data ) ) );
-%    handles.data.vlim(2) = min( zoom_max, max( cellfun(@(d) max(d(:,1)), tseries.data ) ) );
-% else
-%    handles.data.vlim(1) = max( zoom_min, min(tseries.data(:)) );
-%    handles.data.vlim(2) = min( zoom_max, max(tseries.data(:)) );
-% end
 end
 
 function voltage_slider_updated(hObject,eventdata,handles)
@@ -1720,7 +1683,7 @@ curr_signal_Callback( new_handles.curr_signal, [], new_handles );
 end
 
 % --- Executes on slider movement.
-function scroll_axes_Callback(hObject, eventdata, handles)
+function scroll_axes_slider_Callback(hObject, eventdata, handles)
 mouseWaitingFunction(handles.figure1, @scroll_axes, hObject, eventdata, handles);
 end
 
@@ -1731,7 +1694,7 @@ guidata(hObject, handles);
 end
 
 % --- Executes during object creation, after setting all properties.
-function scroll_axes_CreateFcn(hObject, eventdata, handles)
+function scroll_axes_slider_CreateFcn(hObject, eventdata, handles)
 % Hint: slider controls usually have a light gray background.
 if isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
    set(hObject,'BackgroundColor',[.9 .9 .9]);

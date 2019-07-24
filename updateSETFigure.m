@@ -39,17 +39,17 @@ function handles = plotDataFromCell(handles, tseries)
    data  = tseries.data;  % format: AP templates x 1
    Np    = length(data);  % num axes to include = number of AP templates
    if Np > max_ax % if too many axes to view add a scroll bar
-      set(handles.scroll_axes, 'Visible', 'on'); % no scrolling required
-      scroll    = get(handles.scroll_axes, 'Value');
+      set(handles.scroll_axes_slider, 'Visible', 'on'); % no scrolling required
+      scroll    = get(handles.scroll_axes_slider, 'Value');
       poss_ax   = (1:Np)';
       select_ax = poss_ax - round((Np - max_ax)*(1-scroll)); % scroll is max when want min axes so 1-scross
       plot_ax   = find( 1 <= select_ax & select_ax <= max_ax );
       Np        = max_ax;
-      set(handles.scroll_axes,'SliderStep',[min(1,2/length(data)) min(max_ax/length(data))]);
+      set(handles.scroll_axes_slider,'SliderStep',[min(1,2/length(data)) min(max_ax/length(data))]);
    else
       plot_ax = 1:Np;
-      set(handles.scroll_axes, 'Visible', 'off'); % no scrolling required
-      set(handles.scroll_axes, 'Value', 1); % reset scroll bar
+      set(handles.scroll_axes_slider, 'Visible', 'off'); % no scrolling required
+      set(handles.scroll_axes_slider, 'Value', 1); % reset scroll bar
    end
    nc  = 1;
    nr  = ceil(Np);
@@ -197,8 +197,8 @@ function handles = plotDataFromMatrix(handles, tseries)
    data  = tseries.data;   % format: time x dimension
    Np    = size(data, 2);  % num axes to include
    if Np > max_ax % if too many axes to view add a scroll bar
-      set(handles.scroll_axes, 'Visible', 'on'); % no scrolling required
-      scroll    = get(handles.scroll_axes, 'Value');
+      set(handles.scroll_axes_slider, 'Visible', 'on'); % no scrolling required
+      scroll    = get(handles.scroll_axes_slider, 'Value');
       poss_ax   = (1:Np)';
       select_ax = poss_ax - round((Np - max_ax)*(1-scroll)); % scroll is max when want min axes so 1-scross
       plot_ax   = find( 1 <= select_ax & select_ax <= max_ax );
@@ -206,13 +206,13 @@ function handles = plotDataFromMatrix(handles, tseries)
       fontsize  = 10;
    else
       plot_ax = 1:Np;
-      set(handles.scroll_axes, 'Visible', 'off'); % no scrolling required
-      set(handles.scroll_axes, 'Value', 1); % reset scroll bar
+      set(handles.scroll_axes_slider, 'Visible', 'off'); % no scrolling required
+      set(handles.scroll_axes_slider, 'Value', 1); % reset scroll bar
       fontsize  = 12;
    end
    nc = ceil(sqrt(Np));
    nr = ceil(Np/nc);
-   set(handles.scroll_axes,'SliderStep',[min(1,(1+max_ax)/size(data,2)) min(1,(1+Np*max_ax)/size(data, 2))]);
+   set(handles.scroll_axes_slider,'SliderStep',[min(1,(1+max_ax)/size(data,2)) min(1,(1+Np*max_ax)/size(data, 2))]);
    N  = length(data);
    dt = tseries.dt;
    if tlim(2)<(tlim(1)+dt)

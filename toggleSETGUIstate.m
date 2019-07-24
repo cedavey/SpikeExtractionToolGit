@@ -43,13 +43,13 @@ function handles = toggleSETGUIstate(handles,state)
    
  % Select dataset
    set(handles.load_panel,     'Visible', 'on');
-   set(handles.load_voltage,   'Visible', 'on'); % can always load a new datastruct
-   set(handles.add_voltage,    'Visible', state);
+   set(handles.load_voltage_button,   'Visible', 'on'); % can always load a new datastruct
+   set(handles.add_voltage_button,    'Visible', state);
     
  % Display voltage
    % curr_signal UI - setting depends on state we're toggling to 
    set(handles.curr_signal,    'Visible', state);
-   set(handles.clear_voltage,  'Visible', state);
+   set(handles.clear_voltage_button,  'Visible', state);
    set(handles.voltage_panel,  'Visible', state);
    
  % Available tools
@@ -57,7 +57,7 @@ function handles = toggleSETGUIstate(handles,state)
    set(handles.tool_list,      'Visible', state);
    set(handles.select_method,  'Visible', state);
    set(handles.method_list,    'Visible', state);
-   set(handles.run_tool,       'Visible', state);
+   set(handles.run_tool_button,       'Visible', state);
    set(handles.set_tool_params,'Visible', state);
    set(handles.tool_panel,     'Visible', state);
    
@@ -78,7 +78,7 @@ function handles = toggleSETGUIstate(handles,state)
    else
       set(handles.access_voltage, 'Visible', state);
    end
-   set(handles.scroll_axes,    'Visible', 'off');
+   set(handles.scroll_axes_slider,    'Visible', 'off');
 
    % The following panels don't get displayed until a voltage time series
    % is loaded or an AP template family is loaded - set to off until then
@@ -118,13 +118,13 @@ function handles = toggleSETGUIstate(handles,state)
             % set font of text instruction boxes
             set(handles.select_tool,    'Fontsize', fontsize);
             set(handles.load_panel,     'Fontsize', fontsize);
-            set(handles.load_voltage,   'Fontsize', fontsize);
-            set(handles.add_voltage,    'Fontsize', fontsize);
-            set(handles.clear_voltage,  'Fontsize', fontsize);
+            set(handles.load_voltage_button,   'Fontsize', fontsize);
+            set(handles.add_voltage_button,    'Fontsize', fontsize);
+            set(handles.clear_voltage_button,  'Fontsize', fontsize);
             set(handles.voltage_panel,  'Fontsize', fontsize);
             set(handles.select_tool,    'Fontsize', fontsize);
             set(handles.select_method,  'Fontsize', fontsize);
-            set(handles.run_tool,       'Fontsize', fontsize);
+            set(handles.run_tool_button,       'Fontsize', fontsize);
             set(handles.set_tool_params,'Fontsize', fontsize);
             set(handles.save_voltage,   'Fontsize', fontsize);
             set(handles.new_figure,     'Fontsize', fontsize);
@@ -230,9 +230,9 @@ function handles = toggleSETGUIstate(handles,state)
          set(handles.voltage_slider, 'Min',   0);
          set(handles.voltage_max,    'Value', vlim(2));
          set(handles.voltage_min,    'Value', vlim(1));
-         set(handles.scroll_axes,    'Max',   1);
-         set(handles.scroll_axes,    'Min',   0);
-         set(handles.scroll_axes,    'Value', 1);
+         set(handles.scroll_axes_slider,    'Max',   1);
+         set(handles.scroll_axes_slider,    'Min',   0);
+         set(handles.scroll_axes_slider,    'Value', 1);
 
       end
    end
