@@ -1,0 +1,1545 @@
+classdef frontEndFunctions
+  
+   properties (Access = public)
+      uiType % 'app' or 'gui'
+   end
+   
+methods (Static)
+   % Constructor
+   function obj = frontEndFunctions(varargin)
+      if nargin == 0, error('Not enough input arguments');end
+      
+      if nargin == 1
+         obj.uiType = varargin{1};
+      end
+   end
+   
+   %% Shared methods
+   function aboutMenuItem
+   % hObject    handle to aboutMenuItem (see GCBO)
+   % eventdata  reserved - to be defined in a future version of MATLAB
+   % handles    structure with handles and user data (see GUIDATA)
+      aboutWindow = dialog();
+      str = sprintf(['','\n',...
+                     'The University of Melbourne','\n',...
+                     '','\n',...
+                     'Biomedical Engineering','\n',...
+                     '','\n',...
+                     'Dr. Katie Davey','\n',...
+                     'Dr. Martin Stebbing','\n',...
+                     'Dr. Artemio Soto Breceda','\n',...
+                     '']);
+      uicontrol('parent',aboutWindow,'Style','text',...
+            'String', str,'Position',[187,0,187,200],'FontSize',11);
+
+      logo = uicontrol('parent',aboutWindow,'Style','pushbutton',...
+            'Position',[187,200,187,187]);
+      [x,map]=imread('fig/unimelb.png'); % Load the zoom icon
+      I2=imresize(x, [187 187]); % Resize icon
+      logo.CData = I2; % Assign icon to the button
+   end
+   
+   function add_voltage(h)
+      h.data.last_tseries    = h.data.curr_tseries;
+      new_num_tseries = h.data.num_tseries + 1;
+
+      % open image files & retrieve matrices
+      [h.data, success] = openVoltageFile(h.data);
+
+      if success~=1
+         str = sprintf('Error opening file, ignoring');
+         displayErrorMsg(str);
+         return
+      end
+      % loading new voltage tseries succeeded
+
+      if strcmp('gui', h.f.uiType)
+         % udpate drop down lists - gotta be done for success = 0 or 1 (?)
+         set(h.curr_signal, 'String', h.data.tseries_str);
+         % set voltage to 1st newly loaded voltage tseries
+         set(h.curr_signal, 'Value', new_num_tseries);
+      else
+         h.curr_signal.Items = h.data.tseries_str;
+         set(h.curr_signal, 'Value', h.curr_signal.Items(new_num_tseries));
+      end
+      h.f.curr_signal(h.curr_signal, 'add_voltage', h);
+   end
+   
+   function h = automatic_params(h, hObject)
+      if hObject.Value
+         h.set_tool_params.Enable = 'off';
+         h.options.auto_params = true;
+      else
+         h.set_tool_params.Enable = 'on';
+         h.options.auto_params = false;
+      end
+      if strcmp('gui', h.f.uiType), guidata(hObject,h); end% saves changes to handles
+   end
+   
+   function clear_voltages(hObject, h, vtc)
+      try
+         vtc = vtc.Value;
+         delete(hObject.Parent);
+         for i = numel(vtc):-1:1
+            h = h.f.removeVoltage(h, vtc(i));
+         end
+      catch E
+         runtimeErrorHandler(E);
+      end
+   end
+   
+   function curr_signal(hObject, eventdata, handles)
+      if ~handles.f.haveUserData(handles)
+         return;
+      end
+      % find out what the user has selected to view
+      [tseries, ts_num, data_type] = handles.f.getCurrentVoltage(handles);
+      % add current tseries to last viewed tseries before it's overwritten
+      if ~strcmp('add_voltage', eventdata)
+         % Only if this is not a new voltage
+         handles.data.last_tseries    = handles.data.curr_tseries;
+      end
+      % update current tseries to tseries chosen by user
+      handles.data.curr_tseries    = ts_num;
+
+      % if data type of tseries hasn't changed then tool list doesn't need to
+      % change, but if we're displaying a new data type then the tool list and
+      % available methods for the tool needs to change
+      last_tseries = handles.data.tseries{handles.data.last_tseries};
+      last_type    = handles.data.tseries{handles.data.last_tseries}.type;
+      [last_tlim, last_vlim] = getTimeAndVoltageLimits(last_tseries);
+      [curr_tlim, curr_vlim] = getTimeAndVoltageLimits(tseries);
+      
+      if strcmp('load_voltage', eventdata) || ~strcmpi(data_type, last_type)
+         % only remember last tool for voltage data cuz not many options for the others
+         tool_num    = ternaryOp( strcmpi(data_type, 'voltage'), handles.data.last_tool, 1);
+         if (isempty(tool_num) || tool_num==0), tool_num=1; end
+         tool_list   = getSETToolList(data_type);
+         tool        = tool_list{tool_num};
+         method_list = getSETToolMethodsList(tool, data_type);
+         if strcmp('gui', handles.f.uiType)
+            set(handles.tool_list,   'String', tool_list);
+            set(handles.tool_list,   'Value',  tool_num);
+            set(handles.method_list, 'String', method_list);
+            set(handles.method_list, 'Value', 1);
+         else
+            set(handles.tool_list,   'Items', tool_list);
+            set(handles.tool_list,   'Value',  tool_list(tool_num));
+            set(handles.method_list, 'Items', method_list);
+            set(handles.method_list, 'Value', method_list(1));
+         end
+      end
+
+      % update voltage & time sliders - keep them the same if timeseries length
+      % is the same as the last viewed tseries
+      if ~compareFloats(curr_tlim(2), last_tlim(2), 0.01, 'perc')
+         % set time slider and time max/min text boxes from time length of data
+         handles.data.tlim = curr_tlim;
+         mint = handles.data.tlim(1); maxt = handles.data.tlim(2);
+         set(handles.time_slider, 'Value',  0);
+         if strcmp('gui', handles.f.uiType)
+            set(handles.time_max,    'String', sprintf('%.2f',maxt));
+            set(handles.time_min,    'String', sprintf('%.2f',mint));
+         else
+            set(handles.time_max,    'Value', sprintf('%.2f',maxt));
+            set(handles.time_min,    'Value', sprintf('%.2f',mint));
+         end
+      end
+      
+      if strcmp('load_voltage', eventdata) || ~compareFloats(curr_vlim(2), last_vlim(2), 0.01, 'perc')
+         % set time slider and time max/min text boxes from scale of data
+         handles.data.vlim = curr_vlim;
+         minv = handles.data.vlim(1); maxv = handles.data.vlim(2);
+         
+         if strcmp('gui', handles.f.uiType)
+            set(handles.voltage_max,    'String', sprintf('%.2f',maxv));
+            set(handles.voltage_min,    'String', sprintf('%.2f',minv));
+
+            % udpate figure to show tseries chosen by user
+            guidata(hObject,handles); % saves changes to handles
+            handles = updateSETFigure(handles, tseries);
+            updateGUIParams(handles, tseries);
+
+            guidata(hObject,handles); % saves changes to handles
+         else
+            set(handles.voltage_max,    'Value', sprintf('%.2f',maxv));
+            set(handles.voltage_min,    'Value', sprintf('%.2f',minv));
+
+            % udpate figure to show tseries chosen by user
+            guidata(hObject,handles); % saves changes to handles
+            handles = updateSETFigure(handles, tseries);
+            updateGUIParams(handles, tseries);
+         end
+      end
+   end
+   
+   function [tseries, ts_num, type, ts_name] = getCurrentVoltage(handles)
+   % extract time series data, index number into tseries cell array, data type
+   % of time series, and the name of the time series
+   % if try fails then we're doing if for viewVolume_newWindow - get stat
+   % from data struct instead
+   try
+      if strcmp('gui', handles.f.uiType)
+         ts_num  = get(handles.curr_signal,'Value');
+      else
+         v = cellfun(@(x) strcmp(x,handles.curr_signal.Value), handles.curr_signal.Items);
+         ts_num = find(v == 1);
+      end
+      tseries = handles.data.tseries{ts_num};
+      ts_name = handles.data.tseries_str{ts_num};
+      type    = tseries.type;
+   catch ME
+      ts_num  = handles.data.curr_tseries;
+      tseries = handles.data.tseries{ts_num};
+      ts_name = handles.data.tseries_str{ts_num};
+      type    = tseries.type;
+   end
+   end
+   
+   function name = getFileName(instruct, defVal, maxLength)
+   % prompt user for name of volume saved to file (so they're not stupidly
+      % long)
+      if isempty(defVal)
+         defVal = 'image';
+      end
+      name = inputdlg(instruct, 'Variable name', 1,{defVal});
+      if isempty(name) % user's cancelled process
+         return
+      end
+      name = name{1};
+      if exist('maxLength','var') && ~isempty(maxLength)
+         while length(name)>maxLength
+            displayErrorMsg(['Can''t exceed ' num2str(maxLength) ' chars, truncating']);
+            name = inputdlg(instruct(1:maxLength), 'Variable name', 1,{defVal});
+         end
+      end
+   end
+   
+   function userids = getUserTemplateDeleteIDs(tseries, method_params)
+      % user configuration parameters:
+      %   ap.merge_templates.user_selection.template_to_merge_with.value = 1;
+      %   ap.merge_templates.user_selection.number_of_templates_to_merge.value   = 1;
+      userids = [];
+      nap     = size( tseries.data, 2 );
+      ndelete  = method_params.number_of_templates_to_remove.value;
+      % make sure there's enough templates to merge as many as user requested
+      if ndelete >= nap
+         str = 'You''re trying to delete more templates than you actually have, try again';
+         displayErrorMsg(str);
+         return;
+      end
+
+      % get IDs of templates available to merge
+      ids = 1:nap;
+      list = struct('type','list', 'format','integer', 'style','popupmenu', 'size',0);
+      for ii=1:ndelete
+         def{ii,1}    = ids( ii );
+         descript     = sprintf( 'Delete %d templates');
+         name         = sprintf( 'ap%d', ii ); % ids( ii ) );
+         units        = 'integer';
+         prompt{ii,1} = sprintf( 'Select template ID to remove');
+         prompt{ii,2} = name;    % name of struct field for result
+         prompt{ii,3} = units;   % units of parameter
+
+         % list options
+         options      = ids;
+         tmp          = list;
+         tmp.limits   = [1 length(options)];
+         tmp.items    = options;
+         formats(ii,1)= tmp;
+
+         % need to update default value for lists from being string to
+         % being index into list, else inputsdlg has a hissy
+         def{ii,1}    = find( def{ii,1} == options );
+      end
+      other.Resize      = 'on';
+      other.WindowStyle = 'normal';
+      other.Interpreter = 'tex';
+
+      dlg_title = sprintf( 'Select AP templates to remove');
+      try
+         [userparams, cancel] = inputsdlg(prompt, dlg_title, formats, def, other);
+      catch ME
+         str = getCatchMEstring( ME, 'Error setting parameters', false );
+         displayErrorMsg( 'Error setting parameters, reverting to old values' );
+         userids = [];
+         runtimeErrorHandler(ME,'ignore');
+         return;
+      end
+      if cancel
+         userids = [];
+         return;
+      end
+
+      % replace list indices with template ids
+      names = fieldnames (userparams );
+      for i=1:ndelete
+         % for the list types extract value from index into list
+         userparams.( names{i} ) = formats(i).items( userparams.( names{i} ) );
+      end
+
+      % if any template ids are repeated, delete repeat
+      userids = cellfun( @(f) userparams.(f), names );
+      if length( unique( userids ) ) ~= length( userids )
+         displayErrorMsg( 'Ignoring repeat template IDs' );
+      end
+      userids = unique( userids );
+   end
+   
+   function userids = getUserTemplateMergeIDs(tseries, method_params)
+      % user configuration parameters:
+      %   ap.merge_templates.user_selection.template_to_merge_with.value = 1;
+      %   ap.merge_templates.user_selection.number_of_templates_to_merge.value   = 1;
+      userids = [];
+      nap     = size( tseries.data, 2 );
+      mergeid = method_params.template_to_merge_with.value;
+      nmerge  = method_params.number_of_templates_to_merge.value;
+      % make sure there's enough templates to merge as many as user requested
+      if nmerge >= nap
+         str = 'You''re trying to merge more templates than you actually have, try again';
+         displayErrorMsg(str);
+         return;
+      end
+
+      % get IDs of templates available to merge
+      ids = 1:nap;
+      ids( mergeid ) = []; % remove template we're merging into from list
+      list = struct('type','list', 'format','integer', 'style','popupmenu', 'size',0);
+      for ii=1:nmerge
+         def{ii,1}    = ids( ii );
+         descript     = sprintf( 'Template number to merge in to template %d', mergeid );
+         name         = sprintf( 'ap%d', ii ); % ids( ii ) );
+         units        = 'integer';
+         prompt{ii,1} = sprintf( 'Select template ID of AP to merge into template %d', mergeid );
+         prompt{ii,2} = name;    % name of struct field for result
+         prompt{ii,3} = units;   % units of parameter
+
+         % list options
+         options      = ids;
+         tmp          = list;
+         tmp.limits   = [1 length(options)];
+         tmp.items    = options;
+         formats(ii,1)= tmp;
+
+         % need to update default value for lists from being string to
+         % being index into list, else inputsdlg has a hissy
+         def{ii,1}    = find( def{ii,1} == options );
+      end
+      other.Resize      = 'on';
+      other.WindowStyle = 'normal';
+      other.Interpreter = 'tex';
+
+      dlg_title = sprintf( 'Select AP templates to merge into template %d', mergeid );
+      try
+         [userparams, cancel] = inputsdlg(prompt, dlg_title, formats, def, other);
+      catch ME
+         str = getCatchMEstring( ME, 'Error setting parameters', false );
+         displayErrorMsg( 'Error setting parameters, reverting to old values' );
+         userids = [];
+         runtimeErrorHandler(ME,'ignore');
+         return;
+      end
+      if cancel
+         userids = [];
+         return;
+      end
+
+      % replace list indices with template ids
+      names = fieldnames (userparams );
+      for i=1:nmerge
+         % for the list types extract value from index into list
+         userparams.( names{i} ) = formats(i).items( userparams.( names{i} ) );
+      end
+
+      % if any template ids are repeated, delete repeat
+      userids = cellfun( @(f) userparams.(f), names );
+      if length( unique( userids ) ) ~= length( userids )
+         displayErrorMsg( 'Ignoring repeat template IDs' );
+      end
+      userids = unique( userids );
+   end
+   
+   function have = haveUserData(handles)
+      have = 0;
+      % if no timeseries to display don't try moving crosshairs etc
+      try
+         if handles.data.num_tseries==0
+            return;
+         end
+      catch   % no data_struct (error trying to access it)
+         return;
+      end
+      have = 1;
+   end
+   
+   function load_voltage(varargin)
+      if nargin == 1
+         h = varargin{1};
+      else
+         hObject = varargin{1};
+         h = varargin{2};
+      end
+      
+      last_dir = h.data.last_dir; % keep before we write over it
+      old_numtseries = h.data.num_tseries;
+
+      % get rid of all previous data
+      h = toggleSETGUIstate(h,'off');
+      h.data.last_dir = last_dir;
+      
+      if strcmp('gui',h.f.uiType)
+         guidata(hObject,h);  % saves the change to handles
+      end
+      data    = h.data;    % get user data from gui handle
+
+      % open smr, txt, or mat file
+      [data, success] = openVoltageFile(data);
+      data.last_tseries = 1;
+      data.curr_tseries = 1;
+      data.last_tool    = 1;
+      data.curr_tool    = 1;
+
+      if success==0 % if success==0 --> no valid images found or user cancelled
+         displayErrorMsg('No valid voltage data found - please reload');
+         % don't update handles with the data_struct changes
+         return;
+      elseif success==-1
+         if old_numtseries>0 % user cancelled out of open file dialogue
+            displayErrorMsg('Load voltage cancelled, but old data was removed (sorry!)');
+         end
+         return;
+      end
+      % if new data loaded re-enable GUI
+      h.data = data;
+      h = toggleSETGUIstate(h,'on');
+
+      if strcmp('gui',h.f.uiType)
+         guidata(hObject,h);  % saves the change to handles
+         set(h.curr_signal, 'String', data.tseries_str);
+         set(h.curr_signal, 'Value',  1);
+         guidata(hObject,h);
+      else
+         set(h.curr_signal, 'Items', data.tseries_str);
+         set(h.curr_signal, 'Value',  h.curr_signal.Items(1));
+      end
+
+      % curr_signal_Callback doesn't return handles so we have to save handles
+      % manually, then request a fresh copy using guidata
+      h.f.curr_signal(h.curr_signal, 'load_voltage', h);
+      if strcmp('gui',h.f.uiType), guidata(hObject,h); end
+   end
+   
+   function varargout = removeVoltage(h, varargin)    
+      if (numel(varargin) == 0) || cellfun(@isempty, varargin)
+         remove_tseries = h.data.curr_tseries;
+         varargin = [];
+         varargout = {};
+      else
+         remove_tseries = varargin{1}; % In case we are removing a voltage different to the currently active
+      end
+         tseries_str    = h.data.tseries_str{remove_tseries};
+         last_tseries   = h.data.last_tseries;
+         num_tseries    = h.data.num_tseries;
+
+      % if the last remaining timeseries is being deleted, clear gui
+      if num_tseries==1
+         h = toggleSETGUIstate(h, 'off');
+         guidata(h.figure1, h);
+         if numel(varargin) == 1,varargout = {h};end % When removing multiple voltages at once, we want to update the state of handles for the caller method
+         return;
+
+         % last time series may be the same as current time series (being removed)
+         %  after deleting a timeseries or some such thing, so show something else
+      elseif h.data.last_tseries==remove_tseries
+         indices     = 1:num_tseries;
+         indices(remove_tseries) = [];
+         h.data.last_tseries = indices(1);
+      end
+      % display last tseries before removing this one so we can check if data
+      % types are the same etc
+      if strcmp('gui', h.f.uiType)
+         set(h.curr_signal, 'Value', h.data.last_tseries);
+         % Update figure & handles structure
+         h.f.curr_signal(h.curr_signal, [], h);
+         h = guidata(h.figure1);
+      else
+         set(h.curr_signal, 'Value', h.curr_signal.Items(h.data.last_tseries));
+         % Update figure & handles structure
+         h.f.curr_signal(h.curr_signal, [], h);
+      end
+      % curr_signal changes last & current timeseries indices, so change back
+      % (we wanted the function to display the previous timeseries, but the
+      % user didn't actually select it themselves so don't update current &
+      % last timeseries indices)
+      h.data.last_tseries = last_tseries;
+      h.data.curr_tseries = remove_tseries;
+
+      % now do the actual removing
+      h.data.used_names = removeStringFromList(h.data.used_names,  tseries_str);
+      h.data.tseries(remove_tseries)     = [];
+      h.data.tseries_str(remove_tseries) = [];
+      h.data.num_tseries              = h.data.num_tseries - 1;
+
+      if h.data.num_tseries==0
+         h = toggleGUIstate(h,'off');
+         if numel(varargin) == 1,varargout = {h};end % When removing multiple voltages at once, we want to update the state of handles for the caller method
+         return
+      end
+      % update our indices for last tseries if necessary
+      if h.data.last_tseries == remove_tseries
+         h.data.last_tseries = 1;
+      elseif h.data.last_tseries > remove_tseries
+         h.data.last_tseries = h.data.last_tseries - 1;
+      end
+      if h.data.last_tseries > length(h.data.tseries_str)
+         str = sprintf('last timeseries index (%d) larger than number of strings (%d)',...
+            h.data.last_tseries, length(h.data.tseries_str) );
+         displayErrorMsg(str);
+         h.data.last_tseries = 1;
+      end
+      h.data.curr_tseries = h.data.last_tseries;
+      if strcmp('gui', h.f.uiType)
+         set(h.curr_signal, 'String', h.data.tseries_str);
+         set(h.curr_signal, 'Value', h.data.last_tseries);
+         h.data.curr_tseries = h.data.last_tseries;
+         guidata(h.figure1, h);
+      else
+         set(h.curr_signal, 'Items', h.data.tseries_str);
+         set(h.curr_signal, 'Value', h.curr_signal.Items(h.data.last_tseries));
+         h.data.curr_tseries = h.data.last_tseries;
+      end
+
+      if numel(varargin) == 1,varargout = {h};end % When removing multiple voltages at once, we want to update the state of handles for the caller method
+   end
+   
+   function run_tool(h)
+      % Implement the tool using the method & params requested
+      if strcmp('gui', h.f.uiType)
+         tool_list     = get(h.tool_list, 'String');
+         tool_num      = get(h.tool_list, 'Value');
+         tool          = tool_list{tool_num};
+
+         method_list   = get(h.method_list, 'String');
+         method_num    = get(h.method_list, 'Value');
+         method        = method_list{method_num};
+      else
+         tool_list     = get(h.tool_list, 'Items');
+         tn            = cellfun(@(x) strcmp(x,h.tool_list.Value), h.tool_list.Items);
+         tool_num      = find(tn == 1);
+         tool          = tool_list{tool_num};
+
+         method_list   = get(h.method_list, 'Items');
+         tn            = cellfun(@(x) strcmp(x,h.method_list.Value), h.method_list.Items);
+         method_num      = find(tn == 1);
+         method        = method_list{method_num};
+      end
+
+      [tseries, ~, type] = h.f.getCurrentVoltage(h);
+      method_params = getToolAndMethodParams(h.data.params, type, tool, method);
+
+      switch lower(type)
+         case 'voltage'
+            % only remember last tool for voltage coz others don't have many options
+            h.data.last_tool = h.data.curr_tool;
+            h.data.curr_tool = get(h.select_tool, 'Value');
+            switch lower(tool)
+               case 'rescale'
+                  if ~strcmp('separate',method_params.select_peaks.value)
+                     [voltage, Rest] = rescaleVoltage(tseries, method, method_params, h.options);
+                  else
+                     method_params.select_peaks.value = 'positive';
+                     [voltage, Rest, prev_params] = rescaleVoltage(tseries, method, method_params, h.options);
+                     voltage = voltage.*heaviside(voltage);
+      %                ff = fields(prev_params);
+      %                for fi = 1:length(ff)
+      %                   method_params.(ff{fi}).value = prev_params.(ff{fi}).value;
+      %                end
+                     method_params.select_peaks.value = 'negative';
+                     [nvoltage, Nest] = rescaleVoltage(tseries, method, method_params, h.options);
+                     nvoltage = -nvoltage;
+                     nvoltage = nvoltage.*heaviside(nvoltage);
+                     voltage = voltage - nvoltage;
+                  end
+                  if isempty(voltage)
+                     return;
+                  end
+                  new_tseries.type    = 'voltage';
+                  new_tseries.data    = voltage;
+                  new_tseries.time    = tseries.time;
+                  new_tseries.dt      = tseries.dt;
+                  new_tseries.params  = method_params;
+                  new_tseries.Rest    = Rest;
+                  new_tseries.params.tool   = tool;
+                  new_tseries.params.method = method;
+                  tool_str            = [tseries.name '_' tool];
+                  instruct            = ['Creating ' tool_str ': rename?'];
+
+
+               case 'denoise'
+                  voltage = denoiseVoltage(tseries, method, method_params);
+                  if isempty(voltage)
+                     return;
+                  end
+                  new_tseries.type    ='voltage';
+                  new_tseries.data    = voltage;
+                  new_tseries.time    = tseries.time;
+                  new_tseries.dt      = tseries.dt;
+                  new_tseries.params  = method_params;
+                  new_tseries.params.tool   = tool;
+                  new_tseries.params.method = method;
+                  tool_str            = [tseries.name '_' tool];
+                  instruct            = ['Creating ' tool_str ': rename?'];
+
+               case 'identify ap templates'
+                  % get time series to apply AP templates to
+                  [APtemplates, APfamily] = identifyAPs(tseries, method, method_params,  h.options.debugOption);
+                  if isempty(APtemplates)
+                     return;
+                  end
+                  new_tseries.type    = 'ap';
+                  new_tseries.data    = APtemplates;
+                  new_tseries.time    = (1:size(APtemplates,1))'*tseries.dt;
+                  new_tseries.dt      = tseries.dt;
+                  new_tseries.params  = method_params;
+                  new_tseries.params.tool   = tool;
+                  new_tseries.params.method = method;
+                  new_tseries.APfamily= APfamily;
+                  tool_str            = [tseries.name '_APs'];
+                  instruct            = ['Creating ' tool_str ': rename?'];
+
+               case 'extract spikes'
+                  % allows user to generate spikes directly from voltage
+                  % timeseries, by generating AP templates enroute
+                  if strcmpi(method,'k means')
+                     % Extracting spikes directly from voltage through K-means
+                     % clustering. Not using APs
+                     [APspikes, APtimes, APfamily] = extractSpikesUsingKmeans(tseries, method_params, h.options.debugOption);
+                     if isempty(APspikes)
+                        return;
+                     end
+                     new_tseries.type    = 'spike';
+                     new_tseries.data    = APspikes;
+                     new_tseries.time    = tseries.time;
+                     new_tseries.dt      = tseries.dt;
+                     new_tseries.params  = method_params;
+                     new_tseries.params.tool   = tool;
+                     new_tseries.params.method = method;
+                     new_tseries.APfamily= APfamily; % Here the AP templates are the same as the different axons
+                     new_tseries.APstimes= APtimes; % record spike times for getting rate later
+                     tool_str            = [tseries.name '_spikes'];
+                     instruct            = ['Creating ' tool_str ': rename?'];
+
+                  else
+                     [APtemplates, APfamily]= identifyAPs(tseries, 'threshold', method_params);
+                     if isempty(APtemplates)
+                        return;
+                     end
+                     APnumsamples        = cellfun(@(f) size(f,2), APfamily);
+                     normAPs             = method_params.normalise_aps.value; % separate for when gen APs separately
+                     [APspikes,APtimes]  = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, method_params, normAPs );
+                     new_tseries.type    = 'spike';
+                     new_tseries.data    = APspikes;
+                     new_tseries.time    = tseries.time;
+                     new_tseries.dt      = tseries.dt;
+                     new_tseries.params  = method_params;
+                     new_tseries.params.tool   = tool;
+                     new_tseries.params.method = method;
+                     new_tseries.APfamily= APfamily;
+                     new_tseries.APstimes= APtimes; % record spike times for getting rate later
+                     tool_str            = [tseries.name '_spikes'];
+                     instruct            = ['Creating ' tool_str ': rename?'];
+                  end
+
+               case 'utilities'
+                  new_tseries = voltageUtilities(tseries, method, method_params);
+                  if isempty(tseries)
+                     return;
+                  end
+                  new_tseries.type    ='voltage';
+                  new_tseries.name    = tseries.name;
+                  new_tseries.params  = method_params;
+                  new_tseries.params.tool   = tool;
+                  new_tseries.params.method = method;
+                  tool_str            = [tseries.name '_' method];
+                  instruct            = ['Creating ' tool_str ': rename?'];
+
+               otherwise
+                  displayErrorMsg('This tool don''t exist, give up');
+                  return;
+            end
+
+            %% Action potentials
+         case 'ap'
+            switch lower(tool)
+               case 'extract spikes'
+                  % if user hasn't set parameters explicitly they wouldn't
+                  % have chosen a voltage timeseries to apply the AP templates to
+                  if ~isfield(method_params, 'voltage_timeseries')
+                     str = 'Set parameters to choose a voltage timeseries to match the AP templates to';
+                     displayErrorMsg(str);
+                     return;
+                  end
+                  voltage_name        = method_params.voltage_timeseries;
+                  voltage_index       = strcmpi(voltage_name.value, h.data.tseries_str);
+                  if ~any(voltage_index)
+                     str = 'Voltage timeseries not found, select a different timeseries';
+                     displayErrorMsg(str);
+                     return;
+                  end
+                  voltage_tseries     = h.data.tseries{voltage_index};
+                  APtemplates         = tseries.data;
+                  if isempty(APtemplates)
+                     return;
+                  end
+                  normAPs             = tseries.params.normalise_aps.value; % get from AP generation
+                  % get number of samples that each AP template is estimated from
+                  APnumsamples        = cellfun(@(f) size(f,2), tseries.APfamily);
+                  [APspikes, APstimes]= ...
+                     extractSpikesUsingTemplates(APtemplates, APnumsamples, voltage_tseries, method, method_params, normAPs);
+                  if isempty(APspikes)
+                     return;
+                  end
+                  new_tseries.type    = 'spike';
+                  new_tseries.data    = APspikes;
+                  if iscell( APspikes{1} )
+                     % if we ran outta memory we stored only spike times,
+                     % which meant we lost the time vector, so I saved it in
+                     % the fam struct
+                     new_tseries.time = APspikes{1}{1}.time;
+                  else
+                     % gotta be cheeky getting time since we can plot spikes
+                     % consecutively to make it easier to see how they change
+                     new_tseries.time = voltage_tseries.time( 1:size(APspikes{1}, 1) );
+                  end
+                  new_tseries.dt      = voltage_tseries.dt;
+                  new_tseries.params  = method_params;
+                  new_tseries.params.tool   = tool;
+                  new_tseries.params.method = method;
+                  new_tseries.APstimes= APstimes; % record spike times for getting rate later
+                  tool_str            = [tseries.name '_spikes_' method];
+                  tool_str            = [tseries.name '_spikes'];
+                  instruct            = ['Creating ' tool_str ': rename?'];
+
+               case 'merge templates'
+                  % get time series to apply AP templates to
+                  new_tseries = mergeAPtemplates( tseries, method, method_params );
+                  if isempty(new_tseries)
+                     return;
+                  end
+                  tool_str            = [tseries.name '_APs_' method];
+                  tool_str            = [tseries.name '_APs'];
+                  instruct            = ['Creating ' tool_str ': rename?'];
+
+               case 'delete templates'
+                  % get time series to apply AP templates to
+                  new_tseries = deleteAPtemplates( tseries, method, method_params );
+                  if isempty(new_tseries)
+                     return;
+                  end
+                  tool_str            = [tseries.name '_APs'];
+                  instruct            = ['Creating ' tool_str ': rename?'];
+               otherwise
+                  displayErrorMsg('This tool don''t exist, give up');
+                  return;
+            end
+
+         case 'spike'
+            switch lower(tool)
+               case 'firing rate'
+                  [rates, time, dt] = getRateFromSpikes(tseries, method, method_params);
+                  if isempty(rates), return; end
+                  new_tseries.type = 'rate';
+                  new_tseries.data = rates;
+                  new_tseries.time = time;
+                  new_tseries.dt   = dt;
+                  new_tseries.params= method_params;
+                  new_tseries.params.tool   = tool;
+                  new_tseries.params.method = method;
+                  tool_str         = [tseries.name '_rates']; % _' method];
+                  tool_str(tool_str=='_') = ' '; % make pretty for dialogue title
+                  instruct         = ['Creating ' tool_str ': rename?'];
+
+               case 'statistics'
+                  generateSpikeStatistics(tseries, method, method_params);
+                  return;
+
+               case 'spike operations'
+                  [spikes,stimes] = runSpikeOperations(tseries, method, method_params);
+
+                  new_tseries.type    = 'spike';
+                  new_tseries.data    = spikes;
+                  new_tseries.time    = tseries.time;
+                  new_tseries.dt      = tseries.dt;
+                  new_tseries.params  = method_params;
+                  new_tseries.params.tool   = tool;
+                  new_tseries.params.method = method;
+                  new_tseries.APstimes= stimes; % record spike times for getting rate later
+                  tool_str            = [tseries.name '_spikes_' method];
+                  tool_str            = [tseries.name '_spikes'];
+                  instruct            = ['Creating ' tool_str ': rename?'];
+
+               otherwise
+            end
+
+         case 'rate'
+            % currently the only tool for 'rate' timeseries is generating
+            % statistics, & the only statistic is autocorrelation
+            generateRateStatistics(tseries, method, method_params);
+            return;
+
+         otherwise
+            displayErrorMsg('You''re making shit up, this isn''t a data type');
+            return;
+
+      end
+
+      try
+         name = getFileName(instruct, tool_str, 60);
+      catch E
+         if strcmp('MATLAB:inputdlg:InvalidInput',E.identifier)
+            runtimeErrorHandler(E,'ignore');
+            name = 'voltage';
+         end
+      end
+
+      if isempty(name) % user cancelled process
+         return
+      end
+
+      % if we're here we have a new timeseries - populate nec info & add to gui
+      new_tseries.name = name;
+      if isfield(tseries, 'params')
+         new_tseries.params.nested_params = tseries.params;
+      else
+         new_tseries.params.nested_params = [];
+      end
+
+      %% save new tseries in user data & display in gui
+      new_numtseries = h.data.num_tseries + 1;
+      tseries_str    = h.data.tseries_str;
+      used_names     = h.data.used_names;
+      [name, used_names] = check4RepeatString(name, used_names);
+      tseries_str{new_numtseries} = name;
+      h.data.tseries{new_numtseries} = new_tseries;
+      h.data.tseries_str = tseries_str;
+      h.data.num_tseries = new_numtseries;
+      h.data.used_names  = used_names;
+
+      set(h.curr_signal, 'String', tseries_str);
+      set(h.curr_signal, 'Value',  new_numtseries);
+      guidata(h.run_tool_button,handles); % saves the change to handles
+      curr_signal_Callback(h.curr_signal, [], handles);
+   end
+  
+   function save_voltage(h, varargin)
+      % If gui:
+      if nargin > 1
+         hObject = varargin{1};
+      end
+      [tseries, ~, type, ts_name] = h.f.getCurrentVoltage(h);
+      sname = title2Str(ts_name,1,1); % save name - options remove all punctuation
+      sname = h.f.getFileName('Name of saved variable in mat file ...', sname, 63);
+      if isempty(sname)
+         return; % user's cancelled and hasn't provided a variable name
+      end
+
+      var_name = title2Str(ts_name,1,1,'_');
+      eval_str = [sname ' = tseries;'];
+      eval(eval_str);
+
+      displayErrorMsg( 'If you save into an existing smr file please ignore Matlab''s warning that it will be written over (select yes)' );
+
+      if strcmpi(type,'voltage')
+         filterspec = {'*.mat',  'MAT-files (*.mat)'; ...
+            '*.smr',  'Spike files (*.smr)'; };
+      else
+         filterspec = {'*.mat'};
+      end
+      [fname, pname, findex] = uiputfile(filterspec, 'Save data as',...
+         fullfile( h.data.last_dir, sname) );
+
+      if isequal(fname,0) || isequal(pname,0) || findex==0 % (cancelled)
+         return;
+      end
+      full_name = fullfile(pname, fname);
+      if findex==1 % .mat
+         eval_str  = ['save(full_name, ''' sname ''', ''-v7.3'');'];
+         eval(eval_str);
+
+      elseif findex==2 % .smr
+         % create a new empty file on disk
+         dt = tseries.dt;
+         scale = 1; offset = 0;
+
+         % if file exists get first free channel to write to
+         if exist( full_name, 'file' )
+            [ fhand ]   = CEDS64Open( full_name, 0 ); % 0 for read/write mode (1 for read only)
+            [ channel ] = CEDS64GetFreeChan( fhand );
+            if fhand < 0
+               displayErrorMsg( 'Error opening existing smr file %s (code %d)',...
+                  fname, fhand );
+               return;
+            end
+
+            % if file doesn't exist, create it & write to channel 1
+         else
+            channel = 1;
+            [ fhand ] = CEDS64Create( full_name, 1, 0 );
+            if fhand < 0
+               displayErrorMsg( 'Error creating smr file %s (code %d)',...
+                  fname, fillret );
+               return;
+            end
+         end
+
+         % set max time resolution of file
+         dSecs         = CEDS64TimeBase( fhand, dt ); % sets file time base
+         % set channel title & units
+         [ok, units]   = CEDS64ChanTitle( fhand, channel, 'voltage' );
+         % channel divider: 1/file_tick/channel_divider = sample_rate
+         ok            = CEDS64SetWaveChan( fhand, channel, 1, 1, 1/dt );
+         % get start time (kinda not nec coz we're not including an offset)
+         starttime     = CEDS64SecsToTicks( fhand, 0 );
+         % Convert to unit16: user_value = (channel_value) * scale /6553.6 + offset
+         voltage       = int16( (tseries.data - offset) * 6553.6 / scale );
+         % MUST write to ADC or real wave channel
+         fillret       = CEDS64WriteWave( fhand, 1, voltage, starttime );
+         ok            = CEDS64ChanComment( fhand, 1, 'Voltage generated in SpikeExtractionTool' );
+         if fillret < 0
+            CEDS64ErrorMessage(fillret);
+            displayErrorMsg( 'Error writing to smr file %s (code %d)',...
+               fname, fillret );
+            return;
+         end
+         [ ok ] = CEDS64Close( fhand );
+      end
+
+      % Waveform channels hold data items that occur at fixed tick intervals,
+      % - The sample interval is a fixed, integral multiple of the file tick.
+      %   If the file tick were 1 microsecond, the available sample rates in
+      %   the file would be 1000000/n where n is know as the channel divider.
+      %   To achieve 500 Hz, with a 1 microsecond tick, the divider would be 2000.
+      % - Currently, there are two types of waveform channels: Adc and RealWave.
+      %   Adc channel type (code 1)
+      %   These channels are designed to be efficient in data file space and store
+      %   the data as 16-bit signed integers. You can set a scale and an offset
+      %   value to convert these values into real, user units:
+      %         user value = (16-bit value) * scale /6553.6 + offset
+      %   With a scale of 1.0 and an offset of 0.0, the user values span the range
+      %   -5.0 to 4.99985 user units.
+      % - You can choose to read these channels as either 16-bit integer values or
+      %   as 32-bit floating point values (converted with the scale and offset).
+      % - You write these channels as 16-bit integers.
+      % RealWave channel type (code 9)
+      % - These channels store data as 32-bit floating point values.
+      %   They also have a scale and offset that is used if you want to read the
+      %   data back as 16-bit integers.
+      %   16-bit value = (32-bit floating point value - offset) * 6553.6/scale
+      % udpate last dir
+
+      h.data.last_dir = pname;
+      if strcmp('gui',h.f.uiType)
+         guidata(hObject,h);
+      end
+   end
+  
+   function time_min(h, varargin)
+      if ~h.f.haveUserData(h)
+         return;
+      end
+
+      if nargin > 1
+         hObject = varargin{1};
+      end
+      
+      % Get new max time & check with tseries time vector that it's within limits.
+      prev_tlim = h.data.tlim;
+      tseries   = h.f.getCurrentVoltage(h);
+      tlim      = getTimeAndVoltageLimits(tseries, 'tlim');
+      mint      = tlim(1); maxt = tlim(2);
+      if strcmp('gui',h.f.uiType)
+         str = get(h.time_min, 'String');
+      else
+         str = get(h.time_min, 'Value');
+      end
+      [ok, newt] = checkStringInput(str, 'float', mint, maxt);
+      % if user's put in 0 assume they want the smallest time value, dt
+      if strcmp(str,'0')
+         newt = mint; ok = true;
+         if strcmp('gui', h.f.uiType)
+            set(h.time_min, 'String', sprintf('%.2f', tseries.dt));
+         else
+            set(h.time_min, 'Value', sprintf('%.2f', tseries.dt));
+         end
+      end
+      if ~ok
+         % users input is dodgy - gotta reverse engineer old text box min from
+         % slider value & min display limit (zoom_min)
+         % zoom_min = (text_max - text_min)*proport + text_min;
+         % text_min = (zoom_min - text_max*proport) / (1-alpha)
+         percent = get(h.time_slider, 'Value');
+         proport = (1-percent)/2; % proportion max time changed by slider percentage
+         zoom_min= h.data.tlim(1);
+         if strcmp('gui', h.f.uiType)
+            [~,text_max] = checkStringInput(get(h.time_max, 'String'), 'float');
+            text_min= (zoom_min - proport*text_max) / (1-proport);
+            displayErrorMsg(sprintf('Time must be between %d & %d', mint, maxt));
+            set(h.time_min, 'String', sprintf('%.2f',text_min)); % reset to old val
+         else
+            [~,text_max] = checkStringInput(get(h.time_max, 'Value'), 'float');
+            text_min= (zoom_min - proport*text_max) / (1-proport);
+            displayErrorMsg(sprintf('Time must be between %d & %d', mint, maxt));
+            set(h.time_min, 'Value', sprintf('%.2f',text_min)); % reset to old val            
+         end
+         return
+      end
+      % Gotta get min time from other text box because need to reset displayed
+      % time lims just in case new min is larger than the last displayed max
+      % (zoom allows you to zoom in from text box mins/maxes)
+      if strcmp('gui', h.f.uiType)
+         [~,maxt] = checkStringInput(get(h.time_max, 'String'), 'float'); % we know str is valid
+         set(h.time_min, 'String', sprintf('%.2f',newt)); % reset to new val
+         set(h.time_slider, 'Value', 1);
+      else
+         [~,maxt] = checkStringInput(get(h.time_max, 'Value'), 'float'); % we know str is valid
+         set(h.time_min, 'Value', sprintf('%.2f',newt)); % reset to new val
+         set(h.time_slider, 'Value', 1);
+      end
+      h.data.tlim(1) = newt;
+      h.data.tlim(2) = maxt;
+
+      % Update time sliders
+      h.f.updateTimeSlider(h);
+
+      h = updateSETFigure(h, tseries);
+      if strcmp('gui',h.f.uiType), guidata(hObject, h); end
+
+      % if there are any other SET gui's open, update their lims if current
+      % time axes limits are the same for both (gui's own handle is always 1st)
+      if strcmp('gui',h.f.uiType) && length(h.data.guihandles) > 1
+         % remove any deleted handles
+         invalid = ~ishandle( h.data.guihandles );
+         h.data.guihandles( invalid ) = [];
+         for ti=2:length(h.data.guihandles)
+            other_gui     = h.data.guihandles(ti);
+            other_handles = guidata(other_gui);
+            other_data    = other_h.data;
+            other_tlim    = other_data.tlim;
+            if all( compareFloats( prev_tlim, other_tlim, 0.1, 'percent' ) )
+               set(other_h.time_min, 'String', sprintf('%.2f',newt)); % reset to new val
+               set(other_h.time_slider, 'Value', 1);
+               other_h.data.tlim(2) = maxt;
+               other_h.data.tlim(1) = newt;
+               othertseries    = h.f.getCurrentVoltage(other_handles);
+               other_handles = updateSETFigure(other_handles, othertseries);
+            end
+         end
+      end
+   end
+   
+   function time_max(h,varargin)
+      if nargin > 1
+         hObject = varargin{1};
+      end
+      
+      if ~h.f.haveUserData(h)
+         return;
+      end
+
+      % Get new max time & check with tseries time vector that it's within limits.
+      tseries    = h.f.getCurrentVoltage(h);
+      prev_tlim  = h.data.tlim; % previous user time limits
+      data_tlims = getTimeAndVoltageLimits(tseries, 'tlim'); % min/max poss time lims
+      mint       = data_tlims(1); maxt = data_tlims(2);
+      
+      if strcmp('gui', h.f.uiType)
+         str        = get(h.time_max, 'String');
+      else
+         str        = get(h.time_max, 'Value');
+      end
+      
+      [ok, newt] = checkStringInput(str, 'float', mint, maxt);
+      if ~ok
+         % users input is dodgy - gotta reverse engineer old text box max from
+         % slider value & max display limit (zoom_max)
+         % zoom_max   = text_max - (text_max - text_min)*proport;
+         % zoom_max   = text_max - (text_max - text_min)*proport;
+         percent = get(h.time_slider, 'Value');
+         proport = (1-percent)/2; % proportion max time changed by slider percentage
+         zoom_max= h.data.tlim(2);
+         if strcmp('gui', h.f.uiType)
+            [~,text_min] = checkStringInput(get(h.time_min, 'String'), 'float');
+            text_max= maxt;%text_max= (zoom_max + proport*text_min) / (1-proport);
+            displayErrorMsg(sprintf('Time must be between %d & %d', mint, maxt));
+            set(h.time_max, 'String', sprintf('%.2f',text_max)); % reset to old val
+         else
+            [~,text_min] = checkStringInput(get(h.time_min, 'Value'), 'float');
+            text_max= maxt;% h.time_max.Value;%(zoom_max + proport*text_min) / (1-proport);
+            displayErrorMsg(sprintf('Time must be between %d & %d', mint, maxt));
+            set(h.time_max, 'Value', sprintf('%.2f',text_max)); % reset to old val
+         end
+         % Update time sliders
+         h.f.updateTimeSlider(h);
+         h = updateSETFigure(h, tseries);
+         return
+      end
+      % Gotta get min time from other text box because need to reset displayed
+      % time lims just in case new max is smaller than the last displayed min
+      % (zoom allows you to zoom in from text box mins/maxes)
+      if strcmp('gui', h.f.uiType)
+         [~,mint] = checkStringInput(get(h.time_min, 'String'), 'float'); % we know str is valid
+         set(h.time_max, 'String', sprintf('%.2f',newt)); % reset to new val
+      else
+         [~,mint] = checkStringInput(get(h.time_min, 'Value'), 'float'); % we know str is valid
+         set(h.time_max, 'Value', sprintf('%.2f',newt)); % reset to new val
+      end
+      % set(h.time_slider, 'Value', 1);
+      h.data.tlim(2) = newt;
+      h.data.tlim(1) = mint;
+
+       % Update time sliders
+      h.f.updateTimeSlider(h);
+      h = updateSETFigure(h, tseries);
+
+      % if there are any other SET gui's open, update their lims if current
+      % time axes limits are the same for both (gui's own handle is always 1st)
+      if strcmp('gui', h.f.uiType) && length(h.data.guihandles) > 1
+         invalid = ~ishandle( h.data.guihandles );
+         h.data.guihandles( invalid ) = [];
+
+         for ti=2:length( h.data.guihandles )
+            other_gui     = h.data.guihandles(ti);
+            % if other handle is valid update time if time lims match
+            if ishandle(other_gui)
+               other_handles = guidata(other_gui);
+               other_data    = other_handles.data;
+               other_tlim    = other_data.tlim;
+               if all( compareFloats( prev_tlim, other_tlim, 0.1, 'percent' ) )
+                  set(other_handles.time_max, 'String', sprintf('%.2f',newt)); % reset to new val
+                  % time_max_Callback( other_handles.time_max, [], other_handles );
+
+                  set(other_handles.time_max, 'String', sprintf('%.2f',newt)); % reset to new val
+                  set(other_handles.time_slider, 'Value', 1);
+                  other_handles.data.tlim(2) = newt;
+                  other_handles.data.tlim(1) = mint;
+                  othertseries    = h.f.getCurrentVoltage(other_handles);
+                  other_handles = updateSETFigure(other_handles, othertseries);
+
+               end
+
+               % if we're here the handle has been deleted or something, so ditch
+            else
+               h.data.guihandles(ti) = [];
+            end
+         end
+      end
+
+      if strcmp('gui', h.f.uiType), guidata(hObject, h); end
+   end
+   
+   function time_slider_updated(h, varargin)
+      if nargin > 1
+         hObject = varargin{1};
+      end
+      
+      method = h.toggleZoomButton.UserData; % Loads current option (zoom or displacement)
+      if strcmp('zoom',method)
+         % slider zooms in/out to max/min values given in text boxes, so that
+         % slider is a percentage of possible max/mins.
+         percent = hObject.Value;
+         h.data.zoomPercentage(1) = percent;
+         prev_tlim  = h.data.tlim; % record time lims before slider was moved
+
+         % calculate new min & max time lims by zoomin in from both ends   
+         tseries = h.f.getCurrentVoltage(h);
+         zoom_min = h.data.tlim(1);
+         zoom_max = h.data.tlim(1) + ((tseries.time(end) - tseries.time(1))*(1-percent));
+
+         h.data.tlim(1) = max( zoom_min, tseries.time(1) );
+         h.data.tlim(2) = min( zoom_max, tseries.time(end) );
+      else
+         % Displacement
+         displacement = hObject.Value;
+         h.data.displacementPercentage(1) = displacement;
+         prev_tlim  = h.data.tlim; % record time lims before slider was moved
+
+         % calculate new min & max time lims by zoomin in from both ends   
+         tseries = h.f.getCurrentVoltage(h);
+         disp_min = displacement * (tseries.time(end) - tseries.time(1));
+         disp_max = disp_min + (h.data.tlim(2) - h.data.tlim(1));
+
+         if disp_max > tseries.time(end)
+            disp_max = tseries.time(end);
+            disp_min = disp_max - (h.data.tlim(2) - h.data.tlim(1));
+         end
+
+         if disp_min < tseries.time(1)
+            disp_min = tseries.time(1);
+            disp_max = disp_min + (h.data.tlim(2) - h.data.tlim(1));
+         end
+
+         h.data.tlim(1) = max( disp_min, tseries.time(1) );
+         h.data.tlim(2) = min( disp_max, tseries.time(end) );
+
+      end
+
+      % Update time (horizontal) text boxes
+      if strcmp('gui',h.f.uiType)
+         h.time_min.String = h.data.tlim(1);
+         h.time_max.String = h.data.tlim(2);
+      else
+         h.time_min.Value = num2str(h.data.tlim(1));
+         h.time_max.Value = num2str(h.data.tlim(2));
+      end
+
+      tseries = h.f.getCurrentVoltage(h);
+      h = updateSETFigure(h, tseries);
+
+      % if there are any other SET gui's open, update their lims if current
+      % time axes limits are the same for both (gui's own handle is always 1st)
+      if strcmp('gui', h.f.uiType) && length(h.data.guihandles) > 1
+         for ti=2:length(h.data.guihandles)
+            other_gui     = h.data.guihandles(ti);
+            % if other handle is valid update time if time lims match
+            if ishandle(other_gui)
+               other_handles = guidata(other_gui);
+               other_data    = other_handles.data;
+               other_tlim    = other_data.tlim;
+               if all( compareFloats( prev_tlim, other_tlim, 0.1, 'percent' ) )
+                  set( other_handles.time_slider, 'Value', percent );
+                  time_slider_Callback( other_handles.time_slider, [], other_handles );
+               end
+               % if handle is invalid the gui's been deleted, so ditch
+            else
+               h.data.guihandles(ti) = [];
+            end
+         end
+      end
+      if strcmp('gui', h.f.uiType)
+         guidata(hObject, h);
+      end
+   end
+   
+   function toggleZoomButton(h, hObject)
+      % Toggles between arrows (displacement) and magnifier (zoom) icons
+      warning('off','MATLAB:imagesci:png:libraryWarning'); % Ignore PNG associated warning
+
+      if strcmp('zoom',hObject.UserData)
+         % Displacement function has been selected
+         if strcmp('gui', h.f.uiType)
+            [x,~]=imread('fig/arrowsIcon.png');% Load the displacement icon
+            I2=imresize(x, [22 22]); % Resize icon
+            hObject.CData = I2; % Assign icon to the button
+
+            h.time_slider.SliderStep(2) = max([h.time_slider.SliderStep(1) 1e-1/h.data.zoomPercentage(1)]); % Change the size of the horizontal slider indicator to match the value zoomed in.
+            h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(2)); % Make sure it is within 0 and 1.
+            h.time_slider.SliderStep(1) = (0.1 * h.time_slider.SliderStep(2));
+            h.voltage_slider.SliderStep(2) = max(h.voltage_slider.SliderStep(1) , h.data.zoomPercentage(2));% Change the size of the vertical slider indicator to match the value zoomed in.
+            h.voltage_slider.SliderStep(1) = 0.1 * h.voltage_slider.SliderStep(2);
+         else                  
+            h.toggleZoomButton.Icon = 'fig/arrowsIcon.png';
+         end
+         hObject.UserData = 'disp'; % Change state to displacement
+         h.time_slider.Value = h.data.displacementPercentage(1); % Update the position of the slider to represent displacement.
+         h.voltage_slider.Value = h.data.displacementPercentage(2); % Update the position of the slider to represent displacement.
+      else
+         if strcmp('gui', h.f.uiType)
+            % Zoom function has been selected
+            [x,~]=imread('fig/magnifierIcon.png');% Load the zoom icon
+            I2=imresize(x, [22 22]); % Resize icon
+            hObject.CData = I2; % Assign icon to the button
+
+            h.time_slider.SliderStep =  [0.001 0.1];%max(app.time_slider.SliderStep(1) , app.data.displacementPercentage(1)); % Change the size of the horizontal slider indicator to match the value displaced in.
+            h.voltage_slider.SliderStep =  [0.01 0.1];%max(app.voltage_slider.SliderStep(1) , app.data.displacementPercentage(2)); %  Change the size of the vertical slider indicator to match the value displaced in.
+         else
+            h.toggleZoomButton.Icon = 'fig/magnifierIcon.png';
+         end
+
+         hObject.UserData = 'zoom'; % Change state to zoom
+         h.time_slider.Value = h.data.zoomPercentage(1); % Update the position of the slider to represent zoom.
+         h.voltage_slider.Value = h.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
+      end
+   end
+   
+   function tool_list(hObject, handles)
+      % get name of tool chosen and update available methods
+      [tseries, ~, data_type] = handles.f.getCurrentVoltage(handles);
+      
+      % Chec UI Type
+      if strcmp('gui', handles.f.uiType)
+         tool_num  = get(hObject, 'Value');
+         tool_name = get(hObject, 'String');
+         % get methods list & update on gui, selecting first in list as currmethod
+         methods   = getSETToolMethodsList(tool_name{tool_num}, data_type);
+         set(handles.method_list, 'String', methods);
+         set(handles.method_list, 'Value', 1);
+      else
+         tn = cellfun(@(x) strcmp(x,hObject.Value), hObject.Items);
+         tool_num = find(tn == 1);
+         tool_name = get(hObject, 'Items');
+         % get methods list & update on gui, selecting first in list as currmethod
+         methods   = getSETToolMethodsList(tool_name{tool_num}, data_type);
+         set(handles.method_list, 'Items', methods);
+         set(handles.method_list, 'Value', handles.method_list.Items(1));
+      end
+
+      % update the tooltips
+      tooltip_name = {['run_tool_' lower(tool_name{tool_num})]};
+      handles = setTooltips(handles, {'run_tool_button'}, getTooltips(tooltip_name));
+      tooltip_name = {['tool_list_' lower(tool_name{tool_num})]};
+      handles = setTooltips(handles, {'tool_list'}, getTooltips(tooltip_name));
+
+      guidata(hObject,handles); % saves changes to handles
+   end
+   
+   function updateTimeSlider(h)
+      maxt = h.data.tlim(2);
+      mint = h.data.tlim(1);
+      currtseries = h.data.curr_tseries;
+
+      if strcmp('zoom',h.toggleZoomButton.UserData)
+         h.data.zoomPercentage(1) = 1 - ((maxt-mint) / (h.data.tseries{currtseries}.time(end) - h.data.tseries{currtseries}.time(1)));
+         h.time_slider.Value = h.data.zoomPercentage(1); % Update the position of the slider to represent zoom.
+         if strcmp('gui', h.f.uiType)
+            h.time_slider.SliderStep =  [0.01 0.1];%max(h.voltage_slider.SliderStep(1) , h.data.displacementPercentage(2)); %  Change the size of the vertical slider indicator to match the value displaced in.
+         end
+      else
+         h.data.zoomPercentage(1) = 1 - ((maxt-mint) / (h.data.tseries{currtseries}.time(end) - h.data.tseries{currtseries}.time(1)));
+         h.data.displacementPercentage(1) = 1 - maxt / h.data.tseries{currtseries}.time(end);
+         h.time_slider.Value = h.data.displacementPercentage(1); % Update the position of the slider to represent displacement.
+         if strcmp('gui', h.f.uiType)
+            h.time_slider.SliderStep(1) = max(h.time_slider.SliderStep(1) , h.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
+            h.time_slider.SliderStep(1) = 0.1 * h.time_slider.SliderStep(2);
+         end
+      end
+   end
+   
+   function updateVoltageSlider(h)
+      maxv = h.data.vlim(2);
+      minv = h.data.vlim(1);
+      currtseries = h.data.curr_tseries;
+
+      if strcmp('zoom',h.toggleZoomButton.UserData)
+         try
+            h.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(h.data.tseries{currtseries}.data) - min(h.data.tseries{currtseries}.data)));
+            h.data.zoomPercentage(2) = max(h.data.zoomPercentage(2), 0); % Prevents the zoom to be less than 0
+         catch E
+            if strcmp('MATLAB:max:wrongInput',E.identifier)
+               h.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(max(h.data.tseries{currtseries}.data{1}{1}.spikes)) - min(min(h.data.tseries{currtseries}.data{1}{1}.spikes))));
+            else
+               rethrow(E);
+            end
+         end
+         h.voltage_slider.Value = h.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
+         if strcmp('gui', h.f.uiType), h.voltage_slider.SliderStep =  [0.01 0.1]; end%max(h.voltage_slider.SliderStep(1) , h.data.displacementPercentage(2)); %  Change the size of the vertical slider indicator to match the value displaced in.
+
+      else
+         try
+            h.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(max(h.data.tseries{currtseries}.data{1}{1}.spikes)) - min(min(h.data.tseries{currtseries}.data{1}{1}.spikes))));
+            h.data.displacementPercentage(2) = 1 - maxv / max(max(h.data.tseries{currtseries}.data{1}{1}.spikes));
+         catch E
+            if strcmp('MATLAB:max:wrongInput',E.identifier)
+               h.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(h.data.tseries{currtseries}.data) - min(h.data.tseries{currtseries}.data)));
+               h.data.displacementPercentage(2) = 1 - maxv / max(h.data.tseries{currtseries}.data);
+            else
+               rethrow(E);
+            end
+         end
+         h.voltage_slider.Value = h.data.displacementPercentage(2); % Update the position of the slider to represent displacement.
+         if strcmp('gui', h.f.uiType)
+            h.voltage_slider.SliderStep(2) = max(h.voltage_slider.SliderStep(1) , h.data.zoomPercentage(2));% Change the size of the vertical slider indicator to match the value zoomed in.
+            h.voltage_slider.SliderStep(1) = 0.1 * h.voltage_slider.SliderStep(2);
+         end
+      end
+   end
+   
+   function voltage_slider_updated(h, hObject)
+      method = h.toggleZoomButton.UserData; % Loads current option (zoom or displacement)
+
+      if strcmp('zoom',method)
+         % slider zooms in/out to max/min values given in text boxes, so that
+         % slider is a percentage of possible max/mins.
+         percent = hObject.Value;
+         h.data.zoomPercentage(2) = percent;
+         prev_vlim  = h.data.vlim; % record time lims before slider was moved
+
+         % calculate new min & max time lims by zoomin in from both ends   
+         tseries = h.f.getCurrentVoltage(h);
+         vrange = max(tseries.data) - min(tseries.data);
+         zoom_min = mean([h.data.vlim(1) h.data.vlim(2)]) - vrange * (1-percent);
+         zoom_max = mean([h.data.vlim(1) h.data.vlim(2)]) + vrange * (1-min(percent,0.999));
+
+         h.data.vlim(1) = max( zoom_min, min(tseries.data));
+         h.data.vlim(2) = min( zoom_max, max(tseries.data));
+      else
+         % Displacement
+         newdisplacement = hObject.Value;
+         displacement = h.data.displacementPercentage(2) - newdisplacement;
+         h.data.displacementPercentage(2) = newdisplacement;
+         prev_vlim  = h.data.vlim; % record time lims before slider was moved
+
+         % calculate new min & max time lims by zoomin in from both ends   
+         tseries = h.f.getCurrentVoltage(h);
+         disp_min = h.data.vlim(1) + displacement;
+         disp_max = h.data.vlim(2) + displacement;
+
+         h.data.vlim(1) = max( disp_min, min(tseries.data));
+         h.data.vlim(2) = min( disp_max, max(tseries.data));
+      end
+      
+      if strcmp('gui', h.f.uiType)
+         % Update voltage (vertical) text boxes
+         h.voltage_min.String = h.data.vlim(1);
+         h.voltage_max.String = h.data.vlim(2);
+         
+         tseries = h.f.getCurrentVoltage(h);
+         h = updateSETFigure(h, tseries);
+         guidata(hObject, h);
+      else
+         % Update voltage (vertical) text boxes
+         h.voltage_min.Value = num2str(h.data.vlim(1));
+         h.voltage_max.Value = num2str(h.data.vlim(2));
+         
+         tseries = h.f.getCurrentVoltage(h);
+         h = updateSETFigure(h, tseries);
+      end
+
+   end
+   
+   function voltage_max(h, hObject)
+      if ~h.f.haveUserData(h)
+         return;
+      end
+
+      % Get new max voltage & check with tseries data vector that it's within limits.
+      tseries = h.f.getCurrentVoltage(h);
+      if isnumeric( tseries.data )
+         minv = min(tseries.data)*1.2;
+         maxv = max(tseries.data)*1.2;
+      elseif iscell( tseries.data )
+         try
+            minv = min( cellfun( @(d) min( d(:) ), tseries.data ) );
+            maxv = max( cellfun( @(d) max( d(:) ), tseries.data ) );
+         catch
+            % If there is an error, it means the cell structure is a bit more
+            % complicated. Set the min and max based on the first template
+            minv = min(min(tseries.data{1}{1}.spikes)) * 1.2;
+            maxv = max(max(tseries.data{1}{1}.spikes)) * 1.2;
+         end
+      end
+      if strcmp('gui', h.f.uiType)
+         str     = get(h.voltage_max, 'String');
+      else
+         str     = get(h.voltage_max, 'Value');
+      end
+      [ok, newv] = checkStringInput(str, 'float', minv, maxv);
+      if ~ok
+         % users input is dodgy - gotta reverse engineer old text box max from
+         % slider value & max display limit (zoom_max)
+         % zoom_max   = text_max - (text_max - text_min)*proport;
+         % zoom_max   = text_max - (text_max - text_min)*proport;
+         percent = get(h.voltage_slider, 'Value');
+         proport = (1-percent)/2; % proportion max time changed by slider percentage
+         zoom_max= h.data.vlim(2);
+         if strcmp('gui', h.f.uiType)
+            [~,text_min] = checkStringInput(get(h.voltage_min, 'String'), 'float');
+            text_max = maxv; %(zoom_max + proport*text_min) / (1-proport);
+            displayErrorMsg(sprintf('Voltage must be between %d & %d', minv, maxv));
+            set(h.voltage_max, 'String', sprintf('%.2f',text_max)); % reset to old value
+         else
+            [~,text_min] = checkStringInput(get(h.voltage_min, 'Value'), 'float');
+            text_max = maxv; %(zoom_max + proport*text_min) / (1-proport);
+            displayErrorMsg(sprintf('Voltage must be between %d & %d', minv, maxv));
+            set(h.voltage_max, 'Value', sprintf('%.2f',text_max)); % reset to old value
+         end
+         % Update voltage sliders
+         h.f.updateVoltageSlider(h);
+         h = updateSETFigure(h, tseries);
+         if strcmp('gui', h.f.uiType), guidata(hObject, h); end
+         return
+      end
+      % Gotta get min time from other text box because need to reset displayed
+      % lims just in case new max is smaller than the last displayed min
+      % (zoom allows you to zoom in from text box mins/maxes)
+      if strcmp('gui', h.f.uiType)
+         [~,minv] = checkStringInput(get(h.voltage_min, 'String'), 'float'); % we know str is valid
+         set(h.voltage_max, 'String', sprintf('%.2f',newv)); % reset to new value
+      end
+
+      h.data.vlim(2) = newv;
+      h.data.vlim(1) = minv;
+
+      % Update voltage sliders
+      h.f.updateVoltageSlider(h);
+
+      h = updateSETFigure(h, tseries);
+      if strcmp('gui', h.f.uiType), guidata(hObject, h); end
+   end
+   
+   function voltage_min(h,hObject)
+      if ~h.f.haveUserData(h)
+         return;
+      end
+
+      % Get new max voltage & check with tseries data vector that it's within limits
+      tseries = h.f.getCurrentVoltage(h);
+      minv    = min(tseries.data)*1.2;
+      maxv    = max(tseries.data)*1.2;
+      
+      if strcmp('gui', h.f.uiType)
+         str     = get(h.voltage_min, 'String');
+      else
+         str     = get(h.voltage_min, 'Value');
+      end
+      
+      [ok, newv] = checkStringInput(str, 'float', minv, maxv);
+      % if user's put in 0 assume they want the smallest voltage value, dt
+      if ~ok
+         % users input is dodgy - gotta reverse engineer old text box min from
+         % slider value & min display limit (zoom_min)
+         % zoom_min = (text_max - text_min)*proport + text_min;
+         % text_min = (zoom_min - text_max*proport) / (1-alpha)
+         percent = get(h.voltage_slider, 'Value');
+         proport = (1-percent)/2; % proportion max voltage changed by slider percentage
+         zoom_min= h.data.vlim(1);
+         if strcmp('gui', h.f.uiType)
+            [~,text_max] = checkStringInput(get(h.voltage_max, 'String'), 'float');
+            text_min = minv; % (zoom_min - proport*text_max) / (1-proport);
+            displayErrorMsg(sprintf('Voltage must be between %d & %d', minv, maxv));
+            set(h.voltage_min, 'String', sprintf('%.2f',text_min)); % reset to old val
+         else
+            [~,text_max] = checkStringInput(get(h.voltage_max, 'Value'), 'float');
+            text_min = minv; % (zoom_min - proport*text_max) / (1-proport);
+            displayErrorMsg(sprintf('Voltage must be between %d & %d', minv, maxv));
+            set(h.voltage_min, 'Value', sprintf('%.2f',text_min)); % reset to old val 
+         end
+         % Update voltage sliders
+         h.f.updateVoltageSlider(h);
+         h = updateSETFigure(h, tseries);
+         if strcmp('gui', h.f.uiType), guidata(hObject, h); end
+         return
+      end
+      % Gotta get max voltage from other text box because need to reset displayed
+      % voltage lims just in case new max is smaller than the last displayed min
+      % (zoom allows you to zoom in from text box mins/maxes)
+      if strcmp('gui', h.f.uiType) 
+         [~,maxv] = checkStringInput(get(h.voltage_max, 'String'), 'float'); % we know str is valid
+         set(h.voltage_min, 'String', sprintf('%.2f',newv)); % reset to new val
+      else
+         [~,maxv] = checkStringInput(get(h.voltage_max, 'Value'), 'float'); % we know str is valid
+         set(h.voltage_min, 'Value', sprintf('%.2f',newv)); % reset to new val
+      end
+
+      h.data.vlim(1) = newv;
+      h.data.vlim(2) = maxv;
+
+      % Update voltage sliders
+      h.f.updateVoltageSlider(h);
+
+      h = updateSETFigure(h, tseries);
+      if strcmp('gui', h.f.uiType), guidata(hObject, h); end
+   end
+   
+end % Methods   
+end % ClassDef
+      

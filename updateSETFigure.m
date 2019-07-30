@@ -212,7 +212,9 @@ function handles = plotDataFromMatrix(handles, tseries)
    end
    nc = ceil(sqrt(Np));
    nr = ceil(Np/nc);
-   set(handles.scroll_axes_slider,'SliderStep',[min(1,(1+max_ax)/size(data,2)) min(1,(1+Np*max_ax)/size(data, 2))]);
+   if strcmp('gui', handles.f.uiType)
+      set(handles.scroll_axes_slider,'SliderStep',[min(1,(1+max_ax)/size(data,2)) min(1,(1+Np*max_ax)/size(data, 2))]);
+   end
    N  = length(data);
    dt = tseries.dt;
    if tlim(2)<(tlim(1)+dt)
@@ -242,71 +244,83 @@ tscale=1; tlabel='s';
 
    fopts= {'fontsize', fontsize, 'fontweight', 'bold'};
    figure(handles.figure1); % Change focus to main window
-   subplot(1,1,1, 'Parent', panel); % Clear the axes to prevent having empty little subplots
+   if strcmp('app', handles.f.uiType)
+      panel.AutoResizeChildren = 'off';
+      panel.Children(4).delete;
+   else
+      subplot(1,1,1, 'Parent', panel); % Clear the axes to prevent having empty little subplots
+   end
    for i=1:Np
       ax1 = subplot(nr, nc, i, 'Parent', panel); hold off;
-         % try plotting data at chosen scale
+      if strcmp('app', handles.f.uiType) 
          try
-            lh = plot(ax1, time/tscale, data(:, plot_ax(i))/vscale);
-         catch ME
-            % keep having trouble with floats making time vector the wrong size
-            lh = plot(ax1, (1:size(data(:, plot_ax(i))))*dt/tscale, data(:, plot_ax(i))/vscale);
-            if ~warn % don't print over and over
-               str = sprintf('Warning: size of time and data didn''t match, reconstructing time vector\n');
-               printMessage('off','Comments*', str);
-               warn= true;
-            end
+            close(1);
+         catch
+            nan;
          end
-         set( ax1, 'xlim', tlim/tscale);
-         set( ax1, 'ylim', vlim/vscale); 
-         
-         set( get(ax1,'Xlabel'), 'String', sprintf('Time (%s)',    tlabel), fopts{:} );
-         set( get(ax1,'Ylabel'), 'String', sprintf('Voltage (%s)', vlabel), fopts{:} );
+      end % In app, there's a new Figure window opening for some reason.
+      % try plotting data at chosen scale
+      try
+         lh = plot(ax1, time/tscale, data(:, plot_ax(i))/vscale);
+      catch ME
+         % keep having trouble with floats making time vector the wrong size
+         lh = plot(ax1, (1:size(data(:, plot_ax(i))))*dt/tscale, data(:, plot_ax(i))/vscale);
+         if ~warn % don't print over and over
+            str = sprintf('Warning: size of time and data didn''t match, reconstructing time vector\n');
+            printMessage('off','Comments*', str);
+            warn= true;
+         end
+      end
+      set( ax1, 'xlim', tlim/tscale);
+      set( ax1, 'ylim', vlim/vscale); 
 
-      switch tseries.type
-         case 'voltage'
-            set( get(ax1,'Xlabel'), 'String', sprintf('Time (%s)',    tlabel), fopts{:});
-            set( get(ax1,'Ylabel'), 'String', sprintf('Voltage (%s)', vlabel), fopts{:});
+      set( get(ax1,'Xlabel'), 'String', sprintf('Time (%s)',    tlabel), fopts{:} );
+      set( get(ax1,'Ylabel'), 'String', sprintf('Voltage (%s)', vlabel), fopts{:} );
 
-         case 'ap'
-            fontsize  = 10; % make font smaller cuz looks silly!
-            set(lh, 'color', 'k', 'linewidth', 3);
-            try
-               hold on; 
-               nlines = min( max_lines, size( tseries.APfamily{plot_ax(i)}, 2) );
-               plot(ax1, time/tscale, tseries.APfamily{plot_ax(i)}(sind:eind,1:nlines)/vscale);
-               vlim(2) = max( toVec(tseries.APfamily{plot_ax(i)}(sind:eind,1:nlines)) );
-               % if APs normalised we know they'll be btwn -3/3 so make lims the same
-               if tseries.params.normalise_aps.value
-                  ylim([-3 3]);
-               else
-                  ylim(vlim/vscale);
-               end
-               hold off;
-               uistack(lh, 'top'); % put mean on top
+   switch tseries.type
+      case 'voltage'
+         set( get(ax1,'Xlabel'), 'String', sprintf('Time (%s)',    tlabel), fopts{:});
+         set( get(ax1,'Ylabel'), 'String', sprintf('Voltage (%s)', vlabel), fopts{:});
+
+      case 'ap'
+         fontsize  = 10; % make font smaller cuz looks silly!
+         set(lh, 'color', 'k', 'linewidth', 3);
+         try
+            hold on; 
+            nlines = min( max_lines, size( tseries.APfamily{plot_ax(i)}, 2) );
+            plot(ax1, time/tscale, tseries.APfamily{plot_ax(i)}(sind:eind,1:nlines)/vscale);
+            vlim(2) = max( toVec(tseries.APfamily{plot_ax(i)}(sind:eind,1:nlines)) );
+            % if APs normalised we know they'll be btwn -3/3 so make lims the same
+            if tseries.params.normalise_aps.value
+               ylim([-3 3]);
+            else
+               ylim(vlim/vscale);
+            end
+            hold off;
+            uistack(lh, 'top'); % put mean on top
 %                chH = get(ax1,'Children');
 %                set(gca,'Children',[chH(end);chH(1:end-1)]);
-               N = size(tseries.APfamily{plot_ax(i)}, 2);
-               set( get(ax1,'Title'), 'String', sprintf('AP %d (N=%d)', plot_ax(i), N), 'fontweight','bold','fontsize',10);
-               set( get(ax1,'Ylabel'), 'String', sprintf('Voltage (%s)', vlabel), 'fontweight','normal','fontsize',10 );
+            N = size(tseries.APfamily{plot_ax(i)}, 2);
+            set( get(ax1,'Title'), 'String', sprintf('AP %d (N=%d)', plot_ax(i), N), 'fontweight','bold','fontsize',10);
+            set( get(ax1,'Ylabel'), 'String', sprintf('Voltage (%s)', vlabel), 'fontweight','normal','fontsize',10 );
 
-               if tseries.params.normalise_aps.value
-                  set( get(ax1,'Ylabel'), 'String', sprintf('Normalised'), 'fontweight','normal','fontsize',10);
-               end
-
-            catch ME
-               if strcmp('Invalid or deleted object.', ME.message)
-                  set(handles.figure1,'CurrentAxes',ax1)
-                  if ~ishold
-                     hold(ax1,'on');
-                  end
-                  plot((1:size(data(:,...
-                     plot_ax(i))))*dt/tscale, data(:, plot_ax(i))/vscale,...
-                     'k','LineWidth',3);
-               else
-                  runtimeErrorHandler(ME,'message');
-               end
+            if tseries.params.normalise_aps.value
+               set( get(ax1,'Ylabel'), 'String', sprintf('Normalised'), 'fontweight','normal','fontsize',10);
             end
-      end
+
+         catch ME
+            if strcmp('Invalid or deleted object.', ME.message)
+               set(handles.figure1,'CurrentAxes',ax1)
+               if ~ishold
+                  hold(ax1,'on');
+               end
+               plot((1:size(data(:,...
+                  plot_ax(i))))*dt/tscale, data(:, plot_ax(i))/vscale,...
+                  'k','LineWidth',3);
+            else
+               runtimeErrorHandler(ME,'message');
+            end
+         end
+   end
    end
 end

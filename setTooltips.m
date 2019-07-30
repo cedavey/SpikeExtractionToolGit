@@ -18,6 +18,17 @@
 %
 % Artemio - 11/July/2019
 function h = setTooltips(h, varargin)
+   % Check if app or gui
+   w = whos('h');
+   switch w.class
+      case 'SpikeExtractionApp'
+         guiType = 'app';
+      case 'struct'
+         guiType = 'gui';
+      otherwise
+         error('Couldn''t recognize the type of User Interface (gui or app)');
+   end
+
    if nargin == 1
       object = {'load_voltage_button', 'add_voltage_button', 'clear_voltage_button',...
          'toggleZoomButton', 'time_slider', 'voltage_slider',...
@@ -37,7 +48,14 @@ function h = setTooltips(h, varargin)
       str = varargin{2};
    end
    
-   for i = 1:min(length(object), length(str))
-      set(h.(object{i}), 'TooltipString', str{i});
+   if strcmp('gui',guiType)
+      for i = 1:min(length(object), length(str))
+         set(h.(object{i}), 'TooltipString', str{i});
+      end
+   else
+      for i = 1:min(length(object), length(str))
+         set(h.(object{i}), 'Tooltip', str{i});
+      end
    end
+   
 end

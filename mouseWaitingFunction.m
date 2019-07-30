@@ -16,9 +16,16 @@
 % 
 % Artemio - 19/June/2019
 function mouseWaitingFunction(fig1,fun,varargin)
-   % Set the mouse pointer to waiting to know the function is running.
-   set(fig1, 'pointer', 'watch');
-   drawnow;
+   isApp = false;
+   try
+      % Set the mouse pointer to waiting to know the function is running.
+      set(fig1, 'pointer', 'watch');
+      drawnow;
+   catch
+      % If it enters here it means we are on App instead of GUI. Mouse
+      % pointer won't be shown.
+      isApp = true;
+   end
    
    try
       % Call the function
@@ -26,11 +33,11 @@ function mouseWaitingFunction(fig1,fun,varargin)
    catch E
       % If something went wrong
       % Mouse pointer back to normal.
-      set(fig1, 'pointer', 'arrow');
+      if ~isApp, set(fig1, 'pointer', 'arrow'); end
       % Propagate the error
       runtimeErrorHandler(E);
    end
    
    % Mouse pointer back to normal.
-   set(fig1, 'pointer', 'arrow');
+   if ~isApp, set(fig1, 'pointer', 'arrow'); end
 end

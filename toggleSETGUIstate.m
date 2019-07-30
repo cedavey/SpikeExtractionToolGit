@@ -32,12 +32,33 @@ function handles = toggleSETGUIstate(handles,state)
 %  AP templates
 %    ap_title        - title for AP template family panel
 %    curr_ap_family  - name of current AP template family to display
-   if isfield(handles,'data') && handles.data.num_tseries>0
-      data = handles.data;
-      haveData = true;
-   else
-      haveData = false;
+
+   % Check if app or gui
+   w = whos('handles');
+   switch w.class
+      case 'SpikeExtractionApp'
+         uiType = 'app';
+         % Check if data exists
+         if handles.data.num_tseries>0
+            data = handles.data;
+            haveData = true;
+         else
+            haveData = false;
+         end
+      case 'struct'
+         uiType = 'gui';
+         % Check if data exists
+         if isfield(handles,'data') && handles.data.num_tseries>0
+            data = handles.data;
+            haveData = true;
+         else
+            haveData = false;
+         end
+      otherwise
+         error('Couldn''t recognize the type of User Interface (gui or app)');
    end
+   
+   
 
    logic_state = strcmpi(state, 'on'); % logic is true if state is on, false otherwise
    
@@ -61,7 +82,7 @@ function handles = toggleSETGUIstate(handles,state)
    set(handles.set_tool_params,'Visible', state);
    set(handles.tool_panel,     'Visible', state);
    
-%  Figure
+%  Figure   
    set(handles.plot_panel,     'Visible', state);
    set(handles.voltage_slider, 'Visible', state);
    set(handles.voltage_max,    'Visible', state);
@@ -95,8 +116,10 @@ function handles = toggleSETGUIstate(handles,state)
    switch state
       case 'on'
          % Right click menu
-         handles.addVoltageMenu.Enable = true;
-         handles.clearVoltageMenu.Enable = true;
+         if strcmp('gui', uiType)
+            handles.addVoltageMenu.Enable = true;
+            handles.clearVoltageMenu.Enable = true;
+         end
          % Menu Bar
          handles.addVoltageMenuBar.Enable = true;
          handles.clearMenuBar.Enable = true;
@@ -134,25 +157,43 @@ function handles = toggleSETGUIstate(handles,state)
             data_type   = data.tseries{data.curr_tseries}.type;
             tool_list   = getSETToolList( data_type );
             method_list = getSETToolMethodsList(tool_list{1}, data_type);
-            set(handles.tool_list,  'String', tool_list);
-            set(handles.tool_list,  'Value',  1);
-            set(handles.method_list,'String', method_list);
-            set(handles.method_list,'Value',  1);
-            set(handles.voltage_min,'String', num2str(data.vlim(1)));
-            set(handles.voltage_max,'String', num2str(data.vlim(2)));
-            set(handles.time_min,   'String', num2str(data.tlim(1)));
-            set(handles.time_max,   'String', num2str(data.tlim(2)));
+            if strcmp('gui', uiType)
+               set(handles.tool_list,  'String', tool_list);
+               set(handles.tool_list,  'Value',  1);
+               set(handles.method_list,'String', method_list);
+               set(handles.method_list,'Value',  1);
+               set(handles.voltage_min,'String', num2str(data.vlim(1)));
+               set(handles.voltage_max,'String', num2str(data.vlim(2)));
+               set(handles.time_min,   'String', num2str(data.tlim(1)));
+               set(handles.time_max,   'String', num2str(data.tlim(2)));
+            else
+               set(handles.tool_list,  'Items', tool_list);
+               set(handles.tool_list,  'Value',  tool_list(1));
+               set(handles.method_list,'Items', method_list);
+               set(handles.method_list,'Value',  method_list(1));
+               set(handles.voltage_min,'Value', num2str(data.vlim(1)));
+               set(handles.voltage_max,'Value', num2str(data.vlim(2)));
+               set(handles.time_min,   'Value', num2str(data.tlim(1)));
+               set(handles.time_max,   'Value', num2str(data.tlim(2)));
+            end
          else
-            set(handles.tool_list,  'String',  []);
-            set(handles.tool_list,  'Value',   1);
-            set(handles.method_list,'String',  []);
-            set(handles.method_list,'Value',   1);
+            if strcmp('gui', uiType)
+               set(handles.tool_list,  'String',  'none');
+               set(handles.tool_list,  'Value',   1);
+               set(handles.method_list,'String',  'none');
+               set(handles.method_list,'Value',   1);
+            else
+               set(handles.tool_list,  'Value',  handles.tool_list.Items(1));
+               set(handles.method_list,  'Value',  handles.method_list.Items(1));
+            end
          end
          
       case 'off'
-         % Right click menu
-         handles.addVoltageMenu.Enable = false;
-         handles.clearVoltageMenu.Enable = false;
+         if strcmp('gui', uiType)
+            % Right click menu
+            handles.addVoltageMenu.Enable = false;
+            handles.clearVoltageMenu.Enable = false;
+         end
          % Menu Bar
          handles.addVoltageMenuBar.Enable = false;
          handles.clearMenuBar.Enable = false;
@@ -160,10 +201,17 @@ function handles = toggleSETGUIstate(handles,state)
          handles.accessVoltageMenuBar.Enable = false;
          handles.saveVoltageMenuBar.Enable = false;
          
-         set(handles.tool_list,  'String',  []);
-         set(handles.tool_list,  'Value',   1);
-         set(handles.method_list,'String',  []);
-         set(handles.method_list,'Value',   1);
+         if strcmp('gui', uiType)
+            set(handles.tool_list,  'String',  []);
+            set(handles.tool_list,  'Value',   1);
+            set(handles.method_list,'String',  []);
+            set(handles.method_list,'Value',   1);
+         else
+            set(handles.tool_list,  'Items',  {''});
+            set(handles.method_list,  'Items',  {''});
+            set(handles.tool_list,  'Value',  handles.tool_list.Items(1));
+            set(handles.method_list,  'Value',  handles.method_list.Items(1));
+         end
    end
     
 %  Generation parameters
@@ -206,33 +254,56 @@ function handles = toggleSETGUIstate(handles,state)
       handles.data     = data; % record user data in handle
 
       % reset popupmenus
-      set(handles.curr_signal,'Visible','off');
-      set(handles.curr_signal,'String', []);
-      set(handles.curr_signal,'Value',  1);
-      set(handles.tool_list,  'Visible','off');
-      set(handles.tool_list,  'String', []);
-      set(handles.tool_list,  'Value',  1);
-      set(handles.method_list,'Visible','off');
-      set(handles.method_list,'String', []);
-      set(handles.method_list,'Value',  1);
+      if strcmp('gui', uiType)
+         set(handles.curr_signal,'Visible','off');
+         set(handles.curr_signal,'String', []);
+         set(handles.curr_signal,'Value',  1);
+         set(handles.tool_list,  'Visible','off');
+         set(handles.tool_list,  'String', []);
+         set(handles.tool_list,  'Value',  1);
+         set(handles.method_list,'Visible','off');
+         set(handles.method_list,'String', []);
+         set(handles.method_list,'Value',  1);
+      else
+         
+         set(handles.curr_signal,'Visible','off');
+         handles.curr_signal.Items = {};
+         handles.curr_signal.Value = {};
+         set(handles.tool_list,  'Visible','off');
+         handles.tool_list.Items = {};
+         handles.tool_list.Value = {};
+         set(handles.method_list,'Visible','off');
+         handles.method_list.Items = {};
+         handles.method_list.Value = {};
+      end
    else % state=='on'
       if haveData
          tlim = handles.data.tlim;
          vlim = handles.data.vlim;
 
          % set time slider and time max/min text boxes from time length of data
-         set(handles.time_slider,    'Max',   1);
-         set(handles.time_slider,    'Min',   0);
-         set(handles.time_max,       'Value', tlim(2));
-         set(handles.time_min,       'Value', tlim(1));
-         % set time slider and time max/min text boxes from scale of data
-         set(handles.voltage_slider, 'Max',   1);
-         set(handles.voltage_slider, 'Min',   0);
-         set(handles.voltage_max,    'Value', vlim(2));
-         set(handles.voltage_min,    'Value', vlim(1));
-         set(handles.scroll_axes_slider,    'Max',   1);
-         set(handles.scroll_axes_slider,    'Min',   0);
-         set(handles.scroll_axes_slider,    'Value', 1);
+         if strcmp('gui', uiType)
+            set(handles.time_slider,    'Max',   1);
+            set(handles.time_slider,    'Min',   0);
+            set(handles.voltage_slider, 'Max',   1);
+            set(handles.voltage_slider, 'Min',   0);
+            set(handles.scroll_axes_slider,    'Max',   1);
+            set(handles.scroll_axes_slider,    'Min',   0);
+            set(handles.time_max,       'Value', tlim(2));
+            set(handles.time_min,       'Value', tlim(1));
+            set(handles.voltage_max,    'Value', vlim(2));
+            set(handles.voltage_min,    'Value', vlim(1));
+            set(handles.scroll_axes_slider,    'Value', 1);
+         else
+            handles.time_slider.Limits = [0 1];
+            handles.voltage_slider.Limits = [0 1];
+            handles.scroll_axes_slider.Limits = [0 1];
+            set(handles.time_max,       'Value', num2str(tlim(2)));
+            set(handles.time_min,       'Value', num2str(tlim(1)));
+            set(handles.voltage_max,    'Value', num2str(vlim(2)));
+            set(handles.voltage_min,    'Value', num2str(vlim(1)));
+            set(handles.scroll_axes_slider,    'Value', 1);
+         end
 
       end
    end
