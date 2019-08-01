@@ -416,7 +416,7 @@ end
 
 % --- Executes on selection change in tool_list.
 function tool_list_Callback(hObject, eventdata, handles)
-handles.f.tool_list(hObject, handles);
+   handles.f.tool_list(hObject, handles);
 end
 
 % --- Executes during object creation, after setting all properties.
@@ -428,114 +428,21 @@ end
 
 % --- Executes on selection change in method_list.
 function method_list_Callback(hObject, eventdata, handles)
-% update the tooltips
-tooltip_name = {['method_list_' lower(handles.method_list.String{handles.method_list.Value})]};
-handles = setTooltips(handles, {'method_list'}, getTooltips(tooltip_name));
+   % update the tooltips
+   tooltip_name = {['method_list_' lower(handles.method_list.String{handles.method_list.Value})]};
+   handles = setTooltips(handles, {'method_list'}, getTooltips(tooltip_name));
 end
 
 % --- Executes during object creation, after setting all properties.
 function method_list_CreateFcn(hObject, eventdata, handles)
-if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
-   set(hObject,'BackgroundColor','white');
-end
+   if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+      set(hObject,'BackgroundColor','white');
+   end
 end
 
 % --- Executes on button press in set_tool_params.
 function set_tool_params_Callback(hObject, eventdata, handles)
-% update curr tool now we're actually interested in this one
-if handles.data.curr_tool ~= get(handles.tool_list, 'Value')
-   handles.data.last_tool = handles.data.curr_tool;
-   handles.data.curr_tool = get(handles.tool_list, 'Value');
-end
-% for the particular choice of tool + implementation (i.e. method)
-% display the configuration parameters & allow user to set them
-[tseries, ts_num, data_type] = handles.f.getCurrentVoltage(handles);
-data_type    = tseries.type;
-tool_num     = get(handles.tool_list,'Value');
-tool_list    = get(handles.tool_list,'String');
-tool         = tool_list{tool_num};
-
-method_num   = get(handles.method_list,'Value');
-method_list  = get(handles.method_list,'String');
-method       = method_list{method_num};
-
-params       = handles.data.params; % current parameter values
-% params = getDefaultToolParams;
-method_params= getToolAndMethodParams(params, data_type, tool, method);
-dlg_name     = [tool ' using ' method];
-
-% if using AP templates for matched filtering need to select voltage
-% timseries to apply it to - add list to params for selection (unless
-% it's applied directly to a voltage timeseries)
-if strcmpi(tool, 'extract spikes')  && strcmpi(method, 'matched filter')
-   if ~strcmpi(data_type, 'voltage')
-      types     = getStructFieldFromCell(handles.data.tseries, 'type');
-      names     = getStructFieldFromCell(handles.data.tseries, 'name');
-      isvoltage = strcmpi('voltage', types);
-      
-      if sum(isvoltage)==0
-         str    = 'No voltage time series to extract APs from, have another crack later';
-         displayErrorMsg(str);
-         return;
-      end
-      voltlist  = names(isvoltage); % list of all voltage time series'
-      
-      % create a parameter to ask user what voltage timeseries to apply AP templates to
-      if ~isfield(method_params, 'voltage_timeseries')
-         % find indices of all tseries that have type voltage
-         voltage_timeseries.value    = names(find(isvoltage,1,'first'));
-         voltage_timeseries.name     = 'voltage timeseries';
-         voltage_timeseries.descript = 'select voltage timeseries to match APs to';
-         voltage_timeseries.type     = 'list';
-         voltage_timeseries.list     = names(isvoltage);
-         voltage_timeseries.units    = 'timeseries name';
-         method_params.voltage_timeseries = voltage_timeseries;
-         
-         % voltage timeseries parameter already exists - check it's still valid
-      else
-         voltage_timeseries = method_params.voltage_timeseries;
-         % lists diff lengths so can't be equal (can't easily compare)
-         if length(voltlist)~=length(voltage_timeseries.list)
-            voltage_timeseries.list = names(isvoltage);
-            voltage_tseries.value   = 1;
-            % lists same length but not same content - leave number choice the same
-         elseif ~all(strcmpi(voltage_timeseries.list, voltlist))
-            voltage_timeseries.list = names(isvoltage);
-         end
-         method_params.voltage_timeseries = voltage_timeseries;
-      end
-   end
-end
-
-[method_params, cancel] = requestUserParamConfig(method_params, dlg_name);
-
-% if merging templates, user must select template ID now we know how
-% many they want to merge (can't do simultaneously)
-names  = fieldnames( method_params );
-if ~cancel && any( strcmpi( 'number_of_templates_to_merge', names ) )
-   mergeids = getUserTemplateMergeIDs( tseries, method_params );
-   if isempty( mergeids )
-      return;
-   end
-   % add merge ids to tseries datastruct since it isn't actually a user
-   % parameter
-   tseries.mergeAPs = mergeids;
-   handles.data.tseries{ ts_num } = tseries;
-elseif ~cancel && any( strcmpi( 'number_of_templates_to_remove', names ) )
-   % If deleting templates
-   deleteids = getUserTemplateDeleteIDs(handles, tseries, method_params );
-   if isempty( deleteids )
-      return;
-   end
-   % add merge ids to tseries datastruct since it isn't actually a user
-   % parameter
-   tseries.deleteAPs = deleteids;
-   handles.data.tseries{ ts_num } = tseries;
-end
-
-params = setToolAndMethodParams(params, method_params, data_type, tool, method);
-handles.data.params = params;
-guidata(hObject,handles); % saves changes to handles
+   handles.f.set_tool_params(handles);
 end
 
 % if merging templates, user has chosen which template to merge with, &
@@ -623,315 +530,11 @@ end
 
 % --- Executes on button press in run_tool_button.
 function run_tool_button_Callback(hObject, eventdata, handles)
-mouseWaitingFunction(handles.figure1,@run_tool,hObject,eventdata,handles);
+   mouseWaitingFunction(handles.figure1,@run_tool,hObject,eventdata,handles);
 end
 
 function run_tool(hObject, eventdata, handles)
-% Implement the tool using the method & params requested
-tool_list     = get(handles.tool_list, 'String');
-tool_num      = get(handles.tool_list, 'Value');
-tool          = tool_list{tool_num};
-
-method_list   = get(handles.method_list, 'String');
-method_num    = get(handles.method_list, 'Value');
-method        = method_list{method_num};
-
-[tseries, ~, type] = handles.f.getCurrentVoltage(handles);
-method_params = getToolAndMethodParams(handles.data.params, type, tool, method);
-
-switch lower(type)
-   case 'voltage'
-      % only remember last tool for voltage coz others don't have many options
-      handles.data.last_tool = handles.data.curr_tool;
-      handles.data.curr_tool = get(handles.select_tool, 'Value');
-      switch lower(tool)
-         case 'rescale'
-            if ~strcmp('separate',method_params.select_peaks.value)
-               [voltage, Rest] = rescaleVoltage(tseries, method, method_params, handles.options);
-            else
-               method_params.select_peaks.value = 'positive';
-               [voltage, Rest, prev_params] = rescaleVoltage(tseries, method, method_params, handles.options);
-               voltage = voltage.*heaviside(voltage);
-%                ff = fields(prev_params);
-%                for fi = 1:length(ff)
-%                   method_params.(ff{fi}).value = prev_params.(ff{fi}).value;
-%                end
-               method_params.select_peaks.value = 'negative';
-               [nvoltage, Nest] = rescaleVoltage(tseries, method, method_params, handles.options);
-               nvoltage = -nvoltage;
-               nvoltage = nvoltage.*heaviside(nvoltage);
-               voltage = voltage - nvoltage;
-            end
-            if isempty(voltage)
-               return;
-            end
-            new_tseries.type    = 'voltage';
-            new_tseries.data    = voltage;
-            new_tseries.time    = tseries.time;
-            new_tseries.dt      = tseries.dt;
-            new_tseries.params  = method_params;
-            new_tseries.Rest    = Rest;
-            new_tseries.params.tool   = tool;
-            new_tseries.params.method = method;
-            tool_str            = [tseries.name '_' tool];
-            instruct            = ['Creating ' tool_str ': rename?'];
-            
-            
-         case 'denoise'
-            voltage = denoiseVoltage(tseries, method, method_params);
-            if isempty(voltage)
-               return;
-            end
-            new_tseries.type    ='voltage';
-            new_tseries.data    = voltage;
-            new_tseries.time    = tseries.time;
-            new_tseries.dt      = tseries.dt;
-            new_tseries.params  = method_params;
-            new_tseries.params.tool   = tool;
-            new_tseries.params.method = method;
-            tool_str            = [tseries.name '_' tool];
-            instruct            = ['Creating ' tool_str ': rename?'];
-            
-         case 'identify ap templates'
-            % get time series to apply AP templates to
-            [APtemplates, APfamily] = identifyAPs(tseries, method, method_params,  handles.options.debugOption);
-            if isempty(APtemplates)
-               return;
-            end
-            new_tseries.type    = 'ap';
-            new_tseries.data    = APtemplates;
-            new_tseries.time    = (1:size(APtemplates,1))'*tseries.dt;
-            new_tseries.dt      = tseries.dt;
-            new_tseries.params  = method_params;
-            new_tseries.params.tool   = tool;
-            new_tseries.params.method = method;
-            new_tseries.APfamily= APfamily;
-            tool_str            = [tseries.name '_APs'];
-            instruct            = ['Creating ' tool_str ': rename?'];
-            
-         case 'extract spikes'
-            % allows user to generate spikes directly from voltage
-            % timeseries, by generating AP templates enroute
-            if strcmpi(method,'k means') 
-               % Extracting spikes directly from voltage through K-means
-               % clustering. Not using APs
-               [APspikes, APtimes, APfamily] = extractSpikesUsingKmeans(tseries, method_params, handles.options.debugOption);
-               if isempty(APspikes)
-                  return;
-               end               
-               new_tseries.type    = 'spike';
-               new_tseries.data    = APspikes;
-               new_tseries.time    = tseries.time;
-               new_tseries.dt      = tseries.dt;
-               new_tseries.params  = method_params;
-               new_tseries.params.tool   = tool;
-               new_tseries.params.method = method;
-               new_tseries.APfamily= APfamily; % Here the AP templates are the same as the different axons
-               new_tseries.APstimes= APtimes; % record spike times for getting rate later
-               tool_str            = [tseries.name '_spikes'];
-               instruct            = ['Creating ' tool_str ': rename?'];
-               
-            else
-               [APtemplates, APfamily]= identifyAPs(tseries, 'threshold', method_params);
-               if isempty(APtemplates)
-                  return;
-               end
-               APnumsamples        = cellfun(@(f) size(f,2), APfamily);
-               normAPs             = method_params.normalise_aps.value; % separate for when gen APs separately
-               [APspikes,APtimes]  = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, method_params, normAPs );
-               new_tseries.type    = 'spike';
-               new_tseries.data    = APspikes;
-               new_tseries.time    = tseries.time;
-               new_tseries.dt      = tseries.dt;
-               new_tseries.params  = method_params;
-               new_tseries.params.tool   = tool;
-               new_tseries.params.method = method;
-               new_tseries.APfamily= APfamily;
-               new_tseries.APstimes= APtimes; % record spike times for getting rate later
-               tool_str            = [tseries.name '_spikes'];
-               instruct            = ['Creating ' tool_str ': rename?'];
-            end
-            
-         case 'utilities'
-            new_tseries = voltageUtilities(tseries, method, method_params);
-            if isempty(tseries)
-               return;
-            end
-            new_tseries.type    ='voltage';
-            new_tseries.name    = tseries.name;
-            new_tseries.params  = method_params;
-            new_tseries.params.tool   = tool;
-            new_tseries.params.method = method;
-            tool_str            = [tseries.name '_' method];
-            instruct            = ['Creating ' tool_str ': rename?'];
-            
-         otherwise
-            displayErrorMsg('This tool don''t exist, give up');
-            return;
-      end
-      
-      %% Action potentials
-   case 'ap'
-      switch lower(tool)
-         case 'extract spikes'
-            % if user hasn't set parameters explicitly they wouldn't
-            % have chosen a voltage timeseries to apply the AP templates to
-            if ~isfield(method_params, 'voltage_timeseries')
-               str = 'Set parameters to choose a voltage timeseries to match the AP templates to';
-               displayErrorMsg(str);
-               return;
-            end
-            voltage_name        = method_params.voltage_timeseries;
-            voltage_index       = strcmpi(voltage_name.value, handles.data.tseries_str);
-            if ~any(voltage_index)
-               str = 'Voltage timeseries not found, select a different timeseries';
-               displayErrorMsg(str);
-               return;
-            end
-            voltage_tseries     = handles.data.tseries{voltage_index};
-            APtemplates         = tseries.data;
-            if isempty(APtemplates)
-               return;
-            end
-            normAPs             = tseries.params.normalise_aps.value; % get from AP generation
-            % get number of samples that each AP template is estimated from
-            APnumsamples        = cellfun(@(f) size(f,2), tseries.APfamily);
-            [APspikes, APstimes]= ...
-               extractSpikesUsingTemplates(APtemplates, APnumsamples, voltage_tseries, method, method_params, normAPs);
-            if isempty(APspikes)
-               return;
-            end
-            new_tseries.type    = 'spike';
-            new_tseries.data    = APspikes;
-            if iscell( APspikes{1} )
-               % if we ran outta memory we stored only spike times,
-               % which meant we lost the time vector, so I saved it in
-               % the fam struct
-               new_tseries.time = APspikes{1}{1}.time;
-            else
-               % gotta be cheeky getting time since we can plot spikes
-               % consecutively to make it easier to see how they change
-               new_tseries.time = voltage_tseries.time( 1:size(APspikes{1}, 1) );
-            end
-            new_tseries.dt      = voltage_tseries.dt;
-            new_tseries.params  = method_params;
-            new_tseries.params.tool   = tool;
-            new_tseries.params.method = method;
-            new_tseries.APstimes= APstimes; % record spike times for getting rate later
-            tool_str            = [tseries.name '_spikes_' method];
-            tool_str            = [tseries.name '_spikes'];
-            instruct            = ['Creating ' tool_str ': rename?'];
-            
-         case 'merge templates'
-            % get time series to apply AP templates to
-            new_tseries = mergeAPtemplates( tseries, method, method_params );
-            if isempty(new_tseries)
-               return;
-            end
-            tool_str            = [tseries.name '_APs_' method];
-            tool_str            = [tseries.name '_APs'];
-            instruct            = ['Creating ' tool_str ': rename?'];
-         
-         case 'delete templates'
-            % get time series to apply AP templates to
-            new_tseries = deleteAPtemplates( tseries, method, method_params );
-            if isempty(new_tseries)
-               return;
-            end
-            tool_str            = [tseries.name '_APs'];
-            instruct            = ['Creating ' tool_str ': rename?'];
-         otherwise
-            displayErrorMsg('This tool don''t exist, give up');
-            return;
-      end
-      
-   case 'spike'
-      switch lower(tool)
-         case 'firing rate'
-            [rates, time, dt] = getRateFromSpikes(tseries, method, method_params);
-            if isempty(rates), return; end
-            new_tseries.type = 'rate';
-            new_tseries.data = rates;
-            new_tseries.time = time;
-            new_tseries.dt   = dt;
-            new_tseries.params= method_params;
-            new_tseries.params.tool   = tool;
-            new_tseries.params.method = method;
-            tool_str         = [tseries.name '_rates']; % _' method];
-            tool_str(tool_str=='_') = ' '; % make pretty for dialogue title
-            instruct         = ['Creating ' tool_str ': rename?'];
-            
-         case 'statistics'
-            generateSpikeStatistics(tseries, method, method_params);
-            return;
-            
-         case 'spike operations'
-            [spikes,stimes] = runSpikeOperations(tseries, method, method_params);
-            
-            new_tseries.type    = 'spike';
-            new_tseries.data    = spikes;
-            new_tseries.time    = tseries.time;
-            new_tseries.dt      = tseries.dt;
-            new_tseries.params  = method_params;
-            new_tseries.params.tool   = tool;
-            new_tseries.params.method = method;
-            new_tseries.APstimes= stimes; % record spike times for getting rate later
-            tool_str            = [tseries.name '_spikes_' method];
-            tool_str            = [tseries.name '_spikes'];
-            instruct            = ['Creating ' tool_str ': rename?'];
-            
-         otherwise
-      end
-      
-   case 'rate'
-      % currently the only tool for 'rate' timeseries is generating
-      % statistics, & the only statistic is autocorrelation
-      generateRateStatistics(tseries, method, method_params);
-      return;
-      
-   otherwise
-      displayErrorMsg('You''re making shit up, this isn''t a data type');
-      return;
-      
-end
-
-try
-   name = getFileName(handles,instruct, tool_str, 60);
-catch E
-   if strcmp('MATLAB:inputdlg:InvalidInput',E.identifier)
-      runtimeErrorHandler(E,'ignore');
-      name = 'voltage';
-   end
-end
-
-if isempty(name) % user cancelled process
-   return
-end
-
-% if we're here we have a new timeseries - populate nec info & add to gui
-new_tseries.name = name;
-if isfield(tseries, 'params')
-   new_tseries.params.nested_params = tseries.params;
-else
-   new_tseries.params.nested_params = [];
-end
-
-%% save new tseries in user data & display in gui
-new_numtseries = handles.data.num_tseries + 1;
-tseries_str    = handles.data.tseries_str;
-used_names     = handles.data.used_names;
-[name, used_names] = check4RepeatString(name, used_names);
-tseries_str{new_numtseries} = name;
-handles.data.tseries{new_numtseries} = new_tseries;
-handles.data.tseries_str = tseries_str;
-handles.data.num_tseries = new_numtseries;
-handles.data.used_names  = used_names;
-
-set(handles.curr_signal, 'String', tseries_str);
-set(handles.curr_signal, 'Value',  new_numtseries);
-guidata(handles.run_tool_button,handles); % saves the change to handles
-curr_signal_Callback(handles.curr_signal, [], handles);
-
+   handles.f.run_tool(handles);
 end
 
 % --- Executes on button press in save_voltage.
@@ -941,10 +544,10 @@ end
 
 % --- Executes on slider movement.
 function time_slider_Callback(hObject, eventdata, handles)
-if ~handles.f.haveUserData(handles)
-   return;
-end
-mouseWaitingFunction(handles.figure1,@time_slider_updated,hObject,eventdata,handles);
+   if ~handles.f.haveUserData(handles)
+      return;
+   end
+   mouseWaitingFunction(handles.figure1,@time_slider_updated,hObject,eventdata,handles);
 end
 
 function time_slider_updated(hObject,eventdata,handles)
