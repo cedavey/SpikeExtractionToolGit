@@ -472,41 +472,13 @@ classdef SpikeExtractionApp < matlab.apps.AppBase
         % Value changed function: method_list
         function method_list_Callback(app, event)
             % update the tooltips
-            tooltip_name = {['method_list_' lower(app.method_list.String{app.method_list.Value})]};
-            handles = setTooltips(handles, {'method_list'}, getTooltips(tooltip_name));
+            tooltip_name = {['method_list_' lower(app.method_list.Value)]};
+            setTooltips(app, {'method_list'}, getTooltips(tooltip_name));
         end
 
         % Button pushed function: new_figure
         function new_figure_Callback(app, event)
-            new_gui     = SpikeExtractionTool;
-            new_handles = guidata(gcf);
-            tseries     = app.f.getCurrentVoltage(app);
-            app.data.guihandles = [app.data.guihandles; new_gui.guihandles]; % record new gui in our data struct
-            guidata(app.figure1, handles);
-            
-            %% Generate user data object to store
-            new_gui.num_tseries = 1;
-            new_gui.tseries     = {tseries};             % initialise cell array of time series
-            new_gui.curr_tseries= 1;                     % current time series
-            new_gui.tseries_str = {tseries.name};        % initialise names of time series
-            new_gui.used_names  = {{tseries.name}, 1};   % list of names already used by user
-            new_gui.last_tseries= 1;   % last time series - restore if current ts deleted
-            new_gui.tlim        = app.data.tlim;
-            new_gui.vlim        = app.data.vlim;
-            new_gui.last_tool   = 1;                     % record of user's last tool
-            new_gui.params      = getDefaultToolParams;  % default params for all tools & implementation methods
-            new_gui.last_dir    = app.data.last_dir; % where they opened gui from
-            % copy of all SET gui handles - for each gui, make sure it's own handle is 1st
-            new_gui.guihandles  = [new_gui.guihandles; app.data.guihandles(1:end-1)];
-            new_app.data    = new_gui;               % record user data in handle
-            new_handles         = toggleSETGUIstate(new_handles, 'on'); % switch everything off until data's loaded
-            
-            % udpate voltage timeseries drop down list
-            set(new_app.curr_signal, 'String', new_app.data.tseries_str);
-            set(new_app.curr_signal, 'Value', 1);
-            
-            % plot data that was put in new figure
-            curr_signal_Callback( new_app.curr_signal, [], new_handles );
+            app.f.new_figure(app);
         end
 
         % Menu selected function: plotNewFigMenuBar
@@ -542,100 +514,7 @@ classdef SpikeExtractionApp < matlab.apps.AppBase
 
         % Button pushed function: set_tool_params
         function set_tool_params_Callback(app, event)
-            % update curr tool now we're actually interested in this one
-            if app.data.curr_tool ~= get(app.tool_list, 'Value')
-               app.data.last_tool = app.data.curr_tool;
-               app.data.curr_tool = get(app.tool_list, 'Value');
-            end
-            % for the particular choice of tool + implementation (i.e. method)
-            % display the configuration parameters & allow user to set them
-            [tseries, ts_num, data_type] = app.f.getCurrentVoltage(app);
-            data_type    = tseries.type;
-            tool_num     = get(app.tool_list,'Value');
-            tool_list    = get(app.tool_list,'String');
-            tool         = tool_list{tool_num};
-            
-            method_num   = get(app.method_list,'Value');
-            method_list  = get(app.method_list,'String');
-            method       = method_list{method_num};
-            
-            params       = app.data.params; % current parameter values
-            % params = getDefaultToolParams;
-            method_params= getToolAndMethodParams(params, data_type, tool, method);
-            dlg_name     = [tool ' using ' method];
-            
-            % if using AP templates for matched filtering need to select voltage
-            % timseries to apply it to - add list to params for selection (unless
-            % it's applied directly to a voltage timeseries)
-            if strcmpi(tool, 'extract spikes')  && strcmpi(method, 'matched filter')
-               if ~strcmpi(data_type, 'voltage')
-                  types     = getStructFieldFromCell(app.data.tseries, 'type');
-                  names     = getStructFieldFromCell(app.data.tseries, 'name');
-                  isvoltage = strcmpi('voltage', types);
-            
-                  if sum(isvoltage)==0
-                     str    = 'No voltage time series to extract APs from, have another crack later';
-                     displayErrorMsg(str);
-                     return;
-                  end
-                  voltlist  = names(isvoltage); % list of all voltage time series'
-            
-                  % create a parameter to ask user what voltage timeseries to apply AP templates to
-                  if ~isfield(method_params, 'voltage_timeseries')
-                     % find indices of all tseries that have type voltage
-                     voltage_timeseries.value    = names(find(isvoltage,1,'first'));
-                     voltage_timeseries.name     = 'voltage timeseries';
-                     voltage_timeseries.descript = 'select voltage timeseries to match APs to';
-                     voltage_timeseries.type     = 'list';
-                     voltage_timeseries.list     = names(isvoltage);
-                     voltage_timeseries.units    = 'timeseries name';
-                     method_params.voltage_timeseries = voltage_timeseries;
-            
-                     % voltage timeseries parameter already exists - check it's still valid
-                  else
-                     voltage_timeseries = method_params.voltage_timeseries;
-                     % lists diff lengths so can't be equal (can't easily compare)
-                     if length(voltlist)~=length(voltage_timeseries.list)
-                        voltage_timeseries.list = names(isvoltage);
-                        voltage_tseries.value   = 1;
-                        % lists same length but not same content - leave number choice the same
-                     elseif ~all(strcmpi(voltage_timeseries.list, voltlist))
-                        voltage_timeseries.list = names(isvoltage);
-                     end
-                     method_params.voltage_timeseries = voltage_timeseries;
-                  end
-               end
-            end
-            
-            [method_params, cancel] = requestUserParamConfig(method_params, dlg_name);
-            
-            % if merging templates, user must select template ID now we know how
-            % many they want to merge (can't do simultaneously)
-            names  = fieldnames( method_params );
-            if ~cancel && any( strcmpi( 'number_of_templates_to_merge', names ) )
-               mergeids = getUserTemplateMergeIDs( tseries, method_params );
-               if isempty( mergeids )
-                  return;
-               end
-               % add merge ids to tseries datastruct since it isn't actually a user
-               % parameter
-               tseries.mergeAPs = mergeids;
-               app.data.tseries{ ts_num } = tseries;
-            elseif ~cancel && any( strcmpi( 'number_of_templates_to_remove', names ) )
-               % If deleting templates
-               deleteids = getUserTemplateDeleteIDs(app, tseries, method_params );
-               if isempty( deleteids )
-                  return;
-               end
-               % add merge ids to tseries datastruct since it isn't actually a user
-               % parameter
-               tseries.deleteAPs = deleteids;
-               app.data.tseries{ ts_num } = tseries;
-            end
-            
-            params = setToolAndMethodParams(params, method_params, data_type, tool, method);
-            app.data.params = params;
-            guidata(hObject,handles); % saves changes to handles
+            app.f.set_tool_params(app);
         end
 
         % Value changed function: time_max
