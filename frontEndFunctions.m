@@ -429,38 +429,6 @@ methods (Static)
       if strcmp('gui',h.f.uiType), guidata(hObject,h); end
    end
    
-   function new_figure(h)
-      new_gui     = SpikeExtractionTool;
-      new_handles = guidata(gcf);
-      tseries     = h.f.getCurrentVoltage(h);
-      h.data.guihandles = [h.data.guihandles; new_gui.guihandles]; % record new gui in our data struct
-      guidata(h.figure1, handles);
-
-      %% Generate user data object to store
-      new_gui.num_tseries = 1;
-      new_gui.tseries     = {tseries};             % initialise cell array of time series
-      new_gui.curr_tseries= 1;                     % current time series
-      new_gui.tseries_str = {tseries.name};        % initialise names of time series
-      new_gui.used_names  = {{tseries.name}, 1};   % list of names already used by user
-      new_gui.last_tseries= 1;   % last time series - restore if current ts deleted
-      new_gui.tlim        = h.data.tlim;
-      new_gui.vlim        = h.data.vlim;
-      new_gui.last_tool   = 1;                     % record of user's last tool
-      new_gui.params      = getDefaultToolParams;  % default params for all tools & implementation methods
-      new_gui.last_dir    = h.data.last_dir; % where they opened gui from
-      % copy of all SET gui handles - for each gui, make sure it's own handle is 1st
-      new_gui.guihandles  = [new_gui.guihandles; h.data.guihandles(1:end-1)];
-      new_app.data    = new_gui;               % record user data in handle
-      new_handles         = toggleSETGUIstate(new_handles, 'on'); % switch everything off until data's loaded
-
-      % udpate voltage timeseries drop down list
-      set(new_app.curr_signal, 'String', new_app.data.tseries_str);
-      set(new_app.curr_signal, 'Value', 1);
-
-      % plot data that was put in new figure
-      curr_signal_Callback( new_app.curr_signal, [], new_handles );
-   end
-   
    function varargout = removeVoltage(h, varargin)    
       if (numel(varargin) == 0) || cellfun(@isempty, varargin)
          remove_tseries = h.data.curr_tseries;
@@ -573,12 +541,7 @@ methods (Static)
          case 'voltage'
             % only remember last tool for voltage coz others don't have many options
             h.data.last_tool = h.data.curr_tool;
-            if strcmp('gui', h.f.uiType)
-               h.data.curr_tool = get(h.select_tool, 'Value');
-            else
-               ct = cellfun(@(x) strcmp(x,h.tool_list.Value), h.tool_list.Items);
-               h.data.curr_tool = find(ct == 1);
-            end
+            h.data.curr_tool = get(h.select_tool, 'Value');
             switch lower(tool)
                case 'rescale'
                   if ~strcmp('separate',method_params.select_peaks.value)
@@ -831,7 +794,7 @@ methods (Static)
       end
 
       try
-         name = h.f.getFileName(instruct, tool_str, 60);
+         name = getFileName(instruct, tool_str, 60);
       catch E
          if strcmp('MATLAB:inputdlg:InvalidInput',E.identifier)
             runtimeErrorHandler(E,'ignore');
@@ -861,16 +824,11 @@ methods (Static)
       h.data.tseries_str = tseries_str;
       h.data.num_tseries = new_numtseries;
       h.data.used_names  = used_names;
-      
-      if strcmp('gui', h.f.uiType)
-         set(h.curr_signal, 'String', tseries_str);
-         set(h.curr_signal, 'Value',  new_numtseries);
-         guidata(h.run_tool_button,h); % saves the change to handles
-      else
-         set(h.curr_signal, 'Items', tseries_str);
-         set(h.curr_signal, 'Value',  tseries_str(new_numtseries));
-      end
-      h.f.curr_signal(h.curr_signal, [], h);
+
+      set(h.curr_signal, 'String', tseries_str);
+      set(h.curr_signal, 'Value',  new_numtseries);
+      guidata(h.run_tool_button,handles); % saves the change to handles
+      curr_signal_Callback(h.curr_signal, [], handles);
    end
   
    function save_voltage(h, varargin)
@@ -984,115 +942,7 @@ methods (Static)
          guidata(hObject,h);
       end
    end
-   
-   function set_tool_params(h)
-      % update curr tool now we're actually interested in this one
-      if h.data.curr_tool ~= get(h.tool_list, 'Value')
-         h.data.last_tool = h.data.curr_tool;
-         h.data.curr_tool = get(h.tool_list, 'Value');
-      end
-      % for the particular choice of tool + implementation (i.e. method)
-      % display the configuration parameters & allow user to set them
-      [tseries, ts_num, data_type] = h.f.getCurrentVoltage(h);
-      data_type    = tseries.type;
-      
-      if strcmp('gui', h.f.uiType)
-         tool_num     = get(h.tool_list,'Value');
-         tool_list    = get(h.tool_list,'String');
-         tool         = tool_list{tool_num};
-
-         method_num   = get(h.method_list,'Value');
-         method_list  = get(h.method_list,'String');
-         method       = method_list{method_num};
-      else
-         tool_list    = get(h.tool_list,'Items');
-         tool         = get(h.tool_list,'Value'); 
-
-         method_list  = get(h.method_list,'Items');
-         method   = get(h.method_list,'Value');
-      end
-
-      params       = h.data.params; % current parameter values
-      % params = getDefaultToolParams;
-      method_params= getToolAndMethodParams(params, data_type, tool, method);
-      dlg_name     = [tool ' using ' method];
-
-      % if using AP templates for matched filtering need to select voltage
-      % timseries to apply it to - add list to params for selection (unless
-      % it's applied directly to a voltage timeseries)
-      if strcmpi(tool, 'extract spikes')  && strcmpi(method, 'matched filter')
-         if ~strcmpi(data_type, 'voltage')
-            types     = getStructFieldFromCell(h.data.tseries, 'type');
-            names     = getStructFieldFromCell(h.data.tseries, 'name');
-            isvoltage = strcmpi('voltage', types);
-
-            if sum(isvoltage)==0
-               str    = 'No voltage time series to extract APs from, have another crack later';
-               displayErrorMsg(str);
-               return;
-            end
-            voltlist  = names(isvoltage); % list of all voltage time series'
-
-            % create a parameter to ask user what voltage timeseries to apply AP templates to
-            if ~isfield(method_params, 'voltage_timeseries')
-               % find indices of all tseries that have type voltage
-               voltage_timeseries.value    = names(find(isvoltage,1,'first'));
-               voltage_timeseries.name     = 'voltage timeseries';
-               voltage_timeseries.descript = 'select voltage timeseries to match APs to';
-               voltage_timeseries.type     = 'list';
-               voltage_timeseries.list     = names(isvoltage);
-               voltage_timeseries.units    = 'timeseries name';
-               method_params.voltage_timeseries = voltage_timeseries;
-
-               % voltage timeseries parameter already exists - check it's still valid
-            else
-               voltage_timeseries = method_params.voltage_timeseries;
-               % lists diff lengths so can't be equal (can't easily compare)
-               if length(voltlist)~=length(voltage_timeseries.list)
-                  voltage_timeseries.list = names(isvoltage);
-                  voltage_tseries.value   = 1;
-                  % lists same length but not same content - leave number choice the same
-               elseif ~all(strcmpi(voltage_timeseries.list, voltlist))
-                  voltage_timeseries.list = names(isvoltage);
-               end
-               method_params.voltage_timeseries = voltage_timeseries;
-            end
-         end
-      end
-
-      [method_params, cancel] = requestUserParamConfig(method_params, dlg_name);
-
-      % if merging templates, user must select template ID now we know how
-      % many they want to merge (can't do simultaneously)
-      names  = fieldnames( method_params );
-      if ~cancel && any( strcmpi( 'number_of_templates_to_merge', names ) )
-         mergeids = getUserTemplateMergeIDs( tseries, method_params );
-         if isempty( mergeids )
-            return;
-         end
-         % add merge ids to tseries datastruct since it isn't actually a user
-         % parameter
-         tseries.mergeAPs = mergeids;
-         h.data.tseries{ ts_num } = tseries;
-      elseif ~cancel && any( strcmpi( 'number_of_templates_to_remove', names ) )
-         % If deleting templates
-         deleteids = getUserTemplateDeleteIDs(h, tseries, method_params );
-         if isempty( deleteids )
-            return;
-         end
-         % add merge ids to tseries datastruct since it isn't actually a user
-         % parameter
-         tseries.deleteAPs = deleteids;
-         h.data.tseries{ ts_num } = tseries;
-      end
-
-      params = setToolAndMethodParams(params, method_params, data_type, tool, method);
-      h.data.params = params;
-      if strcmp('gui', h.f.uiType)
-         guidata(hObject,h); % saves changes to handles
-      end
-   end
-   
+  
    function time_min(h, varargin)
       if ~h.f.haveUserData(h)
          return;
