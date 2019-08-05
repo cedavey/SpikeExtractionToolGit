@@ -541,7 +541,7 @@ set(handles.method_list, 'Value', 1);
 
 % update the tooltips
 tooltip_name = {['run_tool_' lower(tool_name{tool_num})]};
-handles = setTooltips(handles, {'run_tool'}, getTooltips(tooltip_name));
+handles = setTooltips(handles, {'run_tool_button'}, getTooltips(tooltip_name));
 tooltip_name = {['tool_list_' lower(tool_name{tool_num})]};
 handles = setTooltips(handles, {'tool_list'}, getTooltips(tooltip_name));
 
