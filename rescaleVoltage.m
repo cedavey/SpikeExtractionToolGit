@@ -147,6 +147,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    end
    prevProg = 1; % Previous progress, start with 1 because it's the first loop. It will be updated every 10 percent
    firstRun = 1;
+   secondRun = 0;
    while currt < nT
       % Update Progress window
       if progress_window
@@ -333,7 +334,14 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
                % If this is the first run, Rest_vec contains the initalized
                % Rest, which seems to be wrong. Fill Rest_vec with Rcurr,
                % which is the first value that seems alright.
-               if firstRun == 1, Rest_vec = ones(size(Rest_vec))*Rcurr; firstRun = 0;end
+               if firstRun == 1
+                  Rest_vec = ones(size(Rest_vec))*Rcurr;
+                  firstRun = 0;
+%                   secondRun = 1;
+%                elseif secondRun == 1
+%                   Rest_vec = linspace(Rest_vec(1), Rcurr, length(Rest_vec))';
+%                   secondRun = 0;
+               end
                   
                % if not modelling change in resistance as linear
                % regression then force it to change slowly
@@ -557,8 +565,11 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
       catch ME
          if strcmp('Vectors must be the same length.', ME.message) && isempty(tpeak_vec)
             close;
-            error('It looks like there were no spikes found. Check the parameter selection.\nThe value of ''currt'' is: %d', currt);
-            %             warning('It looks like there were no spikes found. Check the parameter selection.\nThe value of ''currt'' is: %d', currt);
+            % error('It looks like there were no spikes found. Check the parameter selection.\nThe value of ''currt'' is: %d', currt);
+            str = sprintf('It looks like there were no spikes found. Check the parameter selection.\nThe value of ''currt'' is: %d', currt);
+            displayErrorMsg(str);
+            vrescale = [];
+            return
          else
             runtimeErrorHandler(ME);
          end

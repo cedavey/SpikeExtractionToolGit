@@ -985,7 +985,11 @@ methods (Static)
       end
    end
    
-   function set_tool_params(h)
+   function set_tool_params(h, varargin)
+      if nargin > 1
+         hObject = varargin{1};
+      end
+      
       % update curr tool now we're actually interested in this one
       if h.data.curr_tool ~= get(h.tool_list, 'Value')
          h.data.last_tool = h.data.curr_tool;
@@ -1066,7 +1070,7 @@ methods (Static)
       % many they want to merge (can't do simultaneously)
       names  = fieldnames( method_params );
       if ~cancel && any( strcmpi( 'number_of_templates_to_merge', names ) )
-         mergeids = getUserTemplateMergeIDs( tseries, method_params );
+         mergeids = h.f.getUserTemplateMergeIDs( tseries, method_params );
          if isempty( mergeids )
             return;
          end

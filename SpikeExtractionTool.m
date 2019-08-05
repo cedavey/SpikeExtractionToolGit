@@ -442,7 +442,7 @@ end
 
 % --- Executes on button press in set_tool_params.
 function set_tool_params_Callback(hObject, eventdata, handles)
-   handles.f.set_tool_params(handles);
+   handles.f.set_tool_params(handles, hObject);
 end
 
 % if merging templates, user has chosen which template to merge with, &
