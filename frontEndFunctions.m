@@ -1080,7 +1080,7 @@ methods (Static)
          h.data.tseries{ ts_num } = tseries;
       elseif ~cancel && any( strcmpi( 'number_of_templates_to_remove', names ) )
          % If deleting templates
-         deleteids = getUserTemplateDeleteIDs(h, tseries, method_params );
+         deleteids = h.f.getUserTemplateDeleteIDs(tseries, method_params );
          if isempty( deleteids )
             return;
          end

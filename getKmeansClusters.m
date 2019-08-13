@@ -16,7 +16,7 @@ function varargout = getKmeansClusters(spikes,stimes,varargin)
       cluster_range = varargin{2};
       min_k = cluster_range(1);
       max_k = cluster_range(2);
-      mean_threshold = 2;
+      mean_threshold = 1;
       extracting = 'spikes';
    else
       max_k = 30;

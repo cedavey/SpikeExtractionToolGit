@@ -6,14 +6,13 @@
 %
 % Created by Artemio - 24/June/2019
 function [APspikes, APtimes, APfamilies] = extractSpikesUsingKmeans(tseries, method_params, debugOption)
-% error('This function hasn''t been finished');
    [spikes, stimes, ~] = getSpikesByThresholding(tseries, method_params);
-   [APfamilies, APtimes] = getKmeansClusters(spikes,stimes, debugOption, [10 100]);
+   [APfamilies, APtimes] = getKmeansClusters(spikes,stimes, debugOption, [1 20]);
    
    % Get peakN (index of peak value
    [~, idx] = max(APfamilies{1}{1}.spikes');
    peakN = round(mean(idx));
-      % get rid of empty families, just in case they snuck in there!
+   % get rid of empty families, just in case they snuck in there!
    nf = cellfun( @length, APfamilies );
    loner = nf <= 0; % get empty families
    APfamilies( loner ) = [];
@@ -46,7 +45,8 @@ function [APspikes, APtimes, APfamilies] = extractSpikesUsingKmeans(tseries, met
                if size(fam{ff}.stimes,1) == 1
                   fam_stimes{ff}  = fam{ff}.stimes(1,peakN);
                else
-                  fam_stimes{ff}  = fam{ff}.stimes(peakN,:);
+%                   fam_stimes{ff}  = fam{ff}.stimes(peakN,:);
+                  fam_stimes{ff}  = fam{ff}.stimes(peakN,1);
                end
             end
             APspikes{ti} = fam_tseries;
