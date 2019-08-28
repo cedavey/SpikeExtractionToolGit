@@ -115,7 +115,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
       % add it to one of the template families, or start a new family 
       % if the spike amplitude is not sufficiently similar.
       if any(rho > matchthresh)
-         [~, k] = max(rho); % template with closest match
+         k = compare_templates(rho, curr_spike, APtemplates); % template with closest match
          
          % if no spike families yet, create one
          if isempty(APfamilies{k})
@@ -156,9 +156,10 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
             % can pass the validity test
             change_test   = [ change_test1; change_test2 ];
             % test with change rate / 2 since it can go above or below the
-            % mean spike for the family
-            valid1        = all( change_test1 < change_rate/2, 2 ); 
-            valid2        = all( change_test2 < change_rate/2, 2 ); 
+            % mean spike for the family. 
+            % * Wasn't really doing much with the /2, so I removed it.
+            valid1        = all( change_test1 < change_rate, 2 ); % all( change_test1 < change_rate/2, 2 ); 
+            valid2        = all( change_test2 < change_rate, 2 ); % all( change_test2 < change_rate/2, 2 ); 
             valid         = valid1 | valid2;
             if any( [ valid1; valid2 ] )
                [minrate, mini] = min( change_rates(valid) );
@@ -194,7 +195,14 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
             if normAPs
                curr_spike  = curr_spike / std(curr_spike); 
             end
-            APtemplates(:,k) = (APtemplates(:,k)*APnumsamples(k) + curr_spike) / (APnumsamples(k)+1);
+            % Equal importance to all past spikes
+            % APtemplates(:,k) = (APtemplates(:,k)*APnumsamples(k) + ...
+            % curr_spike) / (APnumsamples(k)+1); % uncomment this line and
+            % comment the next one to go back
+            % Forget factor. lambda defines how much weight do older spikes
+            % have
+            lambda = 0.95;
+            APtemplates(:,k) = APtemplates(:,k) * lambda + (1 - lambda) * curr_spike;
             APnumsamples(k)  = APnumsamples(k) + 1;
          end
 

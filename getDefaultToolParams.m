@@ -492,7 +492,7 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.min_negative_duration.type       = 'positive float';
          voltage.extract_spikes.matched_filter.min_negative_duration.units      = 'ms';
          
-         voltage.extract_spikes.matched_filter.allow_new_aps.value              = true;
+         voltage.extract_spikes.matched_filter.allow_new_aps.value              = false;
          voltage.extract_spikes.matched_filter.allow_new_aps.name               = 'allow new aps';
          voltage.extract_spikes.matched_filter.allow_new_aps.descript           = 'allow finding new AP templates';
          voltage.extract_spikes.matched_filter.allow_new_aps.type               = 'boolean';
@@ -504,7 +504,7 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.min_spiking_threshold.type            = 'positive integer';
          voltage.extract_spikes.matched_filter.min_spiking_threshold.units           = 'number of spikes';
             
-         voltage.extract_spikes.matched_filter.remove_small_templates.value     = 2;
+         voltage.extract_spikes.matched_filter.remove_small_templates.value     = 10;
          voltage.extract_spikes.matched_filter.remove_small_templates.name      = 'remove small templates';
          voltage.extract_spikes.matched_filter.remove_small_templates.descript  = 'remove AP template estimates from this many or less spikes (0 to ignore)';
          voltage.extract_spikes.matched_filter.remove_small_templates.type      = 'positive integer';
@@ -522,7 +522,13 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.plot_spikes_consecutively.type   = 'boolean';
          voltage.extract_spikes.matched_filter.plot_spikes_consecutively.units  = 'true or false';
 
-         % Extract spikes by k-means clustering         
+         % Extract spikes by k-means clustering
+         voltage.extract_spikes.k_means.no_clusters.value                 = 5;
+         voltage.extract_spikes.k_means.no_clusters.name                  = 'number of clusters';
+         voltage.extract_spikes.k_means.no_clusters.descript              = 'Clusters for the K-means, 0 for automatic';
+         voltage.extract_spikes.k_means.no_clusters.type                  = 'positive integer';
+         voltage.extract_spikes.k_means.no_clusters.units                 = 'integer';
+         
          voltage.extract_spikes.k_means.match_type.value                 = 'corr';
          voltage.extract_spikes.k_means.match_type.name                  = 'match type';
          voltage.extract_spikes.k_means.match_type.descript              = 'statistic to calculate similarity with';
@@ -658,7 +664,7 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.min_negative_duration.type            = 'positive float';
          ap.extract_spikes.matched_filter.min_negative_duration.units           = 'ms';
          
-         ap.extract_spikes.matched_filter.allow_new_aps.value                   = true;
+         ap.extract_spikes.matched_filter.allow_new_aps.value                   = false;
          ap.extract_spikes.matched_filter.allow_new_aps.name                    = 'allow new aps';
          ap.extract_spikes.matched_filter.allow_new_aps.descript                = 'allow finding new AP templates';
          ap.extract_spikes.matched_filter.allow_new_aps.type                    = 'boolean';

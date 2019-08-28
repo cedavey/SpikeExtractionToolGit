@@ -124,7 +124,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    noiseN      = initialNoiseSamples; % Used to be 1. Changed to the actual length of the initial white noise (initNoiseStdDev)
 
    lambda      = ternaryOp( lambda==1, 1-dt, lambda ); % make lambda 1 timestep less than 1
-   R_prob      = 0.01;
+   R_prob      = 0.03;
    remsamp     = nT;
    currt       = 1;
    pprevt       = [1 1];
@@ -237,11 +237,19 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
             end
             prevt   = currt + startsp - 1; % update current time to where next spike is
             [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
-            
-            if(countLoops > 29)
-               str = sprintf('\tIt looks like you haven''t chosen the best parameters.\n\tThere were at least %d consecutive spikes that were not\n\tunder the glitch threshold.\n',countLoops);
-               printMessage('off', 'Errors', str);
-               break
+                        
+            if auto_params
+               if(countLoops > 4)
+                  glitchthresh = 1.25 * glitchthresh;
+                  str = sprintf('\tNew glitch Th: %d\n',glitchthresh);
+                  printMessage('off', 'Text', str);
+               end
+            else
+               if(countLoops > 29)
+                  str = sprintf('\tIt looks like you haven''t chosen the best parameters.\n\tThere were at least %d consecutive spikes that were not\n\tunder the glitch threshold.\n',countLoops);
+                  printMessage('off', 'Errors', str);
+                  break
+               end
             end
          end
          % integrity check - if no peaks in current spike jump ahead a bit & try again
@@ -324,11 +332,10 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
                predict( pf, Rcoeff, Rest, ( tpeak_vec(nP-nlags:end) - tstartpiece ), npoles, nzeros );
 
                % Correct Rest from current obs: x(t) -> y(t)
-               % correct( pf, vpeak, Rstd );
-               correct( pf, Rtmp, Rstd );
+               correct( pf, vpeak, Rstd );
+%                correct( pf, Rtmp, Rstd );
                % Use corrected Rest to update regression coeffs
                Rest  = getStateEstimate(pf);
-                  
                Rcurr  = Rest(1); % if multiple lagged states get current only
                % If this is the first run, Rest_vec contains the initalized
                % Rest, which seems to be wrong. Fill Rest_vec with Rcurr,
@@ -337,7 +344,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
                   
                % if not modelling change in resistance as linear
                % regression then force it to change slowly
-               % Rest  = Rprev*lambda + Rcurr*(1-lambda);
+%                Rest  = Rprev*lambda + Rcurr*(1-lambda);
 
                % prepare for next loop
                Rprev = Rest;
@@ -366,11 +373,11 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
          % opposed to a single large resistance value)
          prob_Rest = normpdf( vpeak, Rcurr, vstd );
          if ( prob_Rest < R_prob && ...
-               (timeinpiece>=10 && ~iswhite( [Rest_vec(nP-prevpeaks+1:nP-1); Rest_vec(end)] - vpeak_vec(nP-prevpeaks+1:nP), 'bg', 0.05 ) ) ) ...
+               (timeinpiece>=10 && ~iswhite( [Rest_vec(nP-prevpeaks+1:nP-1); Rest_vec(end)] - vpeak_vec(nP-prevpeaks+1:nP), 'bg', 0.15 ) ) ) ...
                || ( Rcurr <= 0 )
             [Rest, Rcoeff, Rmu, Rstd, Rcov] = initRegress(tpeak_vec(nP-prevpeaks+1:nP) - time(currt), ...
                vpeak_vec(nP-prevpeaks+1:nP), lambda, npoles, nzeros, debug);
-            Rcurr = Rest(end);
+            Rcurr = Rest(end);            
             Rcoeff_vec(nP,:) = Rcoeff;
             % counter to not allow regression reset for a bit else we come back next timestep
             timeinpiece = 0;
@@ -550,7 +557,8 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
          plot(tpeak_vec, Rest_vec,  'm',  'linewidth', 3);
          plot(tpeak_vec, noise_vec * voltoutlier,  'r');
          plot(tpeak_vec, -noise_vec * voltoutlier,  '--r');
-         plot(tpeak_vec, noise_vec * glitchthresh, 'r');
+         plot(tpeak_vec, noise_vec * glitchthresh, 'g');
+         plot(tpeak_vec, noise_vec * params.glitch_magnitude.value, 'r');
          plot(tpeak_vec, -noise_vec * glitchthresh, '--r');
          legend('Voltage', 'V peaks', 'R estimate', 'Th+', 'Th-');
          if numel(tpeak_vec) > 1, xlim( [ tpeak_vec(1) tpeak_vec(end) ] );end
@@ -673,10 +681,11 @@ function [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethres
    % (it also makes sure wacky bits of noise only impact us once!)
 
    remsamp = length(v) - prevt;  % remaining num samples
-   jump    = min( remsamp, jumpahead );
+   jump    = double(min( remsamp, jumpahead )); % When jump was 'single' instead of 'double' it was causing an error if it was used as an index
 
    % prevt   = prevt + find( peakfn(v(prevt+jump:end)) < noisethresh, 1, 'first');
    tnoise  = find( peakfn(v(prevt+jump:end)) < noisethresh, 1, 'first');
+   
    % if there's no noise before the end of the sample, jump to the end
    jump    = jump + ternaryOp( isempty( tnoise ), numel(v(prevt+jump:end)), tnoise );
    endsp   = jump - 1;
@@ -832,7 +841,7 @@ function pf = initpf(Rest, Rsig, npoles, pf)
       % object estimates state from 'mean' of particles, or particle with 'maxweight'
       pf.StateEstimationMethod    = 'mean'; % if maxweight no cov returned from pf predict
       % resampling method options: 'multinomial', 'residual', 'stratified', 'systematic'
-      pf.ResamplingMethod         = 'systematic'; % no idea what this is?!
+%       pf.ResamplingMethod         = 'systematic'; % no idea what this is?!
       %  evolve particles to get new estimates of the resistance
       pf.StateTransitionFcn       = @evolveResistance;
       % obs likelihood - likelihood of each particle state given new obs

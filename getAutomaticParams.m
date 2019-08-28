@@ -64,7 +64,7 @@ function params = calculateAutomaticParams(tseries, noisestd, params)
    spike_smp = []; % Spike sample (time at which the spike happened)
    v = tseries.data;
    dt = tseries.dt;
-   th = noisestd * 3;
+   th = noisestd * 3.5;
    idxst = 0;
    idxend = 0;
    smpls = 300;
@@ -76,7 +76,7 @@ function params = calculateAutomaticParams(tseries, noisestd, params)
       idxend = idxst + smpls;
       
       warning('off','signal:findpeaks:largeMinPeakHeight');
-      [a, b] = findpeaks( peakfn( v(idxst:idxend) ), 'MinPeakHeight', th, 'MinPeakWidth', 3);
+      [a, b] = findpeaks( peakfn( v(idxst:idxend) ), 'MinPeakHeight', th, 'MinPeakWidth', 5);
       spike_amp = [spike_amp; a];
       spike_smp = [spike_smp; idxst+b-1];
    end
@@ -85,14 +85,15 @@ function params = calculateAutomaticParams(tseries, noisestd, params)
    var_n = noisestd^2; % Variance of the noise
    var_s = var(spike_amp); % Variance of the spike amplitudes
    SNR = abs(10*log10(rms/var_n));
-   sp_rate = numel(spike_amp) / (spike_smp(end) * dt); % Firing rate
+   sp_rate = numel(spike_amp) / ((spike_smp(end) - spike_smp(1)) * dt); % Firing rate
    
    % Chose automatic parameters based on spike rate and SNR. The factors
    % are arbitrary, but they can be updated.
    params.voltage_magnitude.value = sqrt(SNR); % Spike threshold is half of the signal to noise ratio
-   params.glitch_magnitude.value = 2 * SNR; % Glitch threshold is twice the signal to noise ratio
+   params.glitch_magnitude.value = 3 * SNR; % Glitch threshold is twice the signal to noise ratio
    params.forgetting_factor.value = 0.99; % This has proved to be the best value
-   params.jump_ahead.value = 500/sp_rate;
+   %params.jump_ahead.value = 500/sp_rate;
+   params.jump_ahead.value = 10/(sp_rate * median(spike_amp/max(spike_amp))); % max(0.5/(sp_rate * var(spike_amp)), 0.5);
 end
 
 % we're identifying peaks by thresholding, so if we want only positive,

@@ -15,8 +15,12 @@ function varargout = getKmeansClusters(spikes,stimes,varargin)
    if nargin > 3
       cluster_range = varargin{2};
       min_k = cluster_range(1);
-      max_k = cluster_range(2);
-      mean_threshold = 2;
+      if numel(cluster_range) > 1
+         max_k = cluster_range(2);
+      else
+         max_k = min_k;
+      end
+      mean_threshold = 1;
       extracting = 'spikes';
    else
       max_k = 30;
@@ -44,29 +48,35 @@ function varargout = getKmeansClusters(spikes,stimes,varargin)
    % Principal component analysis
    [~,score,l] = pca(spikes'); % Principal component analysis
    score = score(:,1:5); % Get only the projection on the highest latent component
-  
+   
    sse = zeros(max_k,1);
    idx = zeros(max_k,NS);
    % Find the clusters with a range of initial number of clusters (k)
    for k = min_k:max_k
       sse(k) = 0;
       warning('off','stats:kmeans:FailedToConverge')
-      [idx(k,:), c, e, ~] = kmeans(score(:,1:5),k, 'EmptyAction','drop','MaxIter',200); % K-means with k clusters Other option: % [idx(k,:), c] = kmeans([pos_peak;neg_peak;diff_peaks;pos_duration;neg_duration;score]',k);
+%       [idx(k,:), c, e, ~] = kmeans([score(:,1:5) pos_peak' pos_peak' pos_peak' pos_peak' neg_peak' neg_peak' diff_peaks' pos_duration' neg_duration'],k, 'EmptyAction','drop','MaxIter',200); % K-means with k clusters Other option: % 
+      [idx(k,:), c, e, ~] = kmeans([pos_peak;neg_peak;diff_peaks;pos_duration;neg_duration]',k);
       sse(k) = sum(e.^2);
    end
    
-   % Find the elbow
-   elbow_a = find(abs(diff(diff(sse(min_k:max_k)))) < mean(abs(diff(diff(sse(min_k:max_k)))))/10, 1, 'first') + min_k - 1;
-   elbow_b = find(sse(min_k:max_k) > mean_threshold*mean(sse(min_k:max_k)),2, 'last') + min_k - 1;
-   [~, minelb_b] = min(sse(elbow_b)); % This two lines are to prevent chosing a peak (wrong elbow) on the SSE plot
-   elbow_b = elbow_b(minelb_b);
-    elbow = min(elbow_a,elbow_b);
-   if ~strcmp('none',debug)
-      figure('Name','K-means elbow test'); plot(min_k:max_k,sse(min_k:max_k),'-o');hold('on');
-      plot(elbow, sse(elbow),'xr', 'LineWidth', 2, 'MarkerSize', 10);
-      plot([min_k max_k],[mean_threshold*mean(sse(min_k:max_k)) mean_threshold*mean(sse(min_k:max_k))], '--');
-      xlabel('K');
-      ylabel('SSE');
+   
+   if min_k ~= max_k
+      % Find the elbow
+      elbow_a = find(abs(diff(diff(sse(min_k:max_k)))) < mean(abs(diff(diff(sse(min_k:max_k)))))/10, 1, 'first') + min_k - 1;
+      elbow_b = find(sse(min_k:max_k) > mean_threshold*mean(sse(min_k:max_k)),2, 'last') + min_k - 1;
+      [~, minelb_b] = min(sse(elbow_b)); % This two lines are to prevent chosing a peak (wrong elbow) on the SSE plot
+      elbow_b = elbow_b(minelb_b);
+       elbow = min(elbow_a,elbow_b);
+      if ~strcmp('none',debug)
+         figure('Name','K-means elbow test'); plot(min_k:max_k,sse(min_k:max_k),'-o');hold('on');
+         plot(elbow, sse(elbow),'xr', 'LineWidth', 2, 'MarkerSize', 10);
+         plot([min_k max_k],[mean_threshold*mean(sse(min_k:max_k)) mean_threshold*mean(sse(min_k:max_k))], '--');
+         xlabel('K');
+         ylabel('SSE');
+      end
+   else
+      elbow = min_k;
    end
    
    % Get the clusters with the best k value.

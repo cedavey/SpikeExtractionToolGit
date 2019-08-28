@@ -636,7 +636,15 @@ if strcmpi(tool, 'extract spikes')  && strcmpi(method, 'matched filter')
    end
 end
 
-[method_params, cancel] = requestUserParamConfig(method_params, dlg_name);
+try
+   [method_params, cancel] = requestUserParamConfig(method_params, dlg_name);
+catch ME
+   if strcmp('MATLAB:unassignedOutputs', ME.identifier)
+      cancel = 1;
+   else
+      runtimeErrorHandler(ME,'message', 'Something went wrong setting the parameters.');
+   end
+end
 
 % if merging templates, user must select template ID now we know how
 % many they want to merge (can't do simultaneously)
@@ -819,10 +827,13 @@ end
 
 % --- Executes on button press in run_tool_button.
 function run_tool_button_Callback(hObject, eventdata, handles)
+
 mouseWaitingFunction(handles.figure1,@run_tool,hObject,eventdata,handles);
 end
 
 function run_tool(hObject, eventdata, handles)
+tic;
+
 % Implement the tool using the method & params requested
 tool_list     = get(handles.tool_list, 'String');
 tool_num      = get(handles.tool_list, 'Value');
@@ -1007,6 +1018,11 @@ switch lower(type)
             else
                % gotta be cheeky getting time since we can plot spikes
                % consecutively to make it easier to see how they change
+               for j = 1:size(APspikes,2)
+                  if size(APspikes{j},1) > size(voltage_tseries.time,1)
+                     APspikes{j} = APspikes{j}(1:size(voltage_tseries.time,1),1);
+                  end
+               end
                new_tseries.time = voltage_tseries.time( 1:size(APspikes{1}, 1) );
             end
             new_tseries.dt      = voltage_tseries.dt;
@@ -1090,7 +1106,7 @@ switch lower(type)
       return;
       
 end
-
+elapsed = toc;fprintf('\t%0.4f seconds\n', elapsed);
 try
    name = getFileName(instruct, tool_str, 60);
 catch E
@@ -2247,7 +2263,7 @@ function toggleZoomButton_CreateFcn(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
    warning('off','MATLAB:imagesci:png:libraryWarning'); % Ignore PNG associated warning
-   [x,map]=imread('fig/magnifierIcon.png'); % Load the zoom icon
+   [x,map]=imread('./fig/magnifierIcon.png'); % Load the zoom icon
    I2=imresize(x, [22 22]); % Resize icon
    hObject.CData = I2; % Assign icon to the button
    hObject.BackgroundColor = [1 0.6 0.6]; % Change color to match other buttons

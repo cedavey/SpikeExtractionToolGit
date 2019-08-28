@@ -8,7 +8,11 @@
 function [APspikes, APtimes, APfamilies] = extractSpikesUsingKmeans(tseries, method_params, debugOption)
 % error('This function hasn''t been finished');
    [spikes, stimes, ~] = getSpikesByThresholding(tseries, method_params);
-   [APfamilies, APtimes] = getKmeansClusters(spikes,stimes, debugOption, [10 100]);
+   if method_params.no_clusters.value > 0
+      [APfamilies, APtimes] = getKmeansClusters(spikes,stimes, debugOption, method_params.no_clusters.value);
+   else
+      [APfamilies, APtimes] = getKmeansClusters(spikes,stimes, debugOption, [3 30]);
+   end
    
    % Get peakN (index of peak value
    [~, idx] = max(APfamilies{1}{1}.spikes');
@@ -44,9 +48,9 @@ function [APspikes, APtimes, APfamilies] = extractSpikesUsingKmeans(tseries, met
                sind(sind == 0) = [];
                fam_tseries(abs(sind),ff) = fam{ff}.spikes(:);
                if size(fam{ff}.stimes,1) == 1
-                  fam_stimes{ff}  = fam{ff}.stimes(1,peakN);
+                  fam_stimes{ff}  = fam{ff}.stimes(:,peakN);
                else
-                  fam_stimes{ff}  = fam{ff}.stimes(peakN,:);
+                  fam_stimes{ff}  = fam{ff}.stimes(:,peakN);
                end
             end
             APspikes{ti} = fam_tseries;
