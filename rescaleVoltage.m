@@ -270,7 +270,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
 
          % Check for + and - duration of peak to assess wether it should be
          % considered a spike.
-         min_pos_time = 5; % Samples. We can make it a user chosen parameter
+         min_pos_time = 7; % Samples. We can make it a user chosen parameter
          min_neg_time = 5; % Samples. We can make it a user chosen parameter
          sp_too_short = isSpikeTooShort(vsp, peakfn, min_pos_time, min_neg_time);
          while sp_too_short

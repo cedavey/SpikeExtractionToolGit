@@ -89,8 +89,8 @@ function params = calculateAutomaticParams(tseries, noisestd, params)
    
    % Chose automatic parameters based on spike rate and SNR. The factors
    % are arbitrary, but they can be updated.
-   params.voltage_magnitude.value = sqrt(SNR); % Spike threshold is half of the signal to noise ratio
-   params.glitch_magnitude.value = 3 * SNR; % Glitch threshold is twice the signal to noise ratio
+   params.voltage_magnitude.value = sqrt(SNR); % Spike threshold is the sqrt of the signal to noise ratio
+   params.glitch_magnitude.value = 2 * SNR; % Glitch threshold is twice the signal to noise ratio
    params.forgetting_factor.value = 0.99; % This has proved to be the best value
    %params.jump_ahead.value = 500/sp_rate;
    params.jump_ahead.value = 10/(sp_rate * median(spike_amp/max(spike_amp))); % max(0.5/(sp_rate * var(spike_amp)), 0.5);

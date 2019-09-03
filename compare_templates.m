@@ -35,8 +35,16 @@ function [vpos, vneg] = divide_templates(v)
    for ii = 1:size(v,2)
       [~, k] = max(v(:,ii));
       d = diff(v(:,ii) > 0);
-      i = find(d(1:k) == 1,1, 'last');
-      j = find(d(k:end) == 1,1, 'first') + k;
+      try
+         i = find(d(1:k) == 1,1, 'last');
+         j = find(d(k:end) == 1,1, 'first') + k;
+      catch E
+         if strcmp('MATLAB:badsubscript', E.identifier)
+            k = numel(d) - 1;
+            i = find(d(1:k) == 1,1, 'last');
+            j = find(d(k:end) == 1,1, 'first') + k;
+         end
+      end
       v(1:i, ii) = 0;
       v(j:end, ii) = 0;
    end

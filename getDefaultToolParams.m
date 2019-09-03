@@ -188,7 +188,7 @@ function params = getDefaultToolParams
          voltage.denoise.threshold.min_positive_duration.type                   = 'positive float';
          voltage.denoise.threshold.min_positive_duration.units                  = 'ms'; % was \mu s for us coz dialogue has tex interpreter
 
-         voltage.denoise.threshold.min_negative_duration.value                  = 0.1;
+         voltage.denoise.threshold.min_negative_duration.value                  = 5;
          voltage.denoise.threshold.min_negative_duration.name                   = 'min negative duration';
          voltage.denoise.threshold.min_negative_duration.descript               = 'min consecutive duration of negative voltages to be retained';
          voltage.denoise.threshold.min_negative_duration.type                   = 'positive float';
