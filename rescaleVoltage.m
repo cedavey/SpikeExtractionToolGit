@@ -220,6 +220,11 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
       % instead of noise.
       if ~exist('newglitchth', 'var') || isempty(newglitchth)
          newglitchth = glitchthresh * noisesig;
+         glitch_plot = [newglitchth currt];
+      end
+      % Store newglitchth if we are plotting in debug option
+      if ~contains( debug, 'no', 'ignorecase', true )
+         glitch_plot = [glitch_plot; [newglitchth currt]];
       end
       % This has to be checked in a loop cause when one of them happens, the
       % current spike is updated to the next spike, so thresholds and
@@ -566,9 +571,10 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
          plot(tpeak_vec, Rest_vec,  'm',  'linewidth', 3);
          plot(tpeak_vec, noise_vec * voltoutlier,  'r');
          plot(tpeak_vec, -noise_vec * voltoutlier,  '--r');
-         plot(tpeak_vec, noise_vec * glitchthresh, 'g');
-         plot(tpeak_vec, noise_vec * params.glitch_magnitude.value, 'r');
-         plot(tpeak_vec, -noise_vec * glitchthresh, '--r');
+         % plot(tpeak_vec, noise_vec * glitchthresh, 'g');
+         % plot(tpeak_vec, noise_vec * params.glitch_magnitude.value, 'r');
+         plot(glitch_plot(:,2) .* dt, glitch_plot(:,1));
+         % plot(tpeak_vec, -noise_vec * glitchthresh, '--r');
          legend('Voltage', 'V peaks', 'R estimate', 'Th+', 'Th-');
          if numel(tpeak_vec) > 1, xlim( [ tpeak_vec(1) tpeak_vec(end) ] );end
       catch ME
