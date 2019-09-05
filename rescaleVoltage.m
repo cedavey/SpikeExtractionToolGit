@@ -15,10 +15,10 @@
 
 function [rescaled_voltage, Rest, params] = rescaleVoltage(tseries, method, params, varargin)
    % methods: 'Variance', 'Particle filter', 'Recursive least squares', 'Recursive mean'
-   
+
    % Check if options input variable exist
    if nargin > 3, opts = varargin{1}; else, opts = []; end
-   
+
    switch lower(method)
       case 'variance'
          rescaled_voltage = rescaleVoltageVariance(tseries, params, opts);
@@ -84,7 +84,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
          params.select_peaks.value = select_peaks; % Restore the value (This is not chosen automatically)
       end
    end
-   
+
    voltoutlier  = params.voltage_magnitude.value;
    glitchthresh = params.glitch_magnitude.value;
    select_peaks = params.select_peaks.value;
@@ -95,7 +95,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    nzeros = 2;     % includes the dc component
    nlags  = max(nzeros, npoles+1);
    jumpahead = round( jumpahead / dt ); % convert jump ahead from time into samples
-   
+
    tnow = datetime('now');
    str = sprintf("\tStarted rescaling, method %s, spikethresh %i, glitchthresh %i, jump ahead %g s, at %s\n", ...
       method, voltoutlier, glitchthresh, jumpahead*dt, datestr(tnow));
@@ -111,7 +111,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    vstd     = std( vspike );
    pf       = initpf(Rest, Rstd, npoles); % initialise particle filter with initial resistance
    Rvar     = Rstd^2;
-   
+
    % Particle filtering equations:
    % - predict:  R(t_sp) = a * R(t_prevsp) * (t_sp - t_prevsp) + e(t)
    % - correct:  P(y(t)) ~ N( R, Rsig )
@@ -167,7 +167,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
          printMessage('off','Text', str);
          prevProg = 10*floor(currt/nT*10);
       end
-      
+
       %% Shifting the 'noise period' until a reasonable number of samples contain white noise
       % find where noise ends - update est of noise mean & std dev
       startsp = find( peakfn(v( currt:end) ) >= noisethresh, 1, 'first' );
@@ -176,7 +176,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
          break;
       end
       prevt  = currt;               % copy current time before it's updated
-      pprevt = [pprevt(end) prevt]; 
+      pprevt = [pprevt(end) prevt];
       currt  = currt + startsp - 1; % update current time to where next spike is
       % if start of spike is 1st index then prevt==currt & we get stuck
       currt  = ternaryOp( prevt==currt, currt+1, currt );
@@ -216,6 +216,16 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
       [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
       % Flag to re-check spike is within thresholds and it is not too short
       confirm_is_spike = true;
+      % Use the new glitch thresrhold that depends on spike amplitude,
+      % instead of noise.
+      if ~exist('newglitchth', 'var') || isempty(newglitchth)
+         newglitchth = glitchthresh * noisesig;
+         glitch_plot = [newglitchth currt];
+      end
+      % Store newglitchth if we are plotting in debug option
+      if ~contains( debug, 'no', 'ignorecase', true )
+         glitch_plot = [glitch_plot; [newglitchth currt]];
+      end
       % This has to be checked in a loop cause when one of them happens, the
       % current spike is updated to the next spike, so thresholds and
       % duration have to be checked again.
@@ -237,7 +247,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
             end
             prevt   = currt + startsp - 1; % update current time to where next spike is
             [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
-                        
+
             if auto_params
                if(countLoops > 4)
                   glitchthresh = 1.25 * glitchthresh;
@@ -341,7 +351,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
                % Rest, which seems to be wrong. Fill Rest_vec with Rcurr,
                % which is the first value that seems alright.
                if firstRun == 1, Rest_vec = ones(size(Rest_vec))*Rcurr; firstRun = 0;end
-                  
+
                % if not modelling change in resistance as linear
                % regression then force it to change slowly
 %                Rest  = Rprev*lambda + Rcurr*(1-lambda);
@@ -377,7 +387,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
                || ( Rcurr <= 0 )
             [Rest, Rcoeff, Rmu, Rstd, Rcov] = initRegress(tpeak_vec(nP-prevpeaks+1:nP) - time(currt), ...
                vpeak_vec(nP-prevpeaks+1:nP), lambda, npoles, nzeros, debug);
-            Rcurr = Rest(end);            
+            Rcurr = Rest(end);
             Rcoeff_vec(nP,:) = Rcoeff;
             % counter to not allow regression reset for a bit else we come back next timestep
             timeinpiece = 0;
@@ -399,7 +409,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
       else % still getting init samples of Rest to enable modelling
          Rest_vec(nP,1) = Rest(end);
       end
-      
+
       % update vectors
       if contains( debug, 'semi', 'ignorecase', true )
          vstd_vec(nP,1)   = vstd;
@@ -416,7 +426,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
             Rcoeff_vec(nP,:) = Rcoeff;
          end
       end
-      
+
       % Rescale in semi-real time (every JA). If using it to rescale in
       % semi-real time, we need to save all the Rest_vec and tpeak_vec in
       % order to plot.
@@ -427,7 +437,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
             rscltstart = pprevt(1); % Beginning of the period of time to rescale in this loop
             rscltend = pprevt(end); % End of the period of time to rescale in this loop
             if rscltend > length(time), rscltend = length(time); end % Test if we've reached the end of the recording
-            if numel(tpeak_vec) > 1 
+            if numel(tpeak_vec) > 1
                Rest_vec_realtime = Rest_vec(end -1 : end); % Resistance estimate between the last two found largest spikes
                tpeak_vec_realtime = tpeak_vec(end -1 : end); % Time of the two last found largest spikes
             else
@@ -441,7 +451,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
             % It will rescale from the zero cross before the spike, instead
             % of using the acutal index of the peak, because that would
             % change the shape of the spikes.
-            if numel(tpeak_vec) > 1 
+            if numel(tpeak_vec) > 1
                rscltstart = find(time == tpeak_vec(end-1),1,'first'); % Beginning of the period of time to rescale in this loop. It is the index of the second last peak
                Rest_vec_realtime = Rest_vec(end - 1 : end); % Resistance estimate between the last two found largest spikes
                tpeak_vec_realtime = tpeak_vec(end - 1 : end); % Time of the two last found largest spikes
@@ -452,7 +462,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
                Rest_vec_realtime = Rest_vec;
                tpeak_vec_realtime = tpeak_vec;
             end
-                        
+
             % Find the index of the closest positive transition before the
             % second last peak (rscltstart).
             try
@@ -475,14 +485,14 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
             if (isempty(rscltstart)||rscltstart < 0), rscltstart = pprevt(1); end
             if (isempty(rscltend) || rscltend > currt), rscltend = currt; end % Test if we've reached the end of the section
       end
-      
+
       if ~strcmp('at_end',rescaling_method)
          % Rescale
          [vv, ~, ~] = doRescale(v( rscltstart:rscltend ),...
             tpeak_vec_realtime, Rest_vec_realtime,...
             time( rscltstart:rscltend ));
          vrescale(rscltstart:rscltend) = vv;
-         
+
          % Plot the last rescaled section. (If debug is full)
          if strcmp('full',debug)
             figure(1);
@@ -528,7 +538,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
          % Update the index where Rest changes
          tpeak_vec(end) = rscltend * dt;
       end
-      
+
    end
    % Close progress window
    if progress_window
@@ -557,9 +567,10 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
          plot(tpeak_vec, Rest_vec,  'm',  'linewidth', 3);
          plot(tpeak_vec, noise_vec * voltoutlier,  'r');
          plot(tpeak_vec, -noise_vec * voltoutlier,  '--r');
-         plot(tpeak_vec, noise_vec * glitchthresh, 'g');
-         plot(tpeak_vec, noise_vec * params.glitch_magnitude.value, 'r');
-         plot(tpeak_vec, -noise_vec * glitchthresh, '--r');
+         % plot(tpeak_vec, noise_vec * glitchthresh, 'g');
+         % plot(tpeak_vec, noise_vec * params.glitch_magnitude.value, 'r');
+         plot(glitch_plot(:,2) .* dt, glitch_plot(:,1));
+         % plot(tpeak_vec, -noise_vec * glitchthresh, '--r');
          legend('Voltage', 'V peaks', 'R estimate', 'Th+', 'Th-');
          if numel(tpeak_vec) > 1, xlim( [ tpeak_vec(1) tpeak_vec(end) ] );end
       catch ME
@@ -593,7 +604,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
 
    % Moved this bit of code to function 'doRescale' so we can use the
    % function recursively and rescale in semi-real time (every JA).
-   
+
    % interp doesn't like going outside the input timebounds, so pad Rest
    % with end results & pad time to avoid getting NaNs (changes slowly so ok)
    if strcmp('at_end',rescaling_method)
@@ -610,7 +621,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
       end
       Rest_vec  = interp1( tpeak_vec, Rest_vec, time );
    end
-   
+
    tnow = datetime('now');
    str = sprintf("\tFinished rescaling at %s\n", datestr(tnow));
    printMessage('off', 'Keywords', str);
@@ -646,12 +657,12 @@ function [vrescale, Rest_vec, tpeak_vec] = doRescale(v, tpeak_vec, Rest_vec, tim
       tpeak_vec = [tpeak_vec(:); time(end)];
       Rest_vec  = [Rest_vec(:); Rest_vec(end)];
    end
-   
+
    % Remove zeros
    zidx = tpeak_vec == 0;
    tpeak_vec(zidx) = [];
    Rest_vec(zidx) = [];
-   
+
    Rest_vec  = interp1( tpeak_vec, Rest_vec, time );
    vrescale  = v(:) ./ Rest_vec(:);
 end
@@ -685,7 +696,7 @@ function [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethres
 
    % prevt   = prevt + find( peakfn(v(prevt+jump:end)) < noisethresh, 1, 'first');
    tnoise  = find( peakfn(v(prevt+jump:end)) < noisethresh, 1, 'first');
-   
+
    % if there's no noise before the end of the sample, jump to the end
    jump    = jump + ternaryOp( isempty( tnoise ), numel(v(prevt+jump:end)), tnoise );
    endsp   = jump - 1;
@@ -726,7 +737,7 @@ function [mu_curr, sig_curr, mse_curr, N_curr, is_noise, returned_noise] = updat
    % samples like we did in initNoiseStdDev (actually using same function).
    % If can't find at least 30 samples (or the length of the new_noise
    % signal), then use the whole new_noise. See what to do in that case.
-   
+
    % If new_noise contains too few samples, mantain the previous noise
    % value.
    is_noise = true;
@@ -752,7 +763,7 @@ function [mu_curr, sig_curr, mse_curr, N_curr, is_noise, returned_noise] = updat
             % the whole signal new_noise as if it was actual noise.
 %             str = sprintf('\tCouldn''t find at least %d samples of white noise. %d \n', min_noise, N_prev + length(new_noise));
 %             printMessage('off','Errors',str);
-            
+
             is_noise = false;
             mu_curr = mu_prev;
             sig_curr = sig_prev;
@@ -771,10 +782,10 @@ function [mu_curr, sig_curr, mse_curr, N_curr, is_noise, returned_noise] = updat
 %             [~, ~, ~, nn] = initNoiseStdDev(new_noise, 'none', 10, 0.15);
          else
             runtimeErrorHandler(E);
-         end 
+         end
       end
    end
-      
+
    recursive = true;
    N_curr    = N_prev + length( new_noise );
 
@@ -796,7 +807,7 @@ function [mu_curr, sig_curr, mse_curr, N_curr, is_noise, returned_noise] = updat
          mse_prev = mse_curr;
       end
    else
-      % ASSUMES NOISE IS STATIONARY 
+      % ASSUMES NOISE IS STATIONARY
       % normal mean/sig estimates in real time
       mu_curr  = ( mu_prev * N_prev + sum( new_noise ) ) / N_curr;
       mse_curr = mse_prev + (sum(new_noise) - mu_curr)*(sum(new_noise) - mu_prev); % mse_curr = mse_prev + sum( (new_noise - mu_curr) .* (new_noise - mu_prev) );
@@ -883,7 +894,7 @@ function [Rest, Rcoeff, Rmu, Rsig, Rcov] = initRegress(tspike, vspike, lambda, n
       printMessage('off', 'Errors', str );
       return;
    end
-   
+
    a      =  Rcoeff(2:npoles+1)'; % autoregression coeffs
    b      = [Rcoeff(1) Rcoeff(p+2:(p+nzeros))']; % DC + input coeffs
 
@@ -1064,7 +1075,7 @@ function [noisemu, noisesig, nS, noiseVector] = initNoiseStdDev(v, varargin)
    nS = min(minimumSamples, (length(v) - 1)); % Initial num of samples
    firstS = 1; % Subset starts at this sample
    vtmp = v(firstS : firstS + nS);
-   
+
    if numel(vtmp) == 1
       % input only has 1 sample. Can't check if it's white noise.
       noisemu = vtmp;
@@ -1073,7 +1084,7 @@ function [noisemu, noisesig, nS, noiseVector] = initNoiseStdDev(v, varargin)
       noiseVector = vtmp;
       return
    end
-   
+
    while ~iswhite(vtmp, 'lb', alpha, 3)
       % Start with a short number of samples (i.e. 30), if it doesn't
       % evaluate as not-white, shift the window 30 samples ahead.
@@ -1117,7 +1128,7 @@ function [noisemu, noisesig, nS, noiseVector] = initNoiseStdDev(v, varargin)
       str = sprintf('\tWhite noise initialization included %d samples, starting in sample number %d \n', nS, firstS);
       printMessage('off','Text', str);
    end
-   
+
    noisesig =  std( v(firstS : firstS + nS) );
    noisemu  = mean( v(firstS : firstS + nS) );
    noiseVector = v(firstS : firstS + nS);
