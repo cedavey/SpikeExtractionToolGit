@@ -216,6 +216,11 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
       [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
       % Flag to re-check spike is within thresholds and it is not too short
       confirm_is_spike = true;
+      % Use the new glitch thresrhold that depends on spike amplitude,
+      % instead of noise.
+      if ~exist('newglitchth', 'var') || isempty(newglitchth)
+         newglitchth = glitchthresh * noisesig;
+      end
       % This has to be checked in a loop cause when one of them happens, the
       % current spike is updated to the next spike, so thresholds and
       % duration have to be checked again.
@@ -226,7 +231,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
          confirm_is_spike = false;
          % if this peak is crazy big assume it's a glitch so move to next spike
          countLoops = 0; % Checking how often it enters this loop
-         while max( peakfn(vsp) ) > glitchthresh * noisesig
+         while max( peakfn(vsp) ) > newglitchth
             countLoops = countLoops + 1;
             % move on to next large amplitude event
             startsp = find( peakfn(v( currt:end) ) >= noisethresh, 1, 'first' );
@@ -240,8 +245,8 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
                         
             if auto_params
                if(countLoops > 4)
-                  glitchthresh = 1.25 * glitchthresh;
-                  str = sprintf('\tNew glitch Th: %d\n',glitchthresh);
+                  newglitchth = 1.25 * newglitchth;
+                  str = sprintf('\tNew glitch Th: %d\n',newglitchth);
                   printMessage('off', 'Text', str);
                end
             else
@@ -306,6 +311,10 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
       % update voltage std dev
       [vmu, vvar] = recursiveUpdate( vmu, vstd^2, lambda, vpeak );
       vstd = sqrt( vvar );
+      
+      % Now that we have a peak, we can change the glitch threshold to
+      % depend on the value of the peaks, rather than the noise.
+      newglitchth = 1.2 * max(vpeak_vec);
 
       % if we have at least 2 voltage peaks, update state estimate
       if length( tpeak_vec ) > (nlags+1)
