@@ -450,7 +450,7 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.match_similarity.type            = 'normalised float';
          voltage.extract_spikes.matched_filter.match_similarity.units           = '\in [0, 1]';
 
-         voltage.extract_spikes.matched_filter.ap_peak_change.value             = 20;
+         voltage.extract_spikes.matched_filter.ap_peak_change.value             = 60;
          voltage.extract_spikes.matched_filter.ap_peak_change.name              = 'AP peak change';
          voltage.extract_spikes.matched_filter.ap_peak_change.descript          = 'how quickly can AP peak magnitude change with time';
          voltage.extract_spikes.matched_filter.ap_peak_change.type              = 'percentage';
@@ -622,7 +622,7 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.match_similarity.type                 = 'normalised float';
          ap.extract_spikes.matched_filter.match_similarity.units                = '\in [0, 1]';
 
-         ap.extract_spikes.matched_filter.ap_peak_change.value                  = 20;
+         ap.extract_spikes.matched_filter.ap_peak_change.value                  = 60;
          ap.extract_spikes.matched_filter.ap_peak_change.name                   = 'AP peak change';
          ap.extract_spikes.matched_filter.ap_peak_change.descript               = 'how quickly can AP peak magnitude change with time';
          ap.extract_spikes.matched_filter.ap_peak_change.type                   = 'percentage';

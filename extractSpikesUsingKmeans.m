@@ -6,7 +6,7 @@
 %
 % Created by Artemio - 24/June/2019
 function [APspikes, APtimes, APfamilies] = extractSpikesUsingKmeans(tseries, method_params, debugOption)
-% error('This function hasn''t been finished');
+
    [spikes, stimes, ~] = getSpikesByThresholding(tseries, method_params);
    if method_params.no_clusters.value > 0
       [APfamilies, APtimes] = getKmeansClusters(spikes,stimes, debugOption, method_params.no_clusters.value);

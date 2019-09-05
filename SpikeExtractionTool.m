@@ -901,7 +901,7 @@ switch lower(type)
             
          case 'identify ap templates'
             % get time series to apply AP templates to
-            [APtemplates, APfamily] = identifyAPs(tseries, method, method_params,  handles.options.debugOption);
+            [APtemplates, APfamily] = identifyAPs(tseries, method, method_params,  handles.options);
             if isempty(APtemplates)
                return;
             end
@@ -945,7 +945,7 @@ switch lower(type)
                end
                APnumsamples        = cellfun(@(f) size(f,2), APfamily);
                normAPs             = method_params.normalise_aps.value; % separate for when gen APs separately
-               [APspikes,APtimes]  = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, method_params, normAPs );
+               [APspikes,APtimes]  = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, method_params, normAPs, handles.options);
                new_tseries.type    = 'spike';
                new_tseries.data    = APspikes;
                new_tseries.time    = tseries.time;
@@ -1004,7 +1004,7 @@ switch lower(type)
             % get number of samples that each AP template is estimated from
             APnumsamples        = cellfun(@(f) size(f,2), tseries.APfamily);
             [APspikes, APstimes]= ...
-               extractSpikesUsingTemplates(APtemplates, APnumsamples, voltage_tseries, method, method_params, normAPs);
+               extractSpikesUsingTemplates(APtemplates, APnumsamples, voltage_tseries, method, method_params, normAPs, handles.options);
             if isempty(APspikes)
                return;
             end

@@ -20,7 +20,17 @@
 %                template, and within the cell another cell for each
 %                family, and within that cell an array of peak times for
 %                each spike within that family
-function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, params, normAPs )
+function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, params, normAPs ,opts)
+   
+   if opts.auto_params
+      % Get auto params
+      pp = getAutomaticParams(tseries, [], 'extractspikes', method, params);
+      % If returned value is empty, leave the default parameters untouched
+      if ~isempty(pp)
+         params = pp;
+      end
+   end
+
    APspikes  = [];  APtimes = [];
    [nT, nAP] = size(APtemplates); % num samples in each template, & num templates
    orig_nAP  = nAP; % if allowing new templates, record how many we started with
@@ -93,7 +103,10 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                % aligned
                rho = zeros( nAP, 1 );
                for ap=1:nAP
-                  [c, lags] = xcorr( curr_spike, APtemplates(:,ap), 2, 'normalized' );
+                  % Replaced the option 'normalized' with 'coeff' to ensure
+                  % compatibility with older versions. New versions accept
+                  % both.
+                  [c, lags] = xcorr( curr_spike, APtemplates(:,ap), 2, 'coeff');
                   % use max autocorr
                   rho(ap) = max( abs(c) );
                end

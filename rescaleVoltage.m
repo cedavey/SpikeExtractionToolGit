@@ -75,7 +75,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    [noisemu, noisesig, initialNoiseSamples]   = initNoiseStdDev(v, debug);      % init noise std to identify spikes
    if auto_params
       % Get auto params
-      pp = getAutomaticParams(tseries, noisesig, method, params);
+      pp = getAutomaticParams(tseries, noisesig, 'rescale', method, params);
       % Save the select_peaks parameter (positive or negative)
       select_peaks = params.select_peaks.value;
       % If returned value is empty, leave the default parameters untouched

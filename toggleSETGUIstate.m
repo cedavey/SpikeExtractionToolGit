@@ -32,6 +32,16 @@ function handles = toggleSETGUIstate(handles,state)
 %  AP templates
 %    ap_title        - title for AP template family panel
 %    curr_ap_family  - name of current AP template family to display
+
+   % Check MATLAB's version
+   v = ver('matlab');
+   % Check if version is older than 2018b
+   if str2double(v.Version) >= 9.5
+       MLvers = 'current';
+   else
+       MLvers = 'old';
+   end
+
    if isfield(handles,'data') && handles.data.num_tseries>0
       data = handles.data;
       haveData = true;
@@ -94,15 +104,18 @@ function handles = toggleSETGUIstate(handles,state)
    
    switch state
       case 'on'
+         % Check Matlab version. Newer versions require true/false, whereas
+         % older versions require 'on'/'off'
+         if strcmp('current', MLvers), ctrl = true; else, ctrl = 'on'; end
          % Right click menu
-         handles.addVoltageMenu.Enable = true;
-         handles.clearVoltageMenu.Enable = true;
+         handles.addVoltageMenu.Enable = ctrl;
+         handles.clearVoltageMenu.Enable = ctrl;
          % Menu Bar
-         handles.addVoltageMenuBar.Enable = true;
-         handles.clearMenuBar.Enable = true;
-         handles.plotNewFigMenuBar.Enable = true;
-         handles.accessVoltageMenuBar.Enable = true;
-         handles.saveVoltageMenuBar.Enable = true;
+         handles.addVoltageMenuBar.Enable = ctrl;
+         handles.clearMenuBar.Enable = ctrl;
+         handles.plotNewFigMenuBar.Enable = ctrl;
+         handles.accessVoltageMenuBar.Enable = ctrl;
+         handles.saveVoltageMenuBar.Enable = ctrl;
          % Slide bar update:
          handles.time_slider.Value = handles.data.zoomPercentage(1);
          handles.voltage_slider.Value = handles.data.zoomPercentage(2);
@@ -150,15 +163,16 @@ function handles = toggleSETGUIstate(handles,state)
          end
          
       case 'off'
+         if strcmp('current', MLvers), ctrl = false; else, ctrl = 'off'; end
          % Right click menu
-         handles.addVoltageMenu.Enable = false;
-         handles.clearVoltageMenu.Enable = false;
+         handles.addVoltageMenu.Enable = ctrl;
+         handles.clearVoltageMenu.Enable = ctrl;
          % Menu Bar
-         handles.addVoltageMenuBar.Enable = false;
-         handles.clearMenuBar.Enable = false;
-         handles.plotNewFigMenuBar.Enable = false;
-         handles.accessVoltageMenuBar.Enable = false;
-         handles.saveVoltageMenuBar.Enable = false;
+         handles.addVoltageMenuBar.Enable = ctrl;
+         handles.clearMenuBar.Enable = ctrl;
+         handles.plotNewFigMenuBar.Enable = ctrl;
+         handles.accessVoltageMenuBar.Enable = ctrl;
+         handles.saveVoltageMenuBar.Enable = ctrl;
          
          set(handles.tool_list,  'String',  []);
          set(handles.tool_list,  'Value',   1);
