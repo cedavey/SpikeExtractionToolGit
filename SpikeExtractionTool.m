@@ -914,6 +914,8 @@ switch lower(type)
             % get time series to apply AP templates to
             [APtemplates, APfamily] = identifyAPs(tseries, method, method_params,  handles.options);
             if isempty(APtemplates)
+               str = sprintf('\tNo templates could be identified.\n');
+               printMessage('off', 'Error', str);
                return;
             end
             new_tseries.type    = 'ap';
@@ -1194,6 +1196,11 @@ if isempty(sname)
 end
 
 var_name = title2Str(ts_name,1,1,'_');
+% Check variable name size:
+if length(sname) > 50
+   var_name = var_name(end - 50 : end);
+   sname = sname(end - 50 : end);
+end
 eval_str = [sname ' = tseries;'];
 eval(eval_str);
 
