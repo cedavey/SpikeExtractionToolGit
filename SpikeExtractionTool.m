@@ -135,7 +135,7 @@ function varargout = SpikeExtractionTool(varargin)
 
 % Edit the above text to modify the response to help SpikeExtractionTool
 
-% Last Modified by GUIDE v2.5 24-Jul-2019 17:32:01
+% Last Modified by GUIDE v2.5 09-Sep-2019 13:41:29
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -224,10 +224,15 @@ guidata(hObject, handles);
 %                 cprintf('Keyword',str);
 % try:
 %                 printMessage('off','Keyword',str);
-fid = fopen('./log_all.log', 'a'); % Opens log file to append this session's string
+
+% Get location of log files
+a = which('SpikeExtractionTool');
+locs = strfind(a, '\');
+path = a(1:locs(end));
+fid = fopen([path 'log_all.log'], 'a'); % Opens log file to append this session's string
 fprintf(fid, '\n\n-------------- %s @ %s | %s ---------------\n', getenv('Username'),getenv('UserDomain'),datestr(now, 0));
 fclose(fid); % Close log file
-diary('log_all.log'); % Activates the diary function, i.e. save all the activity into a file.
+diary([path 'log_all.log']); % Activates the diary function, i.e. save all the activity into a file.
 end
 
 % --- Executes when user attempts to close figure1.
@@ -599,7 +604,10 @@ dlg_name     = [tool ' using ' method];
 if strcmpi(tool, 'extract spikes')  && strcmpi(method, 'matched filter')
    if ~strcmpi(data_type, 'voltage')
       types     = getStructFieldFromCell(handles.data.tseries, 'type');
-      names     = getStructFieldFromCell(handles.data.tseries, 'name');
+      % names     = getStructFieldFromCell(handles.data.tseries, 'name');
+      % Previous line was causing an error when two voltages had same name
+      % but different sufix.
+      names = handles.data.tseries_str;
       isvoltage = strcmpi('voltage', types);
       
       if sum(isvoltage)==0
@@ -634,6 +642,9 @@ if strcmpi(tool, 'extract spikes')  && strcmpi(method, 'matched filter')
          method_params.voltage_timeseries = voltage_timeseries;
       end
    end
+elseif strcmpi(tool, 'export to excel')  && strcmpi(method, 'spike rate and count')
+   displayErrorMsg('There are no parameters for this tool');
+   return;
 end
 
 try
@@ -831,9 +842,9 @@ function run_tool_button_Callback(hObject, eventdata, handles)
 mouseWaitingFunction(handles.figure1,@run_tool,hObject,eventdata,handles);
 end
 
-function run_tool(hObject, eventdata, handles)
+function varargout = run_tool(hObject, eventdata, handles)
 tic;
-
+varargout = {};
 % Implement the tool using the method & params requested
 tool_list     = get(handles.tool_list, 'String');
 tool_num      = get(handles.tool_list, 'Value');
@@ -984,9 +995,17 @@ switch lower(type)
             % if user hasn't set parameters explicitly they wouldn't
             % have chosen a voltage timeseries to apply the AP templates to
             if ~isfield(method_params, 'voltage_timeseries')
-               str = 'Set parameters to choose a voltage timeseries to match the AP templates to';
-               displayErrorMsg(str);
-               return;
+               % Only do this if Batch is not selected
+               if ~(isfield(handles.options, 'isBatch') && handles.options.isBatch)
+                  str = 'Set parameters to choose a voltage timeseries to match the AP templates to';
+                  displayErrorMsg(str);
+                  return;
+               else
+                  method_params.voltage_timeseries = struct;
+                  method_params.voltage_timeseries.value = handles.data.tseries{end-1}.name;
+                  method_params.voltage_timeseries.name = 'voltage timeseries';
+                  method_params.voltage_timeseries.type = 'string';
+               end
             end
             voltage_name        = method_params.voltage_timeseries;
             voltage_index       = strcmpi(voltage_name.value, handles.data.tseries_str);
@@ -1092,6 +1111,14 @@ switch lower(type)
             tool_str            = [tseries.name '_spikes'];
             instruct            = ['Creating ' tool_str ': rename?'];
             
+         case 'export to excel'
+            try
+               exportToExcel(tseries);
+            catch E
+               str = sprintf('\tAn unexpected error occurred while creating the excel file.\n');
+               runtimeErrorHandler(E, 'message', str);
+            end
+            return;
          otherwise
       end
       
@@ -1108,7 +1135,11 @@ switch lower(type)
 end
 elapsed = toc;fprintf('\t%0.4f seconds\n', elapsed);
 try
-   name = getFileName(instruct, tool_str, 60);
+   if isfield(handles.options, 'isBatch') && handles.options.isBatch
+      name = tool_str;
+   else
+      name = getFileName(instruct, tool_str, 60);
+   end
 catch E
    if strcmp('MATLAB:inputdlg:InvalidInput',E.identifier)
       runtimeErrorHandler(E,'ignore');
@@ -1144,13 +1175,20 @@ set(handles.curr_signal, 'Value',  new_numtseries);
 guidata(handles.run_tool_button,handles); % saves the change to handles
 curr_signal_Callback(handles.curr_signal, [], handles);
 
+if isfield(handles.options, 'isBatch') && handles.options.isBatch
+   guidata(hObject, handles);
+   varargout = {handles};
+end
 end
 
 % --- Executes on button press in save_voltage.
 function save_voltage_Callback(hObject, eventdata, handles)
 [tseries, ~, type, ts_name] = getCurrentVoltage(handles);
 sname = title2Str(ts_name,1,1); % save name - options remove all punctuation
-sname = getFileName('Name of saved variable in mat file ...', sname, 63);
+if ~(isfield(handles.options, 'isBatch') && handles.options.isBatch)
+   sname = getFileName('Name of saved variable in mat file ...', sname, 63);
+end
+
 if isempty(sname)
    return; % user's cancelled and hasn't provided a variable name
 end
@@ -1159,21 +1197,43 @@ var_name = title2Str(ts_name,1,1,'_');
 eval_str = [sname ' = tseries;'];
 eval(eval_str);
 
-displayErrorMsg( 'If you save into an existing smr file please ignore Matlab''s warning that it will be written over (select yes)' );
+if ~(isfield(handles.options, 'isBatch') && handles.options.isBatch)
+   displayErrorMsg( 'If you save into an existing smr file please ignore Matlab''s warning that it will be written over (select yes)' );
 
-if strcmpi(type,'voltage')
-   filterspec = {'*.mat',  'MAT-files (*.mat)'; ...
-      '*.smr',  'Spike files (*.smr)'; };
+   if strcmpi(type,'voltage')
+      filterspec = {'*.mat',  'MAT-files (*.mat)'; ...
+         '*.smr',  'Spike files (*.smr)'; };
+   else
+      filterspec = {'*.mat'};
+   end
+   [fname, pname, findex] = uiputfile(filterspec, 'Save data as',...
+      fullfile( handles.data.last_dir, sname) );
+
+   if isequal(fname,0) || isequal(pname,0) || findex==0 % (cancelled)
+      return;
+   end
 else
-   filterspec = {'*.mat'};
+   % If its processing batches
+   fname = sname;
+   pname = handles.options.batchPath;
+   findex = 1;
 end
-[fname, pname, findex] = uiputfile(filterspec, 'Save data as',...
-   fullfile( handles.data.last_dir, sname) );
 
-if isequal(fname,0) || isequal(pname,0) || findex==0 % (cancelled)
-   return;
-end
 full_name = fullfile(pname, fname);
+% Check if folder exists
+if ~exist(pname, 'dir')
+   mkdir(pname);
+end
+
+% Check if file exists
+sufix = 0;
+valid_name = full_name;
+while exist([valid_name '.mat'], 'file')
+   sufix = sufix + 1;
+   valid_name = [full_name '_' num2str(sufix)];
+end
+full_name = valid_name;
+
 if findex==1 % .mat
    eval_str  = ['save(full_name, ''' sname ''', ''-v7.3'');'];
    eval(eval_str);
@@ -2263,7 +2323,13 @@ function toggleZoomButton_CreateFcn(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
    warning('off','MATLAB:imagesci:png:libraryWarning'); % Ignore PNG associated warning
-   [x,map]=imread('./fig/magnifierIcon.png'); % Load the zoom icon
+   
+   % Get location of log files
+   a = which('SpikeExtractionTool');
+   locs = strfind(a, '\');
+   path = a(1:locs(end));
+   
+   [x,map]=imread([path 'fig/magnifierIcon.png']); % Load the zoom icon
    I2=imresize(x, [22 22]); % Resize icon
    hObject.CData = I2; % Assign icon to the button
    hObject.BackgroundColor = [1 0.6 0.6]; % Change color to match other buttons
@@ -2320,4 +2386,101 @@ function automatic_params_Callback(hObject, eventdata, handles)
       handles.options.auto_params = false;
    end
    guidata(hObject,handles); % saves changes to handles
+end
+
+
+% --------------------------------------------------------------------
+function batchProcessingMenu_Callback(hObject, eventdata, handles)
+% hObject    handle to batchProcessingMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+   try
+      opts = batchProcessing();
+   catch E
+      if strcmp('No_choice', E.message)
+         str = sprintf('\tBatch process cancelled\n');
+         printMessage('off', 'Error', str);
+         return;
+      else
+         runtimeErrorHandler(E, 'rethrow');
+      end
+   end
+   
+   % Load files
+   for i = 1:numel(opts.files)
+      last_dir = handles.data.last_dir; % keep before we write over it
+      old_numtseries = handles.data.num_tseries;
+      % get rid of all previous data
+      handles = toggleSETGUIstate(handles,'off');
+      handles.data.last_dir = last_dir;
+      data    = handles.data;    % get user data from gui handle
+      [data, success] = openVoltageFile(data, 'batch', opts.path, opts.files(i));
+      data.last_tseries = 1;
+      data.curr_tseries = 1;
+      data.last_tool    = 1;
+      data.curr_tool    = 1;
+
+      if success==0 % if success==0 --> no valid images found or user cancelled
+         displayErrorMsg('No valid voltage data found - please reload');
+         % don't update handles with the data_struct changes
+         return;
+      elseif success==-1
+         if old_numtseries>0 % user cancelled out of open file dialogue
+            displayErrorMsg('Load voltage cancelled, but old data was removed (sorry!)');
+         end
+         return;
+      end
+      % if new data loaded re-enable GUI
+      handles.data = data;
+      handles = toggleSETGUIstate(handles,'on');
+
+      guidata(hObject,handles);   % saves the change to handles
+      set(handles.curr_signal, 'String', data.tseries_str);
+      set(handles.curr_signal, 'Value',  1);
+      % guidata(hObject,handles);
+
+      % curr_signal_Callback doesn't return handles so we have to save handles
+      % manually, then request a fresh copy using guidata
+      curr_signal_Callback(handles.curr_signal, '', handles);
+      
+      % Tool method and params
+      for j = 1:numel(opts.tool)
+         % Implement the tool using the method & params requested
+         set(handles.tool_list, 'String', opts.tool(j));
+         set(handles.tool_list, 'Value', 1);
+         switch opts.tool{j}
+            case 'rescale'
+               method = 'particle filter';
+            case 'denoise'
+               method = 'wavelets';               
+            case 'identify ap templates'
+               method = 'threshold';               
+            case 'extract spikes'
+               method = 'matched filter';          
+            case 'firing rate'
+               method = 'moving average';               
+            otherwise
+               error('Wrong tool selected for batch processing.');
+         end
+         set(handles.method_list, 'String',{method});
+         set(handles.method_list, 'Value', 1);
+         % Automatic parameters will always be true for batch processing
+         handles.options.auto_params = true;
+         handles.options.isBatch = true;
+         handles.options.batchPath = opts.saveFolder;
+         handles.options.debugOption = 'none';
+         
+         try
+            handles = run_tool(hObject, eventdata, handles);
+            % Save all open tseries. These will be all the processed tools on the
+            % current file
+            save_voltage_Callback(hObject, eventdata, handles)
+         catch E
+            str = sprintf('\tBatch processing failed at i = %s, j = %s\n',opts.files{i}, opts.tool{j});
+            runtimeErrorHandler(E, 'message', str);
+            break;
+         end
+      end % Tools and Params <j>
+   end % Files <i>
+   
 end

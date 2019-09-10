@@ -252,7 +252,7 @@ function params = getDefaultToolParams
          voltage.identify_ap_templates.threshold.positive_threshold.type        = 'positive float';
          voltage.identify_ap_templates.threshold.positive_threshold.units       = 'std dev';
          
-         voltage.identify_ap_templates.threshold.negative_threshold.value       = 2;
+         voltage.identify_ap_templates.threshold.negative_threshold.value       = 5;
          voltage.identify_ap_templates.threshold.negative_threshold.name        = 'negative threshold';
          voltage.identify_ap_templates.threshold.negative_threshold.descript    = 'only spikes with a negative voltage of magnitude larger than this considered';
          voltage.identify_ap_templates.threshold.negative_threshold.type        = 'positive float';
@@ -264,7 +264,7 @@ function params = getDefaultToolParams
          voltage.identify_ap_templates.threshold.min_positive_duration.type     = 'positive float';
          voltage.identify_ap_templates.threshold.min_positive_duration.units    = 'ms';
         
-         voltage.identify_ap_templates.threshold.min_negative_duration.value    = 0.2;
+         voltage.identify_ap_templates.threshold.min_negative_duration.value    = 1;
          voltage.identify_ap_templates.threshold.min_negative_duration.name     = 'min negative duration';
          voltage.identify_ap_templates.threshold.min_negative_duration.descript = 'minimum duration for negative component of spike (0 to ignore)';
          voltage.identify_ap_templates.threshold.min_negative_duration.type     = 'positive float';
@@ -289,13 +289,13 @@ function params = getDefaultToolParams
          voltage.identify_ap_templates.threshold.match_type.units               = 'statistic';
          voltage.identify_ap_templates.threshold.match_type.list                = {'corr','cov'};
          
-         voltage.identify_ap_templates.threshold.match_similarity.value         = 0.9;
+         voltage.identify_ap_templates.threshold.match_similarity.value         = 0.8;
          voltage.identify_ap_templates.threshold.match_similarity.name          = 'match similarity';
          voltage.identify_ap_templates.threshold.match_similarity.descript      = 'similarity required for spike shapes to be considered from the same template';
          voltage.identify_ap_templates.threshold.match_similarity.type          = 'normalised float';
          voltage.identify_ap_templates.threshold.match_similarity.units         = '\in [0, 1]';
    
-         voltage.identify_ap_templates.threshold.remove_small_templates.value   = 2;
+         voltage.identify_ap_templates.threshold.remove_small_templates.value   = 100;
          voltage.identify_ap_templates.threshold.remove_small_templates.name    = 'remove small templates';
          voltage.identify_ap_templates.threshold.remove_small_templates.descript= 'remove AP template estimates from this many or less spikes (0 to ignore)';
          voltage.identify_ap_templates.threshold.remove_small_templates.type    = 'positive integer';
@@ -670,7 +670,7 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.allow_new_aps.type                    = 'boolean';
          ap.extract_spikes.matched_filter.allow_new_aps.units                   = 'true or false';
          
-         ap.extract_spikes.matched_filter.min_spiking_threshold.value           = false;
+         ap.extract_spikes.matched_filter.min_spiking_threshold.value           = 100;
          ap.extract_spikes.matched_filter.min_spiking_threshold.name            = 'min spiking threshold';
          ap.extract_spikes.matched_filter.min_spiking_threshold.descript        = 'remove a family with number of spikes less than this threshold';
          ap.extract_spikes.matched_filter.min_spiking_threshold.type            = 'positive integer';
@@ -686,19 +686,19 @@ function params = getDefaultToolParams
          ap.merge_templates.user_selection.template_to_merge_with.name          = 'template to merge with';
          ap.merge_templates.user_selection.template_to_merge_with.descript      = 'template ID of template to merge into';
          ap.merge_templates.user_selection.template_to_merge_with.type          = 'positive integer';
-         ap.merge_templates.user_selection.template_to_merge_with.units         = 'ID';
+         ap.merge_templates.user_selection.template_to_merge_with.units         = 'template ID';
 
          ap.merge_templates.user_selection.number_of_templates_to_merge.value   = 1;
          ap.merge_templates.user_selection.number_of_templates_to_merge.name    = 'number of templates to merge';
          ap.merge_templates.user_selection.number_of_templates_to_merge.descript= 'number of other templates to merge into chosen template';
          ap.merge_templates.user_selection.number_of_templates_to_merge.type    = 'positive integer';
-         ap.merge_templates.user_selection.number_of_templates_to_merge.units   = 'template ID';
+         ap.merge_templates.user_selection.number_of_templates_to_merge.units   = 'templates';
 
          ap.delete_templates.user_selection.number_of_templates_to_remove.value = 1;
          ap.delete_templates.user_selection.number_of_templates_to_remove.name  = 'number of templates to remove';
          ap.delete_templates.user_selection.number_of_templates_to_remove.descript = 'number of templates to be removed';
          ap.delete_templates.user_selection.number_of_templates_to_remove.type  = 'positive integer';
-         ap.delete_templates.user_selection.number_of_templates_to_remove.units = 'template ID';
+         ap.delete_templates.user_selection.number_of_templates_to_remove.units = 'templates';
 
          
 %       % Extract spikes by matching with AP templates as mother wavelets
@@ -802,6 +802,12 @@ function params = getDefaultToolParams
          spike.spike_operations.merge_spikes.within_template.descript           = 'merge spike trains within each template if true, else merge all spike trains from all templates';
          spike.spike_operations.merge_spikes.within_template.type               = 'boolean';
          spike.spike_operations.merge_spikes.within_template.units              = 'true or false';
+         
+%          spike.export_to_excel.spike_rate_and_count.file_name.value              = false;
+%          spike.export_to_excel.spike_rate_and_count.file_name.name               = 'within template';
+%          spike.export_to_excel.spike_rate_and_count.file_name.descript           = 'merge spike trains within each template if true, else merge all spike trains from all templates';
+%          spike.export_to_excel.spike_rate_and_count.file_name.type               = 'boolean';
+%          spike.export_to_excel.spike_rate_and_count.file_name.units              = 'true or false';
 
    %% Rate data
       % Statistics

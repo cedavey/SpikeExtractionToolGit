@@ -104,9 +104,9 @@ end
 %% Calculates the parameters for identify AP templates
 function params = calculateAutomaticParamsAPtemplates(tseries, params, tool)
    if strcmpi('identifyap', tool)
-      params.remove_small_templates.value = floor(tseries.time(end)/20); % if any template contains a number of spikes less than 1 twentieth of the time, remove it
+      params.remove_small_templates.value = floor(tseries.time(end)/10); % if any template contains a number of spikes less than 1 twentieth of the time, remove it
    else
-      params.min_spiking_threshold.value = floor(tseries.time(end)/20); % if any template contains a number of spikes less than 1 twentieth of the time, remove it
+      params.min_spiking_threshold.value = floor(tseries.time(end)/10); % if any template contains a number of spikes less than 1 twentieth of the time, remove it
    end
 end
 

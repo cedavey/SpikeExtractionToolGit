@@ -48,6 +48,8 @@ function methods = getSETToolMethodsList(tool, data_type)
             case 'spike operations'
                methods = {'Merge spikes'};
                
+            case 'export to excel'
+               methods = {'Spike rate and count'};
          end
          
       case 'rate'

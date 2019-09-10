@@ -23,11 +23,18 @@ function runtimeErrorHandler(varargin)
    if nargin >0, ME = varargin{1}; else, error('Not enough input arguments.');end
    if nargin > 1, action = varargin{2}; else, action = 'rethrow';end
    
+   % Get location of log files
+   a = which('SpikeExtractionTool');
+   locs = strfind(a, '\');
+   path = a(1:locs(end));
    %open file
-   fid = fopen('logFile.log','a+');
+   fid = fopen([path 'logFile.log'],'a+');
    % write the error to file
    % first line: message
    fprintf(fid,'\nError handled (%s) %s:\n%s\n',action,string(datetime),ME.message);
+   % second line: matlab version
+   mlversion = version;
+   fprintf(fid,'MATLAB v%s\n',mlversion);
    % following lines: stack
    for e=1:length(ME.stack)
       fprintf(fid,' in %s at %i\n',ME.stack(e).name,ME.stack(e).line);
