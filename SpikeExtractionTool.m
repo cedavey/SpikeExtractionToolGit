@@ -415,14 +415,18 @@ set(handles.curr_signal, 'String', data.tseries_str);
 set(handles.curr_signal, 'Value',  1);
 guidata(hObject,handles);
 
-% curr_signal_Callback doesn't return handles so we have to save handles
+% curr_signal_changed doesn't return handles so we have to save handles
 % manually, then request a fresh copy using guidata
-curr_signal_Callback(handles.curr_signal, '', handles);
+curr_signal_changed(handles.curr_signal, '', handles);
 guidata(hObject,handles);
 end
 
 % --- Executes on selection change in curr_signal.
 function curr_signal_Callback(hObject, eventdata, handles)
+mouseWaitingFunction(handles.figure1,@curr_signal_changed,hObject,eventdata,handles);
+end
+
+function curr_signal_changed(hObject, eventdata, handles)
 if ~haveUserData(handles)
    return;
 end
@@ -440,7 +444,7 @@ last_tseries = handles.data.tseries{handles.data.last_tseries};
 last_type    = handles.data.tseries{handles.data.last_tseries}.type;
 [last_tlim, last_vlim] = getTimeAndVoltageLimits(last_tseries);
 [curr_tlim, curr_vlim] = getTimeAndVoltageLimits(tseries);
-if ~strcmpi(data_type, last_type)
+if ~strcmpi(data_type, last_type) || ~strcmpi(data_type, 'voltage')
    % only remember last tool for voltage data cuz not many options for the others
    tool_num    = ternaryOp( strcmpi(data_type, 'voltage'), handles.data.last_tool, 1);
    if (isempty(tool_num) || tool_num==0), tool_num=1; end
@@ -517,7 +521,7 @@ end
 set(handles.curr_signal, 'String', handles.data.tseries_str);
 % set voltage to 1st newly loaded voltage tseries
 set(handles.curr_signal, 'Value', new_num_tseries);
-curr_signal_Callback(handles.curr_signal, eventdata, handles);
+curr_signal_changed(handles.curr_signal, eventdata, handles);
 end
 
 % --- Executes on button press in clear_voltage_button.
@@ -1180,7 +1184,7 @@ handles.data.used_names  = used_names;
 set(handles.curr_signal, 'String', tseries_str);
 set(handles.curr_signal, 'Value',  new_numtseries);
 guidata(handles.run_tool_button,handles); % saves the change to handles
-curr_signal_Callback(handles.curr_signal, [], handles);
+curr_signal_changed(handles.curr_signal, [], handles);
 
 if isfield(handles.options, 'isBatch') && handles.options.isBatch
    guidata(hObject, handles);
@@ -1767,7 +1771,7 @@ set(new_handles.curr_signal, 'String', new_handles.data.tseries_str);
 set(new_handles.curr_signal, 'Value', 1);
 
 % plot data that was put in new figure
-curr_signal_Callback( new_handles.curr_signal, [], new_handles );
+curr_signal_changed( new_handles.curr_signal, [], new_handles );
 end
 
 % --- Executes on slider movement.
@@ -1854,7 +1858,7 @@ end
 % types are the same etc
 set(handles.curr_signal, 'Value', handles.data.last_tseries);
 % Update figure & handles structure
-curr_signal_Callback(handles.curr_signal, [], handles);
+curr_signal_changed(handles.curr_signal, [], handles);
 handles = guidata(handles.figure1);
 % curr_signal changes last & current timeseries indices, so change back
 % (we wanted the function to display the previous timeseries, but the
@@ -2474,9 +2478,9 @@ function runBatchProcessing(hObject, eventdata, handles)
       set(handles.curr_signal, 'Value',  1);
       % guidata(hObject,handles);
 
-      % curr_signal_Callback doesn't return handles so we have to save handles
+      % curr_signal_changed doesn't return handles so we have to save handles
       % manually, then request a fresh copy using guidata
-      curr_signal_Callback(handles.curr_signal, '', handles);
+      curr_signal_changed(handles.curr_signal, '', handles);
       
       [tl, ml] = getBatchToolList(); % Load the list of tools available
       % Tool method and params

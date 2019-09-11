@@ -129,7 +129,14 @@ function [data, success] = openVoltageFile(data, varargin)
    data.last_tseries = data.curr_tseries; % shift curr tseries index to last tseries
    data.curr_tseries = num_tseries; % update curr time series index to new tseries
    data.last_dir     = pathname;    % update last directory selected by user
-
+   
+   % Check that none tseries have a tseries.name being cell
+   for i = 1:num_tseries
+      if iscell(data.tseries{i}.name)
+         data.tseries{i}.name = data.tseries{i}.name{1};
+      end
+   end
+   
    success = 1;
    tnow = datetime('now');
    str = sprintf( "\tSuccessfully opened voltage file %s at %s\n", fname, datestr(tnow) );
