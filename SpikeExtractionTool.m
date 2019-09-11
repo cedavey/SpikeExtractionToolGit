@@ -1002,7 +1002,7 @@ switch lower(type)
             % have chosen a voltage timeseries to apply the AP templates to
             if ~isfield(method_params, 'voltage_timeseries')
                % Only do this if Batch is not selected
-               if ~(isfield(handles.options, 'isBatch') && handles.options.isBatch)
+               if ~isfield(handles.options, 'isBatch') || ~handles.options.isBatch
                   str = 'Set parameters to choose a voltage timeseries to match the AP templates to';
                   displayErrorMsg(str);
                   return;
@@ -1192,7 +1192,7 @@ end
 function save_voltage_Callback(hObject, eventdata, handles)
 [tseries, ~, type, ts_name] = getCurrentVoltage(handles);
 sname = title2Str(ts_name,1,1); % save name - options remove all punctuation
-if ~(isfield(handles.options, 'isBatch') && handles.options.isBatch)
+if ~isfield(handles.options, 'isBatch') || ~handles.options.isBatch
    sname = getFileName('Name of saved variable in mat file ...', sname, 63);
 end
 
@@ -1209,7 +1209,7 @@ end
 eval_str = [sname ' = tseries;'];
 eval(eval_str);
 
-if ~(isfield(handles.options, 'isBatch') && handles.options.isBatch)
+if ~isfield(handles.options, 'isBatch') || ~handles.options.isBatch
    displayErrorMsg( 'If you save into an existing smr file please ignore Matlab''s warning that it will be written over (select yes)' );
 
    if strcmpi(type,'voltage')
@@ -1906,11 +1906,23 @@ try
    ts_num  = get(handles.curr_signal,'Value');
    tseries = handles.data.tseries{ts_num};
    ts_name = handles.data.tseries_str{ts_num};
+   if iscell(ts_name)
+      ts_name = ts_name{1};
+   end
+   if iscell(tseries.name)
+      tseries.name = tseries.name{1};
+   end
    type    = tseries.type;
-catch
+catch E
    ts_num  = handles.data.curr_tseries;
    tseries = handles.data.tseries{ts_num};
    ts_name = handles.data.tseries_str{ts_num};
+   if iscell(ts_name)
+      ts_name = ts_name{1};
+   end
+   if iscell(tseries.name)
+      tseries.name = tseries.name{1};
+   end
    type    = tseries.type;
 end
 end
@@ -2403,6 +2415,17 @@ end
 
 % --------------------------------------------------------------------
 function batchProcessingMenu_Callback(hObject, eventdata, handles)
+   try
+      mouseWaitingFunction(handles.figure1,@runBatchProcessing,hObject,eventdata,handles);   
+   catch E
+      handles.options.isBatch = false;
+      guidata(hObject,handles);
+      str = sprintf('\tUnexpected error during batch processing\n');
+      runtimeErrorHandler(E, 'message', str);
+   end
+end
+
+function runBatchProcessing(hObject, eventdata, handles)
 % hObject    handle to batchProcessingMenu (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
@@ -2481,12 +2504,15 @@ function batchProcessingMenu_Callback(hObject, eventdata, handles)
             % Save all open tseries. These will be all the processed tools on the
             % current file
             save_voltage_Callback(hObject, eventdata, handles)
+            handles.options.isBatch = false;
          catch E
             str = sprintf('\tBatch processing failed at i = %s, j = %s\n',opts.files{i}, opts.tool{j});
             runtimeErrorHandler(E, 'message', str);
+            handles.options.isBatch = false;
+            guidata(hObject,handles);
             break;
          end
       end % Tools and Params <j>
    end % Files <i>
-   
+   guidata(hObject, handles);
 end

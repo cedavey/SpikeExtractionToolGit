@@ -119,7 +119,7 @@ function [data, success] = openVoltageFile(data, varargin)
          return;
       end
    end
-   
+
    data.num_tseries  = num_tseries;
    data.tlim         = tlim;
    data.vlim         = vlim;
