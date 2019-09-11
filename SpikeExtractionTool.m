@@ -855,7 +855,11 @@ method_num    = get(handles.method_list, 'Value');
 method        = method_list{method_num};
 
 [tseries, ~, type] = getCurrentVoltage(handles);
-method_params = getToolAndMethodParams(handles.data.params, type, tool, method);
+if ~strcmpi('export to excel', tool)
+   % Because 'export to excel' does not have params, only do this for the
+   % other tools
+   method_params = getToolAndMethodParams(handles.data.params, type, tool, method);
+end
 
 switch lower(type)
    case 'voltage'
@@ -1120,6 +1124,7 @@ switch lower(type)
                str = sprintf('\tAn unexpected error occurred while creating the excel file.\n');
                runtimeErrorHandler(E, 'message', str);
             end
+            varargout = {handles};
             return;
          otherwise
       end
@@ -2450,25 +2455,19 @@ function batchProcessingMenu_Callback(hObject, eventdata, handles)
       % manually, then request a fresh copy using guidata
       curr_signal_Callback(handles.curr_signal, '', handles);
       
+      [tl, ml] = getBatchToolList(); % Load the list of tools available
       % Tool method and params
       for j = 1:numel(opts.tool)
          % Implement the tool using the method & params requested
          set(handles.tool_list, 'String', opts.tool(j));
          set(handles.tool_list, 'Value', 1);
-         switch opts.tool{j}
-            case 'rescale'
-               method = 'particle filter';
-            case 'denoise'
-               method = 'wavelets';               
-            case 'identify ap templates'
-               method = 'threshold';               
-            case 'extract spikes'
-               method = 'matched filter';          
-            case 'firing rate'
-               method = 'moving average';               
-            otherwise
-               error('Wrong tool selected for batch processing.');
+         idx = find(ismember(tl, opts.tool{j}));
+         if ~isempty(idx)
+            method = ml{idx};
+         else
+            error('Wrong tool selected for batch processing.');            
          end
+         
          set(handles.method_list, 'String',{method});
          set(handles.method_list, 'Value', 1);
          % Automatic parameters will always be true for batch processing

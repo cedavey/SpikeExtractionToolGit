@@ -72,7 +72,7 @@ function [files, path] = userChoice()
 end
 
 function tool = selectTools()
-   toolList = {'rescale' 'denoise' 'identify ap templates' 'extract spikes' 'firing rate'};
+   toolList = getBatchToolList();
    idx = listdlg('ListString', toolList);
    tool = toolList(idx);
 end
