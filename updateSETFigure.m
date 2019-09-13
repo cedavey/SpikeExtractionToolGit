@@ -274,8 +274,15 @@ tscale=1; tlabel='s';
             try
                hold on; 
                nlines = min( max_lines, size( tseries.APfamily{plot_ax(i)}, 2) );
-               plot(ax1, time/tscale, tseries.APfamily{plot_ax(i)}(sind:eind,1:nlines)/vscale);
-               vlim(2) = max( toVec(tseries.APfamily{plot_ax(i)}(sind:eind,1:nlines)) );
+               % Randomize order of lines
+               if nlines < max_lines
+                  lind = 1:nlines;
+               else
+                  lind  = randperm( nlines, max_lines );
+               end
+               
+               plot(ax1, time/tscale, tseries.APfamily{plot_ax(i)}(sind:eind,lind)/vscale);
+               vlim(2) = max( toVec(tseries.APfamily{plot_ax(i)}(sind:eind,lind)) );
                % if APs normalised we know they'll be btwn -3/3 so make lims the same
                if tseries.params.normalise_aps.value
                   ylim([-3 3]);

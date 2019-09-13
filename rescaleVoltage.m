@@ -236,7 +236,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
          confirm_is_spike = false;
          % if this peak is crazy big assume it's a glitch so move to next spike
          countLoops = 0; % Checking how often it enters this loop
-         while max( peakfn(vsp) ) > glitchthresh * noisesig
+         while max( peakfn(vsp) ) > newglitchth
             countLoops = countLoops + 1;
             % move on to next large amplitude event
             startsp = find( peakfn(v( currt:end) ) >= noisethresh, 1, 'first' );
@@ -250,8 +250,8 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
 
             if auto_params
                if(countLoops > 4)
-                  glitchthresh = 1.25 * glitchthresh;
-                  str = sprintf('\tNew glitch Th: %d\n',glitchthresh);
+                  newglitchth = 1.25 * newglitchth;
+                  str = sprintf('\tNew glitch Th: %d\n',newglitchth);
                   printMessage('off', 'Text', str);
                end
             else
@@ -316,7 +316,11 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
       % update voltage std dev
       [vmu, vvar] = recursiveUpdate( vmu, vstd^2, lambda, vpeak );
       vstd = sqrt( vvar );
-
+      
+      % Now that we have a peak, we can change the glitch threshold to
+      % depend on the value of the peaks, rather than the noise.
+      newglitchth = 1.2 * max(vpeak_vec);
+      
       % if we have at least 2 voltage peaks, update state estimate
       if length( tpeak_vec ) > (nlags+1)
          timeinpiece = timeinpiece + 1;
@@ -570,6 +574,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
          % plot(tpeak_vec, noise_vec * glitchthresh, 'g');
          % plot(tpeak_vec, noise_vec * params.glitch_magnitude.value, 'r');
          plot(glitch_plot(:,2) .* dt, glitch_plot(:,1));
+         plot(glitch_plot(:,2) .* dt, -glitch_plot(:,1),'--r');
          % plot(tpeak_vec, -noise_vec * glitchthresh, '--r');
          legend('Voltage', 'V peaks', 'R estimate', 'Th+', 'Th-');
          if numel(tpeak_vec) > 1, xlim( [ tpeak_vec(1) tpeak_vec(end) ] );end
@@ -587,7 +592,8 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
       plot(tpeak_vec, vpeak_vec, 'k.','markersize',marker_size);
       plot(tpeak_vec, Rest_vec,  'm', 'linewidth', 3);
       plot(tpeak_vec, noise_vec * voltoutlier,  'r');
-      plot(tpeak_vec, noise_vec * glitchthresh, 'r');
+      % plot(tpeak_vec, noise_vec * glitchthresh, 'r');
+      plot(glitch_plot(:,2) .* dt, glitch_plot(:,1), 'r');
       legend('voltage peaks', 'resistance est');
       if numel(tpeak_vec) > 1, xlim( [ tpeak_vec(1) tpeak_vec(end) ] );end
 

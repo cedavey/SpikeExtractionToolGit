@@ -1144,7 +1144,7 @@ switch lower(type)
       return;
       
 end
-elapsed = toc;fprintf('\t%0.4f seconds\n', elapsed);
+elapsed = toc;fprintf('\tElapsed fime: %0.4f seconds. Tool = %s\n', elapsed, tool);
 try
    if isfield(handles.options, 'isBatch') && handles.options.isBatch
       name = tool_str;
@@ -2317,10 +2317,15 @@ function toggleZoomButton_Callback(hObject, eventdata, handles)
 
 % Toggles between arrows (displacement) and magnifier (zoom) icons
    warning('off','MATLAB:imagesci:png:libraryWarning'); % Ignore PNG associated warning
-
+   
+   % Get location of GUI files
+   a = which('SpikeExtractionTool');
+   locs = strfind(a, '\');
+   path = a(1:locs(end));
+   
    if strcmp('zoom',hObject.UserData)
-      % Displacement function has been selected
-      [x,~]=imread('fig/arrowsIcon.png');% Load the displacement icon
+      % Displacement function has been selected      
+      [x,~]=imread([path 'fig' filesep 'arrowsIcon.png']);% Load the displacement icon
       I2=imresize(x, [22 22]); % Resize icon
       hObject.CData = I2; % Assign icon to the button
       hObject.UserData = 'disp'; % Change state to displacement
@@ -2333,7 +2338,7 @@ function toggleZoomButton_Callback(hObject, eventdata, handles)
       handles.voltage_slider.SliderStep(1) = 0.1 * handles.voltage_slider.SliderStep(2);
    else
       % Zoom function has been selected
-      [x,~]=imread('fig/magnifierIcon.png');% Load the zoom icon
+      [x,~]=imread([path 'fig' filesep 'magnifierIcon.png']);% Load the zoom icon
       I2=imresize(x, [22 22]); % Resize icon
       hObject.CData = I2; % Assign icon to the button
       hObject.UserData = 'zoom'; % Change state to zoom
@@ -2357,7 +2362,7 @@ function toggleZoomButton_CreateFcn(hObject, eventdata, handles)
    locs = strfind(a, '\');
    path = a(1:locs(end));
    
-   [x,map]=imread([path 'fig/magnifierIcon.png']); % Load the zoom icon
+   [x,map]=imread([path 'fig' filesep 'magnifierIcon.png']); % Load the zoom icon
    I2=imresize(x, [22 22]); % Resize icon
    hObject.CData = I2; % Assign icon to the button
    hObject.BackgroundColor = [1 0.6 0.6]; % Change color to match other buttons
@@ -2371,7 +2376,12 @@ function helpMenuItem_Callback(hObject, eventdata, handles)
 % hObject    handle to helpMenuItem (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-   open('resources\SEThelp.pdf');
+   % Get location of log files
+   a = which('SpikeExtractionTool');
+   locs = strfind(a, '\');
+   path = a(1:locs(end));
+
+   open([path 'resources' filesep 'SEThelp.pdf']);
 end
 
 % --------------------------------------------------------------------
@@ -2392,9 +2402,14 @@ function aboutMenuItem_Callback(hObject, eventdata, handles)
    uicontrol('parent',aboutWindow,'Style','text',...
          'String', str,'Position',[187,0,187,200],'FontSize',11);
       
+   % Get location of log files
+   a = which('SpikeExtractionTool');
+   locs = strfind(a, '\');
+   path = a(1:locs(end));
+      
    logo = uicontrol('parent',aboutWindow,'Style','pushbutton',...
          'Position',[187,200,187,187]);
-   [x,map]=imread('fig/unimelb.png'); % Load the zoom icon
+   [x,map]=imread([path 'fig' filesep 'unimelb.png']); % Load the zoom icon
    I2=imresize(x, [187 187]); % Resize icon
 %    imshow(I2);
    logo.CData = I2; % Assign icon to the button
