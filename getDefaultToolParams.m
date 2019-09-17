@@ -257,6 +257,12 @@ function params = getDefaultToolParams
          voltage.identify_ap_templates.threshold.negative_threshold.descript    = 'only spikes with a negative voltage of magnitude larger than this considered';
          voltage.identify_ap_templates.threshold.negative_threshold.type        = 'positive float';
          voltage.identify_ap_templates.threshold.negative_threshold.units       = 'std dev';
+         
+         voltage.identify_ap_templates.threshold.glitch_threshold.value       = 10;
+         voltage.identify_ap_templates.threshold.glitch_threshold.name        = 'glitch threshold';
+         voltage.identify_ap_templates.threshold.glitch_threshold.descript    = 'spikes larger than this are considered a giltch';
+         voltage.identify_ap_templates.threshold.glitch_threshold.type        = 'positive float';
+         voltage.identify_ap_templates.threshold.glitch_threshold.units       = 'avg spike amplitude';
         
          voltage.identify_ap_templates.threshold.min_positive_duration.value    = 1;
          voltage.identify_ap_templates.threshold.min_positive_duration.name     = 'min positive duration';
@@ -468,6 +474,12 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.negative_threshold.type          = 'positive float';
          voltage.extract_spikes.matched_filter.negative_threshold.units         = 'std dev';
          
+         voltage.extract_spikes.threshold.glitch_threshold.value                = 10;
+         voltage.extract_spikes.threshold.glitch_threshold.name                 = 'glitch threshold';
+         voltage.extract_spikes.threshold.glitch_threshold.descript             = 'spikes larger than this are considered a giltch';
+         voltage.extract_spikes.threshold.glitch_threshold.type                 = 'positive float';
+         voltage.extract_spikes.threshold.glitch_threshold.units                = 'avg spike amplitude';
+         
          voltage.extract_spikes.matched_filter.avg_window.value                 = 10; % MA window in seconds
          voltage.extract_spikes.matched_filter.avg_window.name                  = 'averaging window';
          voltage.extract_spikes.matched_filter.avg_window.descript              = 'length of moving average window for estimating std dev to use in thresholding';
@@ -639,6 +651,12 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.negative_threshold.descript           = 'only spikes with a negative voltage of magnitude larger than this considered (0 to ignore)';
          ap.extract_spikes.matched_filter.negative_threshold.type               = 'positive float';
          ap.extract_spikes.matched_filter.negative_threshold.units              = 'std dev';
+         
+         ap.extract_spikes.matched_filter.glitch_threshold.value                = 10;
+         ap.extract_spikes.matched_filter.glitch_threshold.name                 = 'glitch threshold';
+         ap.extract_spikes.matched_filter.glitch_threshold.descript             = 'spikes larger than this are considered a giltch';
+         ap.extract_spikes.matched_filter.glitch_threshold.type                 = 'positive float';
+         ap.extract_spikes.matched_filter.glitch_threshold.units                = 'avg spike amplitude';
          
          ap.extract_spikes.matched_filter.avg_window.value                      = 10; % MA window in seconds
          ap.extract_spikes.matched_filter.avg_window.name                       = 'averaging window';

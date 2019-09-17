@@ -206,6 +206,7 @@ removeToolBarButtons();
 handles.options.loadingWindowOn = true;
 handles.options.debugOption = 'semi';
 handles.options.rescaleOption = 'at_end';
+handles.options.auto_params = 'false';
 
 % Initialize tooltips
 handles = setTooltips(handles);
@@ -1144,7 +1145,7 @@ switch lower(type)
       return;
       
 end
-elapsed = toc;fprintf('\tElapsed fime: %0.4f seconds. Tool = %s\n', elapsed, tool);
+elapsed = toc;fprintf('\tElapsed time: %0.4f seconds. Tool = %s\n', elapsed, tool);
 try
    if isfield(handles.options, 'isBatch') && handles.options.isBatch
       name = tool_str;

@@ -273,14 +273,12 @@ tscale=1; tlabel='s';
             set(lh, 'color', 'k', 'linewidth', 3);
             try
                hold on; 
-               nlines = min( max_lines, size( tseries.APfamily{plot_ax(i)}, 2) );
-               % Randomize order of lines
-               if nlines < max_lines
-                  lind = 1:nlines;
-               else
-                  lind  = randperm( nlines, max_lines );
-               end
-               
+               size_lines = size( tseries.APfamily{plot_ax(i)}, 2);
+               nlines = min( max_lines, size_lines );
+               % Show the last max_lines lines, instead of the first ones
+               lind = max(1,(size_lines - max_lines)) : size_lines;
+%                lind = randperm(size_lines, nlines);
+                              
                plot(ax1, time/tscale, tseries.APfamily{plot_ax(i)}(sind:eind,lind)/vscale);
                vlim(2) = max( toVec(tseries.APfamily{plot_ax(i)}(sind:eind,lind)) );
                % if APs normalised we know they'll be btwn -3/3 so make lims the same

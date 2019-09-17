@@ -7,7 +7,7 @@ function k = compare_templates(rho, curr_spike, tmps)
 
    rho_ = rho/max(rho); % Normalize rho.
 
-   % Check the templates with 10% similarity
+   % Check the templates with 5% similarity
    similars = find(rho_ > 0.95);
    if numel(similars) > 1
       tmps = tmps(:,similars);
