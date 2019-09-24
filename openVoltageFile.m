@@ -140,7 +140,7 @@ function [data, success] = openVoltageFile(data, varargin)
    success = 1;
    tnow = datetime('now');
    str = sprintf( "\tSuccessfully opened voltage file %s at %s\n", fname, datestr(tnow) );
-   printMessage('off',  'Keywords', str);
+   printMessage('on',  'Keywords', str);
    
 end
 

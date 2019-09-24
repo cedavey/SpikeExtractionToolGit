@@ -535,7 +535,7 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.plot_spikes_consecutively.units  = 'true or false';
 
          % Extract spikes by k-means clustering
-         voltage.extract_spikes.k_means.no_clusters.value                 = 5;
+         voltage.extract_spikes.k_means.no_clusters.value                 = 0;
          voltage.extract_spikes.k_means.no_clusters.name                  = 'number of clusters';
          voltage.extract_spikes.k_means.no_clusters.descript              = 'Clusters for the K-means, 0 for automatic';
          voltage.extract_spikes.k_means.no_clusters.type                  = 'positive integer';
@@ -572,6 +572,12 @@ function params = getDefaultToolParams
          voltage.extract_spikes.k_means.negative_threshold.type          = 'positive float';
          voltage.extract_spikes.k_means.negative_threshold.units         = 'std dev';
          
+         voltage.extract_spikes.k_means.glitch_threshold.value           = 10;
+         voltage.extract_spikes.k_means.glitch_threshold.name            = 'glitch threshold';
+         voltage.extract_spikes.k_means.glitch_threshold.descript        = 'spikes larger than this are considered a giltch';
+         voltage.extract_spikes.k_means.glitch_threshold.type            = 'positive float';
+         voltage.extract_spikes.k_means.glitch_threshold.units           = 'avg spike amplitude';
+         
          voltage.extract_spikes.k_means.avg_window.value                 = 10; % MA window in seconds
          voltage.extract_spikes.k_means.avg_window.name                  = 'averaging window';
          voltage.extract_spikes.k_means.avg_window.descript              = 'length of moving average window for estimating std dev to use in thresholding';
@@ -602,7 +608,7 @@ function params = getDefaultToolParams
          voltage.extract_spikes.k_means.allow_new_aps.type               = 'boolean';
          voltage.extract_spikes.k_means.allow_new_aps.units              = 'true or false';
          
-         voltage.extract_spikes.k_means.remove_small_templates.value     = 2;
+         voltage.extract_spikes.k_means.remove_small_templates.value     = 100;
          voltage.extract_spikes.k_means.remove_small_templates.name      = 'remove small templates';
          voltage.extract_spikes.k_means.remove_small_templates.descript  = 'remove AP template estimates from this many or less spikes (0 to ignore)';
          voltage.extract_spikes.k_means.remove_small_templates.type      = 'positive integer';

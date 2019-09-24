@@ -135,7 +135,7 @@ function varargout = SpikeExtractionTool(varargin)
 
 % Edit the above text to modify the response to help SpikeExtractionTool
 
-% Last Modified by GUIDE v2.5 09-Sep-2019 13:41:29
+% Last Modified by GUIDE v2.5 24-Sep-2019 13:00:28
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -197,7 +197,7 @@ set(hObject, 'Name', 'Spike Extraction Tool');
 % prepare for user confirmation when GUI is closed
 set(handles.figure1, 'CloseRequestFcn', @closeGUI);
 %     set(gcf, 'WindowScrollWheelFcn', {@figure1_figScroll, handles});
-removeToolBarButtons();
+removeToolBarButtons(handles);
 
 % from property inspector in guide, under WindowScrollWheelFcn
 % @(hObject,eventdata)SpikeExtractionTool('figure1_WindowScrollWheelFcn',hObject,eventdata,guidata(hObject))
@@ -411,6 +411,8 @@ end
 handles.data = data;
 handles = toggleSETGUIstate(handles,'on');
 
+handles = resetSliders(handles,eventdata,hObject);
+
 guidata(hObject,handles);   % saves the change to handles
 set(handles.curr_signal, 'String', data.tseries_str);
 set(handles.curr_signal, 'Value',  1);
@@ -510,6 +512,8 @@ new_num_tseries = handles.data.num_tseries + 1;
 
 % open image files & retrieve matrices
 [handles.data, success] = openVoltageFile(handles.data);
+
+handles = resetSliders(handles,eventdata,hObject);
 
 if success~=1
    str = sprintf('Error opening file, ignoring');
@@ -1346,7 +1350,25 @@ if strcmp('zoom',method)
    % slider zooms in/out to max/min values given in text boxes, so that
    % slider is a percentage of possible max/mins.
    percent = hObject.Value;
+   if percent == 1
+      percent = 0.99999;
+      handles.time_slider.SliderStep(2) = 1;
+      handles.time_slider.SliderStep(1) = 0.00005;
+      handles.time_slider.SliderStep(2) = min(1, handles.time_slider.SliderStep(1)*1.01);
+   elseif percent > 0.999
+      handles.time_slider.SliderStep(2) = 1;
+      handles.time_slider.SliderStep(1) = 0.00005;
+      handles.time_slider.SliderStep(2) = min(1, handles.time_slider.SliderStep(1)*1.01);      
+   elseif percent > 0.95
+      handles.time_slider.SliderStep(2) = 1;
+      handles.time_slider.SliderStep(1) = 0.001;
+      handles.time_slider.SliderStep(2) = min(1, handles.time_slider.SliderStep(1)*1.01);      
+   else
+      handles.time_slider.SliderStep = [0.01 0.1];
+   end
+   
    handles.data.zoomPercentage(1) = percent;
+   
    prev_tlim  = handles.data.tlim; % record time lims before slider was moved
    
    % calculate new min & max time lims by zoomin in from both ends   
@@ -1366,6 +1388,7 @@ else
    tseries = getCurrentVoltage(handles);
    disp_min = displacement * (tseries.time(end) - tseries.time(1));
    disp_max = disp_min + (handles.data.tlim(2) - handles.data.tlim(1));
+  
    
    if disp_max > tseries.time(end)
       disp_max = tseries.time(end);
@@ -1447,17 +1470,24 @@ if ~ok
    set(handles.time_max, 'String', sprintf('%.2f',text_max)); % reset to old val
    return
 end
+
 % Gotta get min time from other text box because need to reset displayed
 % time lims just in case new max is smaller than the last displayed min
 % (zoom allows you to zoom in from text box mins/maxes)
 [~,mint] = checkStringInput(get(handles.time_min, 'String'), 'float'); % we know str is valid
 set(handles.time_max, 'String', sprintf('%.2f',newt)); % reset to new val
-% set(handles.time_slider, 'Value', 1);
+
 handles.data.tlim(2) = newt;
+
+if ~(mint < newt)
+   currtseries = handles.data.curr_tseries;
+   mint = handles.data.tseries{currtseries}.time(1);
+   handles.time_min.String = num2str(mint);
+end
 handles.data.tlim(1) = mint;
 
 % Update time sliders
-updateTimeSlider(hObject,eventdata,handles);
+handles = updateTimeSlider(hObject,eventdata,handles);
 
 handles = updateSETFigure(handles, tseries);
 
@@ -1541,10 +1571,16 @@ end
 set(handles.time_min, 'String', sprintf('%.2f',newt)); % reset to new val
 set(handles.time_slider, 'Value', 1);
 handles.data.tlim(1) = newt;
+
+if ~(newt < maxt)
+   currtseries = handles.data.curr_tseries;
+   maxt = handles.data.tseries{currtseries}.time(end);
+   handles.time_max.String = num2str(maxt);
+end
 handles.data.tlim(2) = maxt;
 
 % Update time sliders
-updateTimeSlider(hObject,eventdata,handles);
+handles = updateTimeSlider(hObject,eventdata,handles);
 
 handles = updateSETFigure(handles, tseries);
 guidata(hObject, handles);
@@ -1602,15 +1638,21 @@ if strcmp('zoom',method)
    % calculate new min & max time lims by zoomin in from both ends   
    tseries = getCurrentVoltage(handles);
    vrange = max(tseries.data) - min(tseries.data);
-   zoom_min = mean([handles.data.vlim(1) handles.data.vlim(2)]) - vrange * (1-percent);
-   zoom_max = mean([handles.data.vlim(1) handles.data.vlim(2)]) + vrange * (1-min(percent,0.999));
+   zoom_min = mean([handles.data.vlim(1) handles.data.vlim(2)]) - (vrange * (1-percent) / 2);
+   zoom_max = mean([handles.data.vlim(1) handles.data.vlim(2)]) + (vrange * (1-min(percent,0.999)) / 2);
 
    handles.data.vlim(1) = max( zoom_min, min(tseries.data));
    handles.data.vlim(2) = min( zoom_max, max(tseries.data));
+   
+   handles.data.displacementPercentage(2) = 0;
 else
    % Displacement
    newdisplacement = hObject.Value;
-   displacement = handles.data.displacementPercentage(2) - newdisplacement;
+   if newdisplacement > handles.data.displacementPercentage(2)
+      displacement = newdisplacement;%handles.data.displacementPercentage(2) - newdisplacement;
+   else
+      displacement = -newdisplacement;
+   end
    handles.data.displacementPercentage(2) = newdisplacement;
    prev_vlim  = handles.data.vlim; % record time lims before slider was moved
    
@@ -1621,6 +1663,7 @@ else
       
    handles.data.vlim(1) = max( disp_min, min(tseries.data));
    handles.data.vlim(2) = min( disp_max, max(tseries.data));
+   
 end
 
 % Update voltage (vertical) text boxes
@@ -1684,6 +1727,11 @@ end
 set(handles.voltage_max, 'String', sprintf('%.2f',newv)); % reset to new val
 
 handles.data.vlim(2) = newv;
+if ~(minv < newv)
+   currtseries = handles.data.curr_tseries;
+   minv = min(handles.data.tseries{currtseries}.data);
+   handles.voltage_min.String = num2str(minv);
+end
 handles.data.vlim(1) = minv;
 
 % Update voltage sliders
@@ -1726,6 +1774,11 @@ end
 set(handles.voltage_min, 'String', sprintf('%.2f',newv)); % reset to new val
 
 handles.data.vlim(1) = newv;
+if ~(newv < maxv)
+   currtseries = handles.data.curr_tseries;
+   maxv = max(handles.data.tseries{currtseries}.data);
+   handles.voltage_max.String = num2str(maxv);
+end
 handles.data.vlim(2) = maxv;
 
 % Update voltage sliders
@@ -2237,13 +2290,19 @@ function saveVoltageMenuBar_Callback(hObject, eventdata, handles)
 save_voltage_Callback(hObject, eventdata, handles);
 end
 
-function removeToolBarButtons()
-removeItems = ([{'Save Figure'}, {'New Figure'}, {'Open File'}, {'Print Figure'}, {'Link Plot'}, {'Open Property Inspector'}, {'Insert Colorbar'}]);
-for i = 1:size(removeItems,2)
-   listOfElements = findall(gcf);
-   element = findall(listOfElements,'ToolTipString',string(removeItems(i)));
-   set(element,'Visible','off');
-end
+function removeToolBarButtons(handles)
+
+   v = ver('matlab');
+   % Check if version is older than 2018b
+   if str2double(v.Version) >= 9.5
+     removeToolbarExplorationButtons(handles.figure1.Children(12));
+   end
+   removeItems = ([{'Save Figure'}, {'Insert Legend'}, {'Edit Plot'}, {'New Figure'}, {'Open File'}, {'Print Figure'}, {'Link Plot'}, {'Open Property Inspector'}, {'Insert Colorbar'}]);
+   for i = 1:size(removeItems,2)
+      listOfElements = findall(gcf);
+      element = findall(listOfElements,'ToolTipString',string(removeItems(i)));
+      set(element,'Visible','off');
+   end
 end
 
 % --- Updates voltage sliders ---
@@ -2265,14 +2324,14 @@ function updateVoltageSlider(hObject,eventdata,handles)
          end
       end
       handles.voltage_slider.Value = handles.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
-      handles.voltage_slider.SliderStep =  [0.01 0.1];%max(handles.voltage_slider.SliderStep(1) , handles.data.displacementPercentage(2)); %  Change the size of the vertical slider indicator to match the value displaced in.
+      handles.voltage_slider.SliderStep =  [0.1 0.2];%max(handles.voltage_slider.SliderStep(1) , handles.data.displacementPercentage(2)); %  Change the size of the vertical slider indicator to match the value displaced in.
       
    else
       try
          handles.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(max(handles.data.tseries{currtseries}.data{1}{1}.spikes)) - min(min(handles.data.tseries{currtseries}.data{1}{1}.spikes))));
          handles.data.displacementPercentage(2) = 1 - maxv / max(max(handles.data.tseries{currtseries}.data{1}{1}.spikes));
       catch E
-         if strcmp('MATLAB:max:wrongInput',E.identifier)
+         if strcmp('MATLAB:max:wrongInput',E.identifier) || strcmp('MATLAB:cellRefFromNonCell',E.identifier)
             handles.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(handles.data.tseries{currtseries}.data) - min(handles.data.tseries{currtseries}.data)));
             handles.data.displacementPercentage(2) = 1 - maxv / max(handles.data.tseries{currtseries}.data);
          else
@@ -2280,34 +2339,85 @@ function updateVoltageSlider(hObject,eventdata,handles)
          end
       end
       handles.voltage_slider.Value = handles.data.displacementPercentage(2); % Update the position of the slider to represent displacement.
-      handles.voltage_slider.SliderStep(2) = max(handles.voltage_slider.SliderStep(1) , handles.data.zoomPercentage(2));% Change the size of the vertical slider indicator to match the value zoomed in.
-      handles.voltage_slider.SliderStep(1) = 0.1 * handles.voltage_slider.SliderStep(2);
+      handles.voltage_slider.SliderStep =  [0.1 0.2];
       
    end
    
 end
 
 % --- Updates time sliders ---
-function updateTimeSlider(hObject,eventdata,handles)
+function handles = updateTimeSlider(hObject,eventdata,handles)
 
    maxt = handles.data.tlim(2);
    mint = handles.data.tlim(1);
+   trange = maxt - mint;
    currtseries = handles.data.curr_tseries;
    
    if strcmp('zoom',handles.toggleZoomButton.UserData)      
       handles.data.zoomPercentage(1) = 1 - ((maxt-mint) / (handles.data.tseries{currtseries}.time(end) - handles.data.tseries{currtseries}.time(1)));
+      % handles.data.displacementPercentage(1) = 1 - trange / handles.data.tseries{currtseries}.time(end);
+      handles.data.displacementPercentage(1) = (maxt - trange) / handles.data.tseries{currtseries}.time(end);
       handles.time_slider.Value = handles.data.zoomPercentage(1); % Update the position of the slider to represent zoom.
-      handles.time_slider.SliderStep =  [0.01 0.1];%max(handles.voltage_slider.SliderStep(1) , handles.data.displacementPercentage(2)); %  Change the size of the vertical slider indicator to match the value displaced in.
       
+      percent = handles.data.zoomPercentage(1);
+      zoom = 1 - percent;
+      if percent == 1
+         percent = 0.99999;
+         zoom = 1 - percent;
+         handles.time_slider.SliderStep(2) = 1;
+         handles.time_slider.SliderStep(1) = 0.00005;
+         handles.time_slider.SliderStep(2) = min(1, handles.time_slider.SliderStep(1)*1.01);
+      elseif percent > 0.999
+         handles.time_slider.SliderStep(2) = 1;
+         handles.time_slider.SliderStep(1) = 0.00005;
+         handles.time_slider.SliderStep(2) = min(1, handles.time_slider.SliderStep(1)*1.01);      
+      elseif percent > 0.9
+         handles.time_slider.SliderStep(2) = 1;
+         handles.time_slider.SliderStep(1) = 0.001;
+         handles.time_slider.SliderStep(2) = min(1, handles.time_slider.SliderStep(1)*1.01);      
+      else
+         handles.time_slider.SliderStep = [0.01 0.1];
+      end
    else      
       handles.data.zoomPercentage(1) = 1 - ((maxt-mint) / (handles.data.tseries{currtseries}.time(end) - handles.data.tseries{currtseries}.time(1)));
-      handles.data.displacementPercentage(1) = 1 - maxt / handles.data.tseries{currtseries}.time(end);
-      handles.time_slider.Value = handles.data.displacementPercentage(1); % Update the position of the slider to represent displacement.
-      handles.time_slider.SliderStep(1) = max(handles.time_slider.SliderStep(1) , handles.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
-      handles.time_slider.SliderStep(1) = 0.1 * handles.time_slider.SliderStep(2);
+      handles.data.displacementPercentage(1) =(maxt - trange) / handles.data.tseries{currtseries}.time(end);
+      zoom = 1 - handles.data.zoomPercentage;
+      % Check if we are at the lower or upper limits
+      if maxt >= handles.data.tseries{currtseries}.time(end-1)
+         handles.time_slider.Value = 1;
+      elseif mint <= handles.data.tseries{currtseries}.time(1)
+         handles.time_slider.Value = 0;
+      else
+         handles.time_slider.Value = handles.data.displacementPercentage(1); % Update the position of the slider to represent displacement.
+      end
+      handles.time_slider.SliderStep(2) = 1;
+      handles.time_slider.SliderStep(1) = zoom(1) / 2;% max(handles.time_slider.SliderStep(1) , handles.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
+      handles.time_slider.SliderStep(2) = min(1, handles.time_slider.SliderStep(1)*2);
       
    end
+   guidata(hObject,handles);
+end
+
+function handles = resetSliders(handles, eventdata, hObject)
+   handles.data.zoomPercentage = [0 0]; % Records currently chosen zoom value
+   handles.data.displacementPercentage = [0 0.5]; % Records currently chosen displacement value 
+   % Get location of GUI files
+   a = which('SpikeExtractionTool');
+   locs = strfind(a, '\');
+   path = a(1:locs(end));
    
+   [x,~]=imread([path 'fig' filesep 'magnifierIcon.png']);% Load the zoom icon
+   I2=imresize(x, [22 22]); % Resize icon
+   handles.toggleZoomButton.CData = I2; % Assign icon to the button
+   handles.toggleZoomButton.UserData = 'zoom'; % Change state to zoom
+   
+   handles.time_slider.Value = handles.data.zoomPercentage(1); % Update the position of the slider to represent zoom.
+   handles.voltage_slider.Value = handles.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
+   
+   handles.time_slider.SliderStep = [0.01 0.1]; % Make sure it is within 0 and 1.
+   handles.voltage_slider.SliderStep = [0.01 0.1];
+   % Update tooltip
+   handles = setTooltips(handles, {hObject.Tag}, getTooltips({'toggleZoomButton_toDisplace'}));
 end
 
 % --- Executes on button press in toggleZoomButton.
@@ -2324,6 +2434,11 @@ function toggleZoomButton_Callback(hObject, eventdata, handles)
    locs = strfind(a, '\');
    path = a(1:locs(end));
    
+   
+   maxt = handles.data.tlim(2);
+   mint = handles.data.tlim(1);
+   zoom = 1 - handles.data.zoomPercentage;
+   
    if strcmp('zoom',hObject.UserData)
       % Displacement function has been selected      
       [x,~]=imread([path 'fig' filesep 'arrowsIcon.png']);% Load the displacement icon
@@ -2331,13 +2446,16 @@ function toggleZoomButton_Callback(hObject, eventdata, handles)
       hObject.CData = I2; % Assign icon to the button
       hObject.UserData = 'disp'; % Change state to displacement
       handles.time_slider.Value = handles.data.displacementPercentage(1); % Update the position of the slider to represent displacement.
-      handles.voltage_slider.Value = handles.data.displacementPercentage(2); % Update the position of the slider to represent displacement.
-      handles.time_slider.SliderStep(2) = max([handles.time_slider.SliderStep(1) 1e-1/handles.data.zoomPercentage(1)]); % Change the size of the horizontal slider indicator to match the value zoomed in.
-      handles.time_slider.SliderStep(2) = min(1, handles.time_slider.SliderStep(2)); % Make sure it is within 0 and 1.
-      handles.time_slider.SliderStep(1) = (0.1 * handles.time_slider.SliderStep(2));
-      handles.voltage_slider.SliderStep(2) = max(handles.voltage_slider.SliderStep(1) , handles.data.zoomPercentage(2));% Change the size of the vertical slider indicator to match the value zoomed in.
-      handles.voltage_slider.SliderStep(1) = 0.1 * handles.voltage_slider.SliderStep(2);
-   else
+      handles.voltage_slider.Value = 0.5;%handles.data.displacementPercentage(2); % Update the position of the slider to represent displacement.
+      handles.voltage_slider.SliderStep =  [0.01 0.1];
+      handles.data.displacementPercentage(2) = 0;
+  
+      handles.time_slider.SliderStep(2) = 1;
+      handles.time_slider.SliderStep(1) = zoom(1) / 2;% max(handles.time_slider.SliderStep(1) , handles.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
+      handles.time_slider.SliderStep(2) = min(1, handles.time_slider.SliderStep(1)*2);
+      % Update tooltip
+      handles = setTooltips(handles, {hObject.Tag}, getTooltips({'toggleZoomButton_toZoom'}));
+   else         
       % Zoom function has been selected
       [x,~]=imread([path 'fig' filesep 'magnifierIcon.png']);% Load the zoom icon
       I2=imresize(x, [22 22]); % Resize icon
@@ -2345,9 +2463,35 @@ function toggleZoomButton_Callback(hObject, eventdata, handles)
       hObject.UserData = 'zoom'; % Change state to zoom
       handles.time_slider.Value = handles.data.zoomPercentage(1); % Update the position of the slider to represent zoom.
       handles.voltage_slider.Value = handles.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
-      handles.time_slider.SliderStep =  [0.001 0.1];%max(handles.time_slider.SliderStep(1) , handles.data.displacementPercentage(1)); % Change the size of the horizontal slider indicator to match the value displaced in.
-      handles.voltage_slider.SliderStep =  [0.01 0.1];%max(handles.voltage_slider.SliderStep(1) , handles.data.displacementPercentage(2)); %  Change the size of the vertical slider indicator to match the value displaced in.
+      
+      percent = 1 - zoom(1);
+      if percent == 1
+         percent = 0.99999;
+         zoom(1) = 1 - percent;
+         handles.time_slider.SliderStep(2) = 1;
+         handles.time_slider.SliderStep(1) = 0.00005;
+         handles.time_slider.SliderStep(2) = min(1, handles.time_slider.SliderStep(1)*1.01);
+      elseif percent > 0.999
+         handles.time_slider.SliderStep(2) = 1;
+         handles.time_slider.SliderStep(1) = 0.00005;
+         handles.time_slider.SliderStep(2) = min(1, handles.time_slider.SliderStep(1)*1.01);      
+      elseif percent > 0.95
+         handles.time_slider.SliderStep(2) = 1;
+         handles.time_slider.SliderStep(1) = 0.001;
+         handles.time_slider.SliderStep(2) = min(1, handles.time_slider.SliderStep(1)*1.01);
+      elseif percent > 0.9
+         handles.time_slider.SliderStep(2) = 1;
+         handles.time_slider.SliderStep(1) = 0.005;
+         handles.time_slider.SliderStep(2) = min(1, handles.time_slider.SliderStep(1)*1.01);
+      else
+         handles.time_slider.SliderStep = [0.01 0.1];
+      end
+      
+      handles.voltage_slider.SliderStep =  [0.01 0.1];
+      % Update tooltip
+      handles = setTooltips(handles, {hObject.Tag}, getTooltips({'toggleZoomButton_toDisplace'}));
    end
+   
 end
 
 
@@ -2526,7 +2670,7 @@ function runBatchProcessing(hObject, eventdata, handles)
             save_voltage_Callback(hObject, eventdata, handles)
             handles.options.isBatch = false;
          catch E
-            str = sprintf('\tBatch processing failed at i = %s, j = %s\n',opts.files{i}, opts.tool{j});
+            str = sprintf('\tBatch processing failed at i = %s, j = %s\n\tError: %s\n',opts.files{i}, opts.tool{j}, E.message);
             runtimeErrorHandler(E, 'message', str);
             handles.options.isBatch = false;
             guidata(hObject,handles);
@@ -2535,4 +2679,8 @@ function runBatchProcessing(hObject, eventdata, handles)
       end % Tools and Params <j>
    end % Files <i>
    guidata(hObject, handles);
+end
+
+function figure1_ButtonDownFcn(hObject, eventdata, handles)
+
 end
