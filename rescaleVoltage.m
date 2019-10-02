@@ -319,8 +319,8 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
       
       % Now that we have a peak, we can change the glitch threshold to
       % depend on the value of the peaks, rather than the noise.
-%       newglitchth = 1.2 * max(vpeak_vec);
-      newglitchth = 2 * mean(Rest_vec);
+      newglitchth = 1.2 * max(vpeak_vec);
+%       newglitchth = 2 * mean(Rest_vec);
       
       % if we have at least 2 voltage peaks, update state estimate
       if length( tpeak_vec ) > (nlags+1)
