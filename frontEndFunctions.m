@@ -1,19 +1,19 @@
 classdef frontEndFunctions
-  
+
    properties (Access = public)
       uiType % 'app' or 'gui'
    end
-   
+
 methods (Static)
    % Constructor
    function obj = frontEndFunctions(varargin)
       if nargin == 0, error('Not enough input arguments');end
-      
+
       if nargin == 1
          obj.uiType = varargin{1};
       end
    end
-   
+
    %% Shared methods
    function aboutMenuItem
    % hObject    handle to aboutMenuItem (see GCBO)
@@ -32,19 +32,30 @@ methods (Static)
       uicontrol('parent',aboutWindow,'Style','text',...
             'String', str,'Position',[187,0,187,200],'FontSize',11);
 
+      % Get location of log files
+      a = which('SpikeExtractionTool');
+      locs = strfind(a, '\');
+      path = a(1:locs(end));
+
       logo = uicontrol('parent',aboutWindow,'Style','pushbutton',...
             'Position',[187,200,187,187]);
-      [x,map]=imread('fig/unimelb.png'); % Load the zoom icon
-      I2=imresize(x, [187 187]); % Resize icon
-      logo.CData = I2; % Assign icon to the button
+      [x,map]=imread([path 'fig' filesep 'unimelb.png']); % Load the zoom icon
+      if strcmp('gui', h.f.uiType)
+        I2=imresize(x, [187 187]); % Resize icon
+        logo.CData = I2; % Assign icon to the button
+      else
+        logo.Icon = [path 'fig' filesep 'unimelb.png'];
+      end
    end
-   
+
    function add_voltage(h)
       h.data.last_tseries    = h.data.curr_tseries;
       new_num_tseries = h.data.num_tseries + 1;
 
       % open image files & retrieve matrices
       [h.data, success] = openVoltageFile(h.data);
+
+      h = h.f.resetSliders(h);
 
       if success~=1
          str = sprintf('Error opening file, ignoring');
@@ -64,7 +75,7 @@ methods (Static)
       end
       h.f.curr_signal(h.curr_signal, 'add_voltage', h);
    end
-   
+
    function h = automatic_params(h, hObject)
       if hObject.Value
          h.set_tool_params.Enable = 'off';
@@ -75,7 +86,7 @@ methods (Static)
       end
       if strcmp('gui', h.f.uiType), guidata(hObject,h); end% saves changes to handles
    end
-   
+
    function clear_voltages(hObject, h, vtc)
       try
          vtc = vtc.Value;
@@ -87,7 +98,7 @@ methods (Static)
          runtimeErrorHandler(E);
       end
    end
-   
+
    function curr_signal(hObject, eventdata, handles)
       if ~handles.f.haveUserData(handles)
          return;
@@ -109,7 +120,7 @@ methods (Static)
       last_type    = handles.data.tseries{handles.data.last_tseries}.type;
       [last_tlim, last_vlim] = getTimeAndVoltageLimits(last_tseries);
       [curr_tlim, curr_vlim] = getTimeAndVoltageLimits(tseries);
-      
+
       if strcmp('load_voltage', eventdata) || ~strcmpi(data_type, last_type)
          % only remember last tool for voltage data cuz not many options for the others
          tool_num    = ternaryOp( strcmpi(data_type, 'voltage'), handles.data.last_tool, 1);
@@ -145,12 +156,12 @@ methods (Static)
             set(handles.time_min,    'Value', sprintf('%.2f',mint));
          end
       end
-      
+
       if strcmp('load_voltage', eventdata) || ~compareFloats(curr_vlim(2), last_vlim(2), 0.01, 'perc')
          % set time slider and time max/min text boxes from scale of data
          handles.data.vlim = curr_vlim;
          minv = handles.data.vlim(1); maxv = handles.data.vlim(2);
-         
+
          if strcmp('gui', handles.f.uiType)
             set(handles.voltage_max,    'String', sprintf('%.2f',maxv));
             set(handles.voltage_min,    'String', sprintf('%.2f',minv));
@@ -172,7 +183,7 @@ methods (Static)
          end
       end
    end
-   
+
    function [tseries, ts_num, type, ts_name] = getCurrentVoltage(handles)
    % extract time series data, index number into tseries cell array, data type
    % of time series, and the name of the time series
@@ -187,15 +198,27 @@ methods (Static)
       end
       tseries = handles.data.tseries{ts_num};
       ts_name = handles.data.tseries_str{ts_num};
+      if iscell(ts_name)
+        ts_name = ts_name{1};
+      end
+      if iscell(tseries.name)
+        tseries.name = tseries.name{1};
+      end
       type    = tseries.type;
    catch ME
       ts_num  = handles.data.curr_tseries;
       tseries = handles.data.tseries{ts_num};
       ts_name = handles.data.tseries_str{ts_num};
+      if iscell(ts_name)
+        ts_name = ts_name{1};
+      end
+      if iscell(tseries.name)
+        tseries.name = tseries.name{1};
+      end
       type    = tseries.type;
    end
    end
-   
+
    function name = getFileName(instruct, defVal, maxLength)
    % prompt user for name of volume saved to file (so they're not stupidly
       % long)
@@ -214,7 +237,7 @@ methods (Static)
          end
       end
    end
-   
+
    function userids = getUserTemplateDeleteIDs(tseries, method_params)
       % user configuration parameters:
       %   ap.merge_templates.user_selection.template_to_merge_with.value = 1;
@@ -285,7 +308,7 @@ methods (Static)
       end
       userids = unique( userids );
    end
-   
+
    function userids = getUserTemplateMergeIDs(tseries, method_params)
       % user configuration parameters:
       %   ap.merge_templates.user_selection.template_to_merge_with.value = 1;
@@ -358,7 +381,7 @@ methods (Static)
       end
       userids = unique( userids );
    end
-   
+
    function have = haveUserData(handles)
       have = 0;
       % if no timeseries to display don't try moving crosshairs etc
@@ -371,7 +394,7 @@ methods (Static)
       end
       have = 1;
    end
-   
+
    function load_voltage(varargin)
       if nargin == 1
          h = varargin{1};
@@ -379,14 +402,14 @@ methods (Static)
          hObject = varargin{1};
          h = varargin{2};
       end
-      
+
       last_dir = h.data.last_dir; % keep before we write over it
       old_numtseries = h.data.num_tseries;
 
       % get rid of all previous data
       h = toggleSETGUIstate(h,'off');
       h.data.last_dir = last_dir;
-      
+
       if strcmp('gui',h.f.uiType)
          guidata(hObject,h);  % saves the change to handles
       end
@@ -413,6 +436,8 @@ methods (Static)
       h.data = data;
       h = toggleSETGUIstate(h,'on');
 
+      h = h.f.resetSliders(h);
+
       if strcmp('gui',h.f.uiType)
          guidata(hObject,h);  % saves the change to handles
          set(h.curr_signal, 'String', data.tseries_str);
@@ -428,7 +453,7 @@ methods (Static)
       h.f.curr_signal(h.curr_signal, 'load_voltage', h);
       if strcmp('gui',h.f.uiType), guidata(hObject,h); end
    end
-   
+
    function new_figure(h)
       new_gui     = SpikeExtractionTool;
       new_handles = guidata(gcf);
@@ -460,8 +485,8 @@ methods (Static)
       % plot data that was put in new figure
       curr_signal_Callback( new_app.curr_signal, [], new_handles );
    end
-   
-   function varargout = removeVoltage(h, varargin)    
+
+   function varargout = removeVoltage(h, varargin)
       if (numel(varargin) == 0) || cellfun(@isempty, varargin)
          remove_tseries = h.data.curr_tseries;
          varargin = [];
@@ -543,8 +568,46 @@ methods (Static)
 
       if numel(varargin) == 1,varargout = {h};end % When removing multiple voltages at once, we want to update the state of handles for the caller method
    end
-   
-   function run_tool(h)
+
+   function h = resetSliders(h, varargin)
+      if strcmp('gui', h.f.uiType) && (nargin > 1)
+        hObject = varargin{1};
+      end
+
+      h.data.zoomPercentage = [0 0]; % Records currently chosen zoom value
+      h.data.displacementPercentage = [0 0.5]; % Records currently chosen displacement value
+      % Get location of GUI files
+      a = which('SpikeExtractionTool');
+      locs = strfind(a, '\');
+      path = a(1:locs(end));
+
+      [x,~]=imread([path 'fig' filesep 'magnifierIcon.png']);% Load the zoom icon
+      if strcmp('gui', h.f.uiType)
+        I2=imresize(x, [22 22]); % Resize icon
+        h.toggleZoomButton.CData = I2; % Assign icon to the button
+        h.toggleZoomButton.UserData = 'zoom'; % Change state to zoom
+      else
+        h.toggleZoomButton.Icon = [path 'fig' filesep 'magnifierIcon.png'];
+      end
+
+      h.time_slider.Value = handles.data.zoomPercentage(1); % Update the position of the slider to represent zoom.
+      h.voltage_slider.Value = handles.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
+
+      if strcmp('gui', h.f.uiType)
+        h.time_slider.SliderStep = [0.01 0.1]; % Make sure it is within 0 and 1.
+        h.voltage_slider.SliderStep = [0.01 0.1];
+      end
+
+      if exist('hObject')
+        % Update tooltip
+        h = setTooltips(h, {hObject.Tag}, getTooltips({'toggleZoomButton_toDisplace'}));
+      end
+
+   end
+
+   function varargout = run_tool(h)
+     tic;
+     varargout = {};
       % Implement the tool using the method & params requested
       if strcmp('gui', h.f.uiType)
          tool_list     = get(h.tool_list, 'String');
@@ -567,7 +630,11 @@ methods (Static)
       end
 
       [tseries, ~, type] = h.f.getCurrentVoltage(h);
-      method_params = getToolAndMethodParams(h.data.params, type, tool, method);
+      if ~strcmpi('export to excel', tool)
+        % Because 'export to excel' does not have params, only do this for the
+        % other tools
+        method_params = getToolAndMethodParams(h.data.params, type, tool, method);
+      end
 
       switch lower(type)
          case 'voltage'
@@ -631,6 +698,8 @@ methods (Static)
                   % get time series to apply AP templates to
                   [APtemplates, APfamily] = identifyAPs(tseries, method, method_params,  h.options.debugOption);
                   if isempty(APtemplates)
+                     str = sprintf('\tNo templates could be identified.\n');
+                     printMessage('off', 'Error', str);
                      return;
                   end
                   new_tseries.type    = 'ap';
@@ -712,9 +781,17 @@ methods (Static)
                   % if user hasn't set parameters explicitly they wouldn't
                   % have chosen a voltage timeseries to apply the AP templates to
                   if ~isfield(method_params, 'voltage_timeseries')
-                     str = 'Set parameters to choose a voltage timeseries to match the AP templates to';
-                     displayErrorMsg(str);
-                     return;
+                     % Only do this if Batch is not selected
+                     if ~isfield(h.options, 'isBatch') || ~h.options.isBatch
+                       str = 'Set parameters to choose a voltage timeseries to match the AP templates to';
+                       displayErrorMsg(str);
+                       return;
+                     else
+                       method_params.voltage_timeseries = struct;
+                       method_params.voltage_timeseries.value = h.data.tseries{end-1}.name;
+                       method_params.voltage_timeseries.name = 'voltage timeseries';
+                       method_params.voltage_timeseries.type = 'string';
+                     end
                   end
                   voltage_name        = method_params.voltage_timeseries;
                   voltage_index       = strcmpi(voltage_name.value, h.data.tseries_str);
@@ -746,6 +823,11 @@ methods (Static)
                   else
                      % gotta be cheeky getting time since we can plot spikes
                      % consecutively to make it easier to see how they change
+                     for j = 1:size(APspikes,2)
+                       if size(APspikes{j},1) > size(voltage_tseries.time,1)
+                         APspikes{j} = APspikes{j}(1:size(voltage_tseries.time,1),1);
+                       end
+                     end
                      new_tseries.time = voltage_tseries.time( 1:size(APspikes{1}, 1) );
                   end
                   new_tseries.dt      = voltage_tseries.dt;
@@ -815,6 +897,15 @@ methods (Static)
                   tool_str            = [tseries.name '_spikes'];
                   instruct            = ['Creating ' tool_str ': rename?'];
 
+              case 'export to excel'
+                  try
+                     exportToExcel(tseries);
+                  catch E
+                     str = sprintf('\tAn unexpected error occurred while creating the excel file.\n');
+                     runtimeErrorHandler(E, 'message', str);
+                  end
+                  varargout = {h};
+                  return;
                otherwise
             end
 
@@ -829,9 +920,13 @@ methods (Static)
             return;
 
       end
-
+      elapsed = toc;fprintf('\tElapsed time: %0.4f seconds. Tool = %s\n',elapsed, tool);
       try
-         name = h.f.getFileName(instruct, tool_str, 60);
+         if isfield(h.options, 'isBatch') && h.options.isBatch
+           name = tool_str;
+         else
+           name = h.f.getFileName(instruct, tool_str, 60);
+         end
       catch E
          if strcmp('MATLAB:inputdlg:InvalidInput',E.identifier)
             runtimeErrorHandler(E,'ignore');
@@ -861,7 +956,7 @@ methods (Static)
       h.data.tseries_str = tseries_str;
       h.data.num_tseries = new_numtseries;
       h.data.used_names  = used_names;
-      
+
       if strcmp('gui', h.f.uiType)
          set(h.curr_signal, 'String', tseries_str);
          set(h.curr_signal, 'Value',  new_numtseries);
@@ -871,8 +966,13 @@ methods (Static)
          set(h.curr_signal, 'Value',  tseries_str(new_numtseries));
       end
       h.f.curr_signal(h.curr_signal, [], h);
+
+      if isfield(h.options, 'isBatch') && h.options.isBatch
+        guidata([], h);
+        varargout = {h};
+      end
    end
-  
+
    function save_voltage(h, varargin)
       % If gui:
       if nargin > 1
@@ -880,30 +980,60 @@ methods (Static)
       end
       [tseries, ~, type, ts_name] = h.f.getCurrentVoltage(h);
       sname = title2Str(ts_name,1,1); % save name - options remove all punctuation
-      sname = h.f.getFileName('Name of saved variable in mat file ...', sname, 63);
+      if ~isfield(h.options, 'isBatch') || ~h.options.isBatch
+        sname = h.f.getFileName('Name of saved variable in mat file ...', sname, 63);
+      end
+
       if isempty(sname)
          return; % user's cancelled and hasn't provided a variable name
       end
 
       var_name = title2Str(ts_name,1,1,'_');
+      % Check variable name size:
+      if length(sname) > 50
+         var_name = var_name(end - 50 : end);
+         sname = sname(end - 50 : end);
+      end
       eval_str = [sname ' = tseries;'];
       eval(eval_str);
 
-      displayErrorMsg( 'If you save into an existing smr file please ignore Matlab''s warning that it will be written over (select yes)' );
+      if ~isfield(h.options, 'isBatch') || ~h.options.isBatch
+          displayErrorMsg( 'If you save into an existing smr file please ignore Matlab''s warning that it will be written over (select yes)' );
 
-      if strcmpi(type,'voltage')
-         filterspec = {'*.mat',  'MAT-files (*.mat)'; ...
-            '*.smr',  'Spike files (*.smr)'; };
-      else
-         filterspec = {'*.mat'};
-      end
-      [fname, pname, findex] = uiputfile(filterspec, 'Save data as',...
-         fullfile( h.data.last_dir, sname) );
+          if strcmpi(type,'voltage')
+             filterspec = {'*.mat',  'MAT-files (*.mat)'; ...
+                '*.smr',  'Spike files (*.smr)'; };
+          else
+             filterspec = {'*.mat'};
+          end
+          [fname, pname, findex] = uiputfile(filterspec, 'Save data as',...
+             fullfile( h.data.last_dir, sname) );
 
-      if isequal(fname,0) || isequal(pname,0) || findex==0 % (cancelled)
-         return;
-      end
+          if isequal(fname,0) || isequal(pname,0) || findex==0 % (cancelled)
+             return;
+          end
+        else
+          % If its processing batches
+          fname = sname;
+          pname = h.options.batchPath;
+          findex = 1;
+        end
+
       full_name = fullfile(pname, fname);
+      % Check if folder exists
+      if ~exist(pname, 'dir')
+         mkdir(pname);
+      end
+
+      % Check if file exists
+      sufix = 0;
+      valid_name = full_name;
+      while exist([valid_name '.mat'], 'file')
+         sufix = sufix + 1;
+         valid_name = [full_name '_' num2str(sufix)];
+      end
+      full_name = valid_name;
+
       if findex==1 % .mat
          eval_str  = ['save(full_name, ''' sname ''', ''-v7.3'');'];
          eval(eval_str);
@@ -984,12 +1114,12 @@ methods (Static)
          guidata(hObject,h);
       end
    end
-   
+
    function set_tool_params(h, varargin)
       if nargin > 1
          hObject = varargin{1};
       end
-      
+
       % update curr tool now we're actually interested in this one
       if h.data.curr_tool ~= get(h.tool_list, 'Value')
          h.data.last_tool = h.data.curr_tool;
@@ -999,7 +1129,7 @@ methods (Static)
       % display the configuration parameters & allow user to set them
       [tseries, ts_num, data_type] = h.f.getCurrentVoltage(h);
       data_type    = tseries.type;
-      
+
       if strcmp('gui', h.f.uiType)
          tool_num     = get(h.tool_list,'Value');
          tool_list    = get(h.tool_list,'String');
@@ -1010,7 +1140,7 @@ methods (Static)
          method       = method_list{method_num};
       else
          tool_list    = get(h.tool_list,'Items');
-         tool         = get(h.tool_list,'Value'); 
+         tool         = get(h.tool_list,'Value');
 
          method_list  = get(h.method_list,'Items');
          method   = get(h.method_list,'Value');
@@ -1027,7 +1157,10 @@ methods (Static)
       if strcmpi(tool, 'extract spikes')  && strcmpi(method, 'matched filter')
          if ~strcmpi(data_type, 'voltage')
             types     = getStructFieldFromCell(h.data.tseries, 'type');
-            names     = getStructFieldFromCell(h.data.tseries, 'name');
+            % names     = getStructFieldFromCell(h.data.tseries, 'name');
+            % Previous line was causing an error when two voltages had same name
+            % but different sufix.
+            names = h.data.tseries_str;
             isvoltage = strcmpi('voltage', types);
 
             if sum(isvoltage)==0
@@ -1062,9 +1195,20 @@ methods (Static)
                method_params.voltage_timeseries = voltage_timeseries;
             end
          end
+      elseif strcmpi(tool, 'export to excel')  && strcmpi(method, 'spike rate and count')
+         displayErrorMsg('There are no parameters for this tool');
+         return;
       end
 
-      [method_params, cancel] = requestUserParamConfig(method_params, dlg_name);
+      try
+        [method_params, cancel] = requestUserParamConfig(method_params, dlg_name);
+      catch ME
+        if strcmp('MATLAB:unassignedOutputs', ME.identifier)
+          cancel = 1;
+        else
+          runtimeErrorHandler(ME,'message', 'Something went wrong setting the parameters.');
+        end
+      end
 
       % if merging templates, user must select template ID now we know how
       % many they want to merge (can't do simultaneously)
@@ -1096,7 +1240,7 @@ methods (Static)
          guidata(hObject,h); % saves changes to handles
       end
    end
-   
+
    function time_min(h, varargin)
       if ~h.f.haveUserData(h)
          return;
@@ -1105,7 +1249,7 @@ methods (Static)
       if nargin > 1
          hObject = varargin{1};
       end
-      
+
       % Get new max time & check with tseries time vector that it's within limits.
       prev_tlim = h.data.tlim;
       tseries   = h.f.getCurrentVoltage(h);
@@ -1143,7 +1287,7 @@ methods (Static)
             [~,text_max] = checkStringInput(get(h.time_max, 'Value'), 'float');
             text_min= (zoom_min - proport*text_max) / (1-proport);
             displayErrorMsg(sprintf('Time must be between %d & %d', mint, maxt));
-            set(h.time_min, 'Value', sprintf('%.2f',text_min)); % reset to old val            
+            set(h.time_min, 'Value', sprintf('%.2f',text_min)); % reset to old val
          end
          return
       end
@@ -1160,6 +1304,13 @@ methods (Static)
          set(h.time_slider, 'Value', 1);
       end
       h.data.tlim(1) = newt;
+
+      if ~(newt < maxt)
+         currtseries = h.data.curr_tseries;
+         maxt = h.data.tseries{currtseries}.time(end);
+         h.time_max.String = num2str(maxt);
+         set(h.time_max, 'Value', num2str(maxt));
+      end
       h.data.tlim(2) = maxt;
 
       % Update time sliders
@@ -1190,12 +1341,12 @@ methods (Static)
          end
       end
    end
-   
+
    function time_max(h,varargin)
       if nargin > 1
          hObject = varargin{1};
       end
-      
+
       if ~h.f.haveUserData(h)
          return;
       end
@@ -1205,13 +1356,13 @@ methods (Static)
       prev_tlim  = h.data.tlim; % previous user time limits
       data_tlims = getTimeAndVoltageLimits(tseries, 'tlim'); % min/max poss time lims
       mint       = data_tlims(1); maxt = data_tlims(2);
-      
+
       if strcmp('gui', h.f.uiType)
          str        = get(h.time_max, 'String');
       else
          str        = get(h.time_max, 'Value');
       end
-      
+
       [ok, newt] = checkStringInput(str, 'float', mint, maxt);
       if ~ok
          % users input is dodgy - gotta reverse engineer old text box max from
@@ -1223,7 +1374,7 @@ methods (Static)
          zoom_max= h.data.tlim(2);
          if strcmp('gui', h.f.uiType)
             [~,text_min] = checkStringInput(get(h.time_min, 'String'), 'float');
-            text_max= maxt;%text_max= (zoom_max + proport*text_min) / (1-proport);
+            text_max=  (zoom_max + proport*text_min) / (1-proport);% maxt;%text_max= (zoom_max + proport*text_min) / (1-proport);
             displayErrorMsg(sprintf('Time must be between %d & %d', mint, maxt));
             set(h.time_max, 'String', sprintf('%.2f',text_max)); % reset to old val
          else
@@ -1249,6 +1400,16 @@ methods (Static)
       end
       % set(h.time_slider, 'Value', 1);
       h.data.tlim(2) = newt;
+
+      if ~(mint < newt)
+         currtseries = h.data.curr_tseries;
+         mint = h.data.tseries{currtseries}.time(1);
+         if strcmp('gui', h.f.uiType)
+           h.time_min.String = num2str(mint);
+         else
+           set(h.time_min, 'Value', num2str(mint));
+         end
+      end
       h.data.tlim(1) = mint;
 
        % Update time sliders
@@ -1290,21 +1451,40 @@ methods (Static)
 
       if strcmp('gui', h.f.uiType), guidata(hObject, h); end
    end
-   
+
    function time_slider_updated(h, varargin)
       if nargin > 1
          hObject = varargin{1};
       end
-      
+
       method = h.toggleZoomButton.UserData; % Loads current option (zoom or displacement)
+
       if strcmp('zoom',method)
          % slider zooms in/out to max/min values given in text boxes, so that
          % slider is a percentage of possible max/mins.
          percent = hObject.Value;
+         if percent == 1
+            percent = 0.99999;
+            h.time_slider.SliderStep(2) = 1;
+            h.time_slider.SliderStep(1) = 0.00005;
+            h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
+         elseif percent > 0.999
+            h.time_slider.SliderStep(2) = 1;
+            h.time_slider.SliderStep(1) = 0.00005;
+            h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
+         elseif percent > 0.95
+            h.time_slider.SliderStep(2) = 1;
+            h.time_slider.SliderStep(1) = 0.001;
+            h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
+         else
+            h.time_slider.SliderStep = [0.01 0.1];
+         end
+
          h.data.zoomPercentage(1) = percent;
+
          prev_tlim  = h.data.tlim; % record time lims before slider was moved
 
-         % calculate new min & max time lims by zoomin in from both ends   
+         % calculate new min & max time lims by zoomin in from both ends
          tseries = h.f.getCurrentVoltage(h);
          zoom_min = h.data.tlim(1);
          zoom_max = h.data.tlim(1) + ((tseries.time(end) - tseries.time(1))*(1-percent));
@@ -1317,7 +1497,7 @@ methods (Static)
          h.data.displacementPercentage(1) = displacement;
          prev_tlim  = h.data.tlim; % record time lims before slider was moved
 
-         % calculate new min & max time lims by zoomin in from both ends   
+         % calculate new min & max time lims by zoomin in from both ends
          tseries = h.f.getCurrentVoltage(h);
          disp_min = displacement * (tseries.time(end) - tseries.time(1));
          disp_max = disp_min + (h.data.tlim(2) - h.data.tlim(1));
@@ -1373,52 +1553,92 @@ methods (Static)
          guidata(hObject, h);
       end
    end
-   
+
    function toggleZoomButton(h, hObject)
       % Toggles between arrows (displacement) and magnifier (zoom) icons
       warning('off','MATLAB:imagesci:png:libraryWarning'); % Ignore PNG associated warning
 
+      % Get location of GUI files
+      a = which('SpikeExtractionTool');
+      locs = strfind(a, '\');
+      path = a(1:locs(end));
+
+
+      maxt = h.data.tlim(2);
+      mint = h.data.tlim(1);
+      zoom = 1 - h.data.zoomPercentage;
+
       if strcmp('zoom',hObject.UserData)
          % Displacement function has been selected
          if strcmp('gui', h.f.uiType)
-            [x,~]=imread('fig/arrowsIcon.png');% Load the displacement icon
+            [x,~]=imread([path 'fig' filesep 'arrowsIcon.png']);% Load the displacement icon
             I2=imresize(x, [22 22]); % Resize icon
             hObject.CData = I2; % Assign icon to the button
+            h.voltage_slider.SliderStep =  [0.01 0.1];
 
-            h.time_slider.SliderStep(2) = max([h.time_slider.SliderStep(1) 1e-1/h.data.zoomPercentage(1)]); % Change the size of the horizontal slider indicator to match the value zoomed in.
-            h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(2)); % Make sure it is within 0 and 1.
-            h.time_slider.SliderStep(1) = (0.1 * h.time_slider.SliderStep(2));
-            h.voltage_slider.SliderStep(2) = max(h.voltage_slider.SliderStep(1) , h.data.zoomPercentage(2));% Change the size of the vertical slider indicator to match the value zoomed in.
-            h.voltage_slider.SliderStep(1) = 0.1 * h.voltage_slider.SliderStep(2);
-         else                  
-            h.toggleZoomButton.Icon = 'fig/arrowsIcon.png';
+            h.time_slider.SliderStep(2) = 1;
+            h.time_slider.SliderStep(1) = zoom(1) / 2;% max(handles.time_slider.SliderStep(1) , handles.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
+            h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*2);
+            % Update tooltip
+            h = setTooltips(handles, {hObject.Tag}, getTooltips({'toggleZoomButton_toZoom'}));
+         else
+            h.toggleZoomButton.Icon = [path 'fig' filesep 'arrowsIcon.png'];
          end
          hObject.UserData = 'disp'; % Change state to displacement
          h.time_slider.Value = h.data.displacementPercentage(1); % Update the position of the slider to represent displacement.
-         h.voltage_slider.Value = h.data.displacementPercentage(2); % Update the position of the slider to represent displacement.
+         h.voltage_slider.Value = 0.5; % Update the position of the slider to represent displacement.
+         h.data.displacementPercentage(2) = 0;
       else
          if strcmp('gui', h.f.uiType)
             % Zoom function has been selected
-            [x,~]=imread('fig/magnifierIcon.png');% Load the zoom icon
+            [x,~]=imread([path 'fig' filesep 'arrowsIcon.png']);% Load the displacement icon
             I2=imresize(x, [22 22]); % Resize icon
             hObject.CData = I2; % Assign icon to the button
 
             h.time_slider.SliderStep =  [0.001 0.1];%max(app.time_slider.SliderStep(1) , app.data.displacementPercentage(1)); % Change the size of the horizontal slider indicator to match the value displaced in.
             h.voltage_slider.SliderStep =  [0.01 0.1];%max(app.voltage_slider.SliderStep(1) , app.data.displacementPercentage(2)); %  Change the size of the vertical slider indicator to match the value displaced in.
          else
-            h.toggleZoomButton.Icon = 'fig/magnifierIcon.png';
+            h.toggleZoomButton.Icon = [path 'fig' filesep 'arrowsIcon.png'];
          end
 
          hObject.UserData = 'zoom'; % Change state to zoom
          h.time_slider.Value = h.data.zoomPercentage(1); % Update the position of the slider to represent zoom.
          h.voltage_slider.Value = h.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
+
+         if strcmp('gui', h.f.uiType)
+           percent = 1 - zoom(1);
+           if percent == 1
+               percent = 0.99999;
+               zoom(1) = 1 - percent;
+               h.time_slider.SliderStep(2) = 1;
+               h.time_slider.SliderStep(1) = 0.00005;
+               h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
+           elseif percent > 0.999
+               h.time_slider.SliderStep(2) = 1;
+               h.time_slider.SliderStep(1) = 0.00005;
+               h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
+           elseif percent > 0.95
+               h.time_slider.SliderStep(2) = 1;
+               h.time_slider.SliderStep(1) = 0.001;
+               h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
+           elseif percent > 0.9
+               h.time_slider.SliderStep(2) = 1;
+               h.time_slider.SliderStep(1) = 0.005;
+               h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
+           else
+               h.time_slider.SliderStep = [0.01 0.1];
+           end
+           h.voltage_slider.SliderStep =  [0.01 0.1];
+         end
+         % Update tooltip
+         h = setTooltips(h, {hObject.Tag}, getTooltips({'toggleZoomButton_toDisplace'}));
       end
    end
-   
+
    function tool_list(hObject, handles)
       % get name of tool chosen and update available methods
       [tseries, ~, data_type] = handles.f.getCurrentVoltage(handles);
-      
+
       % Chec UI Type
       if strcmp('gui', handles.f.uiType)
          tool_num  = get(hObject, 'Value');
@@ -1445,29 +1665,59 @@ methods (Static)
 
       guidata(hObject,handles); % saves changes to handles
    end
-   
+
    function updateTimeSlider(h)
       maxt = h.data.tlim(2);
       mint = h.data.tlim(1);
+      trange = maxt - mint;
       currtseries = h.data.curr_tseries;
 
       if strcmp('zoom',h.toggleZoomButton.UserData)
          h.data.zoomPercentage(1) = 1 - ((maxt-mint) / (h.data.tseries{currtseries}.time(end) - h.data.tseries{currtseries}.time(1)));
+         h.data.displacementPercentage(1) = (maxt - trange) / h.data.tseries{currtseries}.time(end);
          h.time_slider.Value = h.data.zoomPercentage(1); % Update the position of the slider to represent zoom.
-         if strcmp('gui', h.f.uiType)
-            h.time_slider.SliderStep =  [0.01 0.1];%max(h.voltage_slider.SliderStep(1) , h.data.displacementPercentage(2)); %  Change the size of the vertical slider indicator to match the value displaced in.
+
+         percent = h.data.zoomPercentage(1);
+         zoom = 1 - percent;
+         if strcmp('gui', h.f.uiType) % Only if its GUI
+           if percent == 1
+             percent = 0.99999;
+             zoom = 1 - percent;
+             h.time_slider.SliderStep(2) = 1;
+             h.time_slider.SliderStep(1) = 0.00005;
+             h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
+           elseif percent > 0.999
+             h.time_slider.SliderStep(2) = 1;
+             h.time_slider.SliderStep(1) = 0.00005;
+             h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
+           elseif percent > 0.9
+             h.time_slider.SliderStep(2) = 1;
+             h.time_slider.SliderStep(1) = 0.001;
+             h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
+           else
+             h.time_slider.SliderStep = [0.01 0.1];
+           end
          end
       else
-         h.data.zoomPercentage(1) = 1 - ((maxt-mint) / (h.data.tseries{currtseries}.time(end) - h.data.tseries{currtseries}.time(1)));
-         h.data.displacementPercentage(1) = 1 - maxt / h.data.tseries{currtseries}.time(end);
-         h.time_slider.Value = h.data.displacementPercentage(1); % Update the position of the slider to represent displacement.
-         if strcmp('gui', h.f.uiType)
-            h.time_slider.SliderStep(1) = max(h.time_slider.SliderStep(1) , h.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
-            h.time_slider.SliderStep(1) = 0.1 * h.time_slider.SliderStep(2);
-         end
+        if maxt >= handles.data.tseries{currtseries}.time(end-1)
+          h.time_slider.Value = 1;
+        elseif mint <= h.data.tseries{currtseries}.time(1)
+          h.time_slider.Value = 0;
+        else
+          h.time_slider.Value = h.data.displacementPercentage(1); % Update the position of the slider to represent displacement.
+        end
+        if strcmp('gui', h.f.uiType) % Only if its GUI
+          h.time_slider.SliderStep(2) = 1;
+          h.time_slider.SliderStep(1) = zoom(1) / 2;% max(handles.time_slider.SliderStep(1) , handles.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
+          h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*2);
+        end
+      end
+
+      if strcmp('gui', h.f.uiType) % Only if its GUI
+        guidata(h.time_slider, h);
       end
    end
-   
+
    function updateVoltageSlider(h)
       maxv = h.data.vlim(2);
       minv = h.data.vlim(1);
@@ -1485,14 +1735,14 @@ methods (Static)
             end
          end
          h.voltage_slider.Value = h.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
-         if strcmp('gui', h.f.uiType), h.voltage_slider.SliderStep =  [0.01 0.1]; end%max(h.voltage_slider.SliderStep(1) , h.data.displacementPercentage(2)); %  Change the size of the vertical slider indicator to match the value displaced in.
+         if strcmp('gui', h.f.uiType), h.voltage_slider.SliderStep =  [0.1 0.2]; end%max(h.voltage_slider.SliderStep(1) , h.data.displacementPercentage(2)); %  Change the size of the vertical slider indicator to match the value displaced in.
 
       else
          try
             h.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(max(h.data.tseries{currtseries}.data{1}{1}.spikes)) - min(min(h.data.tseries{currtseries}.data{1}{1}.spikes))));
             h.data.displacementPercentage(2) = 1 - maxv / max(max(h.data.tseries{currtseries}.data{1}{1}.spikes));
          catch E
-            if strcmp('MATLAB:max:wrongInput',E.identifier)
+            if strcmp('MATLAB:max:wrongInput',E.identifier)|| strcmp('MATLAB:cellRefFromNonCell',E.identifier)
                h.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(h.data.tseries{currtseries}.data) - min(h.data.tseries{currtseries}.data)));
                h.data.displacementPercentage(2) = 1 - maxv / max(h.data.tseries{currtseries}.data);
             else
@@ -1501,12 +1751,12 @@ methods (Static)
          end
          h.voltage_slider.Value = h.data.displacementPercentage(2); % Update the position of the slider to represent displacement.
          if strcmp('gui', h.f.uiType)
-            h.voltage_slider.SliderStep(2) = max(h.voltage_slider.SliderStep(1) , h.data.zoomPercentage(2));% Change the size of the vertical slider indicator to match the value zoomed in.
-            h.voltage_slider.SliderStep(1) = 0.1 * h.voltage_slider.SliderStep(2);
+            h.voltage_slider.SliderStep(2) = 0.2; % max(h.voltage_slider.SliderStep(1) , h.data.zoomPercentage(2));% Change the size of the vertical slider indicator to match the value zoomed in.
+            h.voltage_slider.SliderStep(1) = 0.1; % * h.voltage_slider.SliderStep(2);
          end
       end
    end
-   
+
    function voltage_slider_updated(h, hObject)
       method = h.toggleZoomButton.UserData; % Loads current option (zoom or displacement)
 
@@ -1517,22 +1767,28 @@ methods (Static)
          h.data.zoomPercentage(2) = percent;
          prev_vlim  = h.data.vlim; % record time lims before slider was moved
 
-         % calculate new min & max time lims by zoomin in from both ends   
+         % calculate new min & max time lims by zoomin in from both ends
          tseries = h.f.getCurrentVoltage(h);
          vrange = max(tseries.data) - min(tseries.data);
-         zoom_min = mean([h.data.vlim(1) h.data.vlim(2)]) - vrange * (1-percent);
-         zoom_max = mean([h.data.vlim(1) h.data.vlim(2)]) + vrange * (1-min(percent,0.999));
+         zoom_min = mean([h.data.vlim(1) h.data.vlim(2)]) - (vrange * (1-percent) / 2);
+         zoom_max = mean([h.data.vlim(1) h.data.vlim(2)]) + (vrange * (1-min(percent,0.999)) / 2);
 
          h.data.vlim(1) = max( zoom_min, min(tseries.data));
          h.data.vlim(2) = min( zoom_max, max(tseries.data));
+
+         h.data.displacementPercentage(2) = 0;
       else
          % Displacement
          newdisplacement = hObject.Value;
-         displacement = h.data.displacementPercentage(2) - newdisplacement;
+         if newdisplacement > handles.data.displacementPercentage(2)
+            displacement = newdisplacement;%handles.data.displacementPercentage(2) - newdisplacement;
+         else
+            displacement = -newdisplacement;
+         end
          h.data.displacementPercentage(2) = newdisplacement;
          prev_vlim  = h.data.vlim; % record time lims before slider was moved
 
-         % calculate new min & max time lims by zoomin in from both ends   
+         % calculate new min & max time lims by zoomin in from both ends
          tseries = h.f.getCurrentVoltage(h);
          disp_min = h.data.vlim(1) + displacement;
          disp_max = h.data.vlim(2) + displacement;
@@ -1540,12 +1796,12 @@ methods (Static)
          h.data.vlim(1) = max( disp_min, min(tseries.data));
          h.data.vlim(2) = min( disp_max, max(tseries.data));
       end
-      
+
       if strcmp('gui', h.f.uiType)
          % Update voltage (vertical) text boxes
          h.voltage_min.String = h.data.vlim(1);
          h.voltage_max.String = h.data.vlim(2);
-         
+
          tseries = h.f.getCurrentVoltage(h);
          h = updateSETFigure(h, tseries);
          guidata(hObject, h);
@@ -1553,13 +1809,13 @@ methods (Static)
          % Update voltage (vertical) text boxes
          h.voltage_min.Value = num2str(h.data.vlim(1));
          h.voltage_max.Value = num2str(h.data.vlim(2));
-         
+
          tseries = h.f.getCurrentVoltage(h);
          h = updateSETFigure(h, tseries);
       end
 
    end
-   
+
    function voltage_max(h, hObject)
       if ~h.f.haveUserData(h)
          return;
@@ -1629,7 +1885,7 @@ methods (Static)
       h = updateSETFigure(h, tseries);
       if strcmp('gui', h.f.uiType), guidata(hObject, h); end
    end
-   
+
    function voltage_min(h,hObject)
       if ~h.f.haveUserData(h)
          return;
@@ -1639,13 +1895,13 @@ methods (Static)
       tseries = h.f.getCurrentVoltage(h);
       minv    = min(tseries.data)*1.2;
       maxv    = max(tseries.data)*1.2;
-      
+
       if strcmp('gui', h.f.uiType)
          str     = get(h.voltage_min, 'String');
       else
          str     = get(h.voltage_min, 'Value');
       end
-      
+
       [ok, newv] = checkStringInput(str, 'float', minv, maxv);
       % if user's put in 0 assume they want the smallest voltage value, dt
       if ~ok
@@ -1665,7 +1921,7 @@ methods (Static)
             [~,text_max] = checkStringInput(get(h.voltage_max, 'Value'), 'float');
             text_min = minv; % (zoom_min - proport*text_max) / (1-proport);
             displayErrorMsg(sprintf('Voltage must be between %d & %d', minv, maxv));
-            set(h.voltage_min, 'Value', sprintf('%.2f',text_min)); % reset to old val 
+            set(h.voltage_min, 'Value', sprintf('%.2f',text_min)); % reset to old val
          end
          % Update voltage sliders
          h.f.updateVoltageSlider(h);
@@ -1676,7 +1932,7 @@ methods (Static)
       % Gotta get max voltage from other text box because need to reset displayed
       % voltage lims just in case new max is smaller than the last displayed min
       % (zoom allows you to zoom in from text box mins/maxes)
-      if strcmp('gui', h.f.uiType) 
+      if strcmp('gui', h.f.uiType)
          [~,maxv] = checkStringInput(get(h.voltage_max, 'String'), 'float'); % we know str is valid
          set(h.voltage_min, 'String', sprintf('%.2f',newv)); % reset to new val
       else
@@ -1685,6 +1941,15 @@ methods (Static)
       end
 
       h.data.vlim(1) = newv;
+      if ~(newv < maxv)
+         currtseries = h.data.curr_tseries;
+         maxv = max(h.data.tseries{currtseries}.data);
+         if strcmp('gui', h.f.uiType)
+           h.voltage_max.String = sprintf('%.2f',maxv);
+         else
+           set(h.voltage_max, 'Value', sprintf('%.2f',maxv));
+         end
+      end
       h.data.vlim(2) = maxv;
 
       % Update voltage sliders
@@ -1693,7 +1958,6 @@ methods (Static)
       h = updateSETFigure(h, tseries);
       if strcmp('gui', h.f.uiType), guidata(hObject, h); end
    end
-   
-end % Methods   
+
+end % Methods
 end % ClassDef
-      
