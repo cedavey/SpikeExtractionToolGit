@@ -188,7 +188,7 @@ function params = getDefaultToolParams
          voltage.denoise.threshold.min_positive_duration.type                   = 'positive float';
          voltage.denoise.threshold.min_positive_duration.units                  = 'ms'; % was \mu s for us coz dialogue has tex interpreter
 
-         voltage.denoise.threshold.min_negative_duration.value                  = 0.1;
+         voltage.denoise.threshold.min_negative_duration.value                  = 5;
          voltage.denoise.threshold.min_negative_duration.name                   = 'min negative duration';
          voltage.denoise.threshold.min_negative_duration.descript               = 'min consecutive duration of negative voltages to be retained';
          voltage.denoise.threshold.min_negative_duration.type                   = 'positive float';
@@ -252,11 +252,17 @@ function params = getDefaultToolParams
          voltage.identify_ap_templates.threshold.positive_threshold.type        = 'positive float';
          voltage.identify_ap_templates.threshold.positive_threshold.units       = 'std dev';
          
-         voltage.identify_ap_templates.threshold.negative_threshold.value       = 2;
+         voltage.identify_ap_templates.threshold.negative_threshold.value       = 5;
          voltage.identify_ap_templates.threshold.negative_threshold.name        = 'negative threshold';
          voltage.identify_ap_templates.threshold.negative_threshold.descript    = 'only spikes with a negative voltage of magnitude larger than this considered';
          voltage.identify_ap_templates.threshold.negative_threshold.type        = 'positive float';
          voltage.identify_ap_templates.threshold.negative_threshold.units       = 'std dev';
+         
+         voltage.identify_ap_templates.threshold.glitch_threshold.value       = 10;
+         voltage.identify_ap_templates.threshold.glitch_threshold.name        = 'glitch threshold';
+         voltage.identify_ap_templates.threshold.glitch_threshold.descript    = 'spikes larger than this are considered a giltch';
+         voltage.identify_ap_templates.threshold.glitch_threshold.type        = 'positive float';
+         voltage.identify_ap_templates.threshold.glitch_threshold.units       = 'avg spike amplitude';
         
          voltage.identify_ap_templates.threshold.min_positive_duration.value    = 1;
          voltage.identify_ap_templates.threshold.min_positive_duration.name     = 'min positive duration';
@@ -264,7 +270,7 @@ function params = getDefaultToolParams
          voltage.identify_ap_templates.threshold.min_positive_duration.type     = 'positive float';
          voltage.identify_ap_templates.threshold.min_positive_duration.units    = 'ms';
         
-         voltage.identify_ap_templates.threshold.min_negative_duration.value    = 0.2;
+         voltage.identify_ap_templates.threshold.min_negative_duration.value    = 1;
          voltage.identify_ap_templates.threshold.min_negative_duration.name     = 'min negative duration';
          voltage.identify_ap_templates.threshold.min_negative_duration.descript = 'minimum duration for negative component of spike (0 to ignore)';
          voltage.identify_ap_templates.threshold.min_negative_duration.type     = 'positive float';
@@ -289,13 +295,13 @@ function params = getDefaultToolParams
          voltage.identify_ap_templates.threshold.match_type.units               = 'statistic';
          voltage.identify_ap_templates.threshold.match_type.list                = {'corr','cov'};
          
-         voltage.identify_ap_templates.threshold.match_similarity.value         = 0.9;
+         voltage.identify_ap_templates.threshold.match_similarity.value         = 0.8;
          voltage.identify_ap_templates.threshold.match_similarity.name          = 'match similarity';
          voltage.identify_ap_templates.threshold.match_similarity.descript      = 'similarity required for spike shapes to be considered from the same template';
          voltage.identify_ap_templates.threshold.match_similarity.type          = 'normalised float';
          voltage.identify_ap_templates.threshold.match_similarity.units         = '\in [0, 1]';
    
-         voltage.identify_ap_templates.threshold.remove_small_templates.value   = 2;
+         voltage.identify_ap_templates.threshold.remove_small_templates.value   = 100;
          voltage.identify_ap_templates.threshold.remove_small_templates.name    = 'remove small templates';
          voltage.identify_ap_templates.threshold.remove_small_templates.descript= 'remove AP template estimates from this many or less spikes (0 to ignore)';
          voltage.identify_ap_templates.threshold.remove_small_templates.type    = 'positive integer';
@@ -450,7 +456,7 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.match_similarity.type            = 'normalised float';
          voltage.extract_spikes.matched_filter.match_similarity.units           = '\in [0, 1]';
 
-         voltage.extract_spikes.matched_filter.ap_peak_change.value             = 20;
+         voltage.extract_spikes.matched_filter.ap_peak_change.value             = 60;
          voltage.extract_spikes.matched_filter.ap_peak_change.name              = 'AP peak change';
          voltage.extract_spikes.matched_filter.ap_peak_change.descript          = 'how quickly can AP peak magnitude change with time';
          voltage.extract_spikes.matched_filter.ap_peak_change.type              = 'percentage';
@@ -467,6 +473,12 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.negative_threshold.descript      = 'only spikes with a negative voltage of magnitude larger than this considered (0 to ignore)';
          voltage.extract_spikes.matched_filter.negative_threshold.type          = 'positive float';
          voltage.extract_spikes.matched_filter.negative_threshold.units         = 'std dev';
+         
+         voltage.extract_spikes.threshold.glitch_threshold.value                = 10;
+         voltage.extract_spikes.threshold.glitch_threshold.name                 = 'glitch threshold';
+         voltage.extract_spikes.threshold.glitch_threshold.descript             = 'spikes larger than this are considered a giltch';
+         voltage.extract_spikes.threshold.glitch_threshold.type                 = 'positive float';
+         voltage.extract_spikes.threshold.glitch_threshold.units                = 'avg spike amplitude';
          
          voltage.extract_spikes.matched_filter.avg_window.value                 = 10; % MA window in seconds
          voltage.extract_spikes.matched_filter.avg_window.name                  = 'averaging window';
@@ -492,7 +504,7 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.min_negative_duration.type       = 'positive float';
          voltage.extract_spikes.matched_filter.min_negative_duration.units      = 'ms';
          
-         voltage.extract_spikes.matched_filter.allow_new_aps.value              = true;
+         voltage.extract_spikes.matched_filter.allow_new_aps.value              = false;
          voltage.extract_spikes.matched_filter.allow_new_aps.name               = 'allow new aps';
          voltage.extract_spikes.matched_filter.allow_new_aps.descript           = 'allow finding new AP templates';
          voltage.extract_spikes.matched_filter.allow_new_aps.type               = 'boolean';
@@ -504,7 +516,7 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.min_spiking_threshold.type            = 'positive integer';
          voltage.extract_spikes.matched_filter.min_spiking_threshold.units           = 'number of spikes';
             
-         voltage.extract_spikes.matched_filter.remove_small_templates.value     = 2;
+         voltage.extract_spikes.matched_filter.remove_small_templates.value     = 10;
          voltage.extract_spikes.matched_filter.remove_small_templates.name      = 'remove small templates';
          voltage.extract_spikes.matched_filter.remove_small_templates.descript  = 'remove AP template estimates from this many or less spikes (0 to ignore)';
          voltage.extract_spikes.matched_filter.remove_small_templates.type      = 'positive integer';
@@ -522,7 +534,13 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.plot_spikes_consecutively.type   = 'boolean';
          voltage.extract_spikes.matched_filter.plot_spikes_consecutively.units  = 'true or false';
 
-         % Extract spikes by k-means clustering         
+         % Extract spikes by k-means clustering
+         voltage.extract_spikes.k_means.no_clusters.value                 = 0;
+         voltage.extract_spikes.k_means.no_clusters.name                  = 'number of clusters';
+         voltage.extract_spikes.k_means.no_clusters.descript              = 'Clusters for the K-means, 0 for automatic';
+         voltage.extract_spikes.k_means.no_clusters.type                  = 'positive integer';
+         voltage.extract_spikes.k_means.no_clusters.units                 = 'integer';
+         
          voltage.extract_spikes.k_means.match_type.value                 = 'corr';
          voltage.extract_spikes.k_means.match_type.name                  = 'match type';
          voltage.extract_spikes.k_means.match_type.descript              = 'statistic to calculate similarity with';
@@ -554,6 +572,12 @@ function params = getDefaultToolParams
          voltage.extract_spikes.k_means.negative_threshold.type          = 'positive float';
          voltage.extract_spikes.k_means.negative_threshold.units         = 'std dev';
          
+         voltage.extract_spikes.k_means.glitch_threshold.value           = 10;
+         voltage.extract_spikes.k_means.glitch_threshold.name            = 'glitch threshold';
+         voltage.extract_spikes.k_means.glitch_threshold.descript        = 'spikes larger than this are considered a giltch';
+         voltage.extract_spikes.k_means.glitch_threshold.type            = 'positive float';
+         voltage.extract_spikes.k_means.glitch_threshold.units           = 'avg spike amplitude';
+         
          voltage.extract_spikes.k_means.avg_window.value                 = 10; % MA window in seconds
          voltage.extract_spikes.k_means.avg_window.name                  = 'averaging window';
          voltage.extract_spikes.k_means.avg_window.descript              = 'length of moving average window for estimating std dev to use in thresholding';
@@ -584,7 +608,7 @@ function params = getDefaultToolParams
          voltage.extract_spikes.k_means.allow_new_aps.type               = 'boolean';
          voltage.extract_spikes.k_means.allow_new_aps.units              = 'true or false';
          
-         voltage.extract_spikes.k_means.remove_small_templates.value     = 2;
+         voltage.extract_spikes.k_means.remove_small_templates.value     = 100;
          voltage.extract_spikes.k_means.remove_small_templates.name      = 'remove small templates';
          voltage.extract_spikes.k_means.remove_small_templates.descript  = 'remove AP template estimates from this many or less spikes (0 to ignore)';
          voltage.extract_spikes.k_means.remove_small_templates.type      = 'positive integer';
@@ -616,7 +640,7 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.match_similarity.type                 = 'normalised float';
          ap.extract_spikes.matched_filter.match_similarity.units                = '\in [0, 1]';
 
-         ap.extract_spikes.matched_filter.ap_peak_change.value                  = 20;
+         ap.extract_spikes.matched_filter.ap_peak_change.value                  = 60;
          ap.extract_spikes.matched_filter.ap_peak_change.name                   = 'AP peak change';
          ap.extract_spikes.matched_filter.ap_peak_change.descript               = 'how quickly can AP peak magnitude change with time';
          ap.extract_spikes.matched_filter.ap_peak_change.type                   = 'percentage';
@@ -633,6 +657,12 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.negative_threshold.descript           = 'only spikes with a negative voltage of magnitude larger than this considered (0 to ignore)';
          ap.extract_spikes.matched_filter.negative_threshold.type               = 'positive float';
          ap.extract_spikes.matched_filter.negative_threshold.units              = 'std dev';
+         
+         ap.extract_spikes.matched_filter.glitch_threshold.value                = 10;
+         ap.extract_spikes.matched_filter.glitch_threshold.name                 = 'glitch threshold';
+         ap.extract_spikes.matched_filter.glitch_threshold.descript             = 'spikes larger than this are considered a giltch';
+         ap.extract_spikes.matched_filter.glitch_threshold.type                 = 'positive float';
+         ap.extract_spikes.matched_filter.glitch_threshold.units                = 'avg spike amplitude';
          
          ap.extract_spikes.matched_filter.avg_window.value                      = 10; % MA window in seconds
          ap.extract_spikes.matched_filter.avg_window.name                       = 'averaging window';
@@ -658,13 +688,13 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.min_negative_duration.type            = 'positive float';
          ap.extract_spikes.matched_filter.min_negative_duration.units           = 'ms';
          
-         ap.extract_spikes.matched_filter.allow_new_aps.value                   = true;
+         ap.extract_spikes.matched_filter.allow_new_aps.value                   = false;
          ap.extract_spikes.matched_filter.allow_new_aps.name                    = 'allow new aps';
          ap.extract_spikes.matched_filter.allow_new_aps.descript                = 'allow finding new AP templates';
          ap.extract_spikes.matched_filter.allow_new_aps.type                    = 'boolean';
          ap.extract_spikes.matched_filter.allow_new_aps.units                   = 'true or false';
          
-         ap.extract_spikes.matched_filter.min_spiking_threshold.value           = false;
+         ap.extract_spikes.matched_filter.min_spiking_threshold.value           = 100;
          ap.extract_spikes.matched_filter.min_spiking_threshold.name            = 'min spiking threshold';
          ap.extract_spikes.matched_filter.min_spiking_threshold.descript        = 'remove a family with number of spikes less than this threshold';
          ap.extract_spikes.matched_filter.min_spiking_threshold.type            = 'positive integer';
@@ -680,19 +710,19 @@ function params = getDefaultToolParams
          ap.merge_templates.user_selection.template_to_merge_with.name          = 'template to merge with';
          ap.merge_templates.user_selection.template_to_merge_with.descript      = 'template ID of template to merge into';
          ap.merge_templates.user_selection.template_to_merge_with.type          = 'positive integer';
-         ap.merge_templates.user_selection.template_to_merge_with.units         = 'ID';
+         ap.merge_templates.user_selection.template_to_merge_with.units         = 'template ID';
 
          ap.merge_templates.user_selection.number_of_templates_to_merge.value   = 1;
          ap.merge_templates.user_selection.number_of_templates_to_merge.name    = 'number of templates to merge';
          ap.merge_templates.user_selection.number_of_templates_to_merge.descript= 'number of other templates to merge into chosen template';
          ap.merge_templates.user_selection.number_of_templates_to_merge.type    = 'positive integer';
-         ap.merge_templates.user_selection.number_of_templates_to_merge.units   = 'template ID';
+         ap.merge_templates.user_selection.number_of_templates_to_merge.units   = 'templates';
 
          ap.delete_templates.user_selection.number_of_templates_to_remove.value = 1;
          ap.delete_templates.user_selection.number_of_templates_to_remove.name  = 'number of templates to remove';
          ap.delete_templates.user_selection.number_of_templates_to_remove.descript = 'number of templates to be removed';
          ap.delete_templates.user_selection.number_of_templates_to_remove.type  = 'positive integer';
-         ap.delete_templates.user_selection.number_of_templates_to_remove.units = 'template ID';
+         ap.delete_templates.user_selection.number_of_templates_to_remove.units = 'templates';
 
          
 %       % Extract spikes by matching with AP templates as mother wavelets
@@ -796,6 +826,12 @@ function params = getDefaultToolParams
          spike.spike_operations.merge_spikes.within_template.descript           = 'merge spike trains within each template if true, else merge all spike trains from all templates';
          spike.spike_operations.merge_spikes.within_template.type               = 'boolean';
          spike.spike_operations.merge_spikes.within_template.units              = 'true or false';
+         
+%          spike.export_to_excel.spike_rate_and_count.file_name.value              = false;
+%          spike.export_to_excel.spike_rate_and_count.file_name.name               = 'within template';
+%          spike.export_to_excel.spike_rate_and_count.file_name.descript           = 'merge spike trains within each template if true, else merge all spike trains from all templates';
+%          spike.export_to_excel.spike_rate_and_count.file_name.type               = 'boolean';
+%          spike.export_to_excel.spike_rate_and_count.file_name.units              = 'true or false';
 
    %% Rate data
       % Statistics

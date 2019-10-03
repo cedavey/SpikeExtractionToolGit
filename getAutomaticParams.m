@@ -1,11 +1,12 @@
 % GETAUTOMATICPARAMS Returns the ideal parameters for the chosen method
 % that fits the input voltage.
 %
-% Syntax: params = getAutomaticParams(tseries, method);
+% Syntax: params = getAutomaticParams(tseries, noisestd, tool, method, params)
 %
 % Inputs:
 %     tseries	- The voltage data
 %     noisestd - Initial noise standard deviation obtained previously
+%     tool     - Tool that is running
 %     methods	- Method with which the data is being analyzed
 %     params   - Default params to keep the structure
 %
@@ -13,12 +14,12 @@
 %     params	- Automatic parameters
 %
 % Artemio - 16/July/2019
-function params = getAutomaticParams(tseries, noisestd, method, params)
+function params = getAutomaticParams(tseries, noisestd, tool, method, params)
    str = sprintf('\tStarting automatic parameter configuration...\n');
    printMessage('off','Keywords', str);
    
    % Check noise
-   if isempty(noisestd)
+   if strcmpi('rescale', tool) && isempty(noisestd)
       str = sprintf('\tAutomatic parameter configuration failed. Noise input was empty. Using default parameters\n');
       printMessage('off','Errors',str);
       return
@@ -29,17 +30,21 @@ function params = getAutomaticParams(tseries, noisestd, method, params)
       case 'voltage'
          % Check method
          try
-            switch lower(method)
-               case 'particle filter'
-                  params = calculateAutomaticParams(tseries, noisestd, params);
-               case 'recursive least squares'
-                  params = calculateAutomaticParams(tseries, noisestd, params);
-               otherwise
-                  % There is no automatic parameter configuration for the
-                  % current data type and method combination.
-                  str = sprintf('\tThere is no automatic parameter configuration for the data type: ''%s'' and method: ''%s''\n\tUsing the default parameters\n',tseries.type, method);
-                  printMessage('off','Errors',str);
-                  return
+            if strcmpi('rescale', tool)
+               switch lower(method)
+                  case 'particle filter'
+                     params = calculateAutomaticParamsRescale(tseries, noisestd, params);
+                  case 'recursive least squares'
+                     params = calculateAutomaticParamsRescale(tseries, noisestd, params);
+                  otherwise
+                     % There is no automatic parameter configuration for the
+                     % current data type and method combination.
+                     str = sprintf('\tThere is no automatic parameter configuration for the data type: ''%s'' and method: ''%s''\n\tUsing the default parameters\n',tseries.type, method);
+                     printMessage('off','Errors',str);
+                     return
+               end
+            elseif strcmpi('identifyap', tool) || strcmpi('extractspikes', tool)
+               params = calculateAutomaticParamsAPtemplates(tseries, params, tool);
             end
          catch E
             str = sprintf('\tSomething went wrong with the automatic parameters configuration\n');
@@ -57,14 +62,14 @@ function params = getAutomaticParams(tseries, noisestd, method, params)
    printMessage('off','Keywords', str);
 end
 
-% Calculates the parameters for particle filter and recursice least squares
-function params = calculateAutomaticParams(tseries, noisestd, params)
+%% Calculates the parameters for particle filter and recursice least squares
+function params = calculateAutomaticParamsRescale(tseries, noisestd, params)
    % Check the first 30 spikes in the recording
    spike_amp = []; % Spike amplitude
    spike_smp = []; % Spike sample (time at which the spike happened)
    v = tseries.data;
    dt = tseries.dt;
-   th = noisestd * 3;
+   th = noisestd * 3.5;
    idxst = 0;
    idxend = 0;
    smpls = 300;
@@ -76,7 +81,7 @@ function params = calculateAutomaticParams(tseries, noisestd, params)
       idxend = idxst + smpls;
       
       warning('off','signal:findpeaks:largeMinPeakHeight');
-      [a, b] = findpeaks( peakfn( v(idxst:idxend) ), 'MinPeakHeight', th, 'MinPeakWidth', 3);
+      [a, b] = findpeaks( peakfn( v(idxst:idxend) ), 'MinPeakHeight', th, 'MinPeakWidth', 5);
       spike_amp = [spike_amp; a];
       spike_smp = [spike_smp; idxst+b-1];
    end
@@ -85,17 +90,27 @@ function params = calculateAutomaticParams(tseries, noisestd, params)
    var_n = noisestd^2; % Variance of the noise
    var_s = var(spike_amp); % Variance of the spike amplitudes
    SNR = abs(10*log10(rms/var_n));
-   sp_rate = numel(spike_amp) / (spike_smp(end) * dt); % Firing rate
+   sp_rate = numel(spike_amp) / ((spike_smp(end) - spike_smp(1)) * dt); % Firing rate
    
    % Chose automatic parameters based on spike rate and SNR. The factors
    % are arbitrary, but they can be updated.
-   params.voltage_magnitude.value = sqrt(SNR); % Spike threshold is half of the signal to noise ratio
+   params.voltage_magnitude.value = sqrt(SNR); % Spike threshold is the sqrt of the signal to noise ratio
    params.glitch_magnitude.value = 2 * SNR; % Glitch threshold is twice the signal to noise ratio
    params.forgetting_factor.value = 0.99; % This has proved to be the best value
-   params.jump_ahead.value = 500/sp_rate;
+   %params.jump_ahead.value = 500/sp_rate;
+   params.jump_ahead.value = 10/(sp_rate * median(spike_amp/max(spike_amp))); % max(0.5/(sp_rate * var(spike_amp)), 0.5);
 end
 
-% we're identifying peaks by thresholding, so if we want only positive,
+%% Calculates the parameters for identify AP templates
+function params = calculateAutomaticParamsAPtemplates(tseries, params, tool)
+   if strcmpi('identifyap', tool)
+      params.remove_small_templates.value = floor(tseries.time(end)/10); % if any template contains a number of spikes less than 1 twentieth of the time, remove it
+   else
+      params.min_spiking_threshold.value = floor(tseries.time(end)/10); % if any template contains a number of spikes less than 1 twentieth of the time, remove it
+   end
+end
+
+%% we're identifying peaks by thresholding, so if we want only positive,
 % return actual voltage, if we want negative return the negative of
 % voltage, and if we want both positive & negative return abs val.
 function peakfn = getPeakFn( select_peaks )

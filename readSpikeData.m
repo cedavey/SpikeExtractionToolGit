@@ -7,8 +7,9 @@
 % .smr or .txt
 %
 % Reads voltage & time data for darpa project from smr, txt, or mat file
-function varargout = readSpikeData(filename, type)
-   if nargin<2, type = []; end
+function varargout = readSpikeData(filename, type, varargin)
+   if nargin < 2, type = []; end
+   if nargin < 3, isBatch = false; else, isBatch = varargin{1}; end
    varargout = cell(1, nargout);
 %     [varargout{:}] = deal([]); 
    data = [];
@@ -24,7 +25,7 @@ function varargout = readSpikeData(filename, type)
     if ~isempty(type)
         switch type
             case 'smr'
-                data = loadSMRfile(filename, true);
+                data = loadSMRfile(filename, true, isBatch);
                 if isempty(data)
                     str = sprintf('readSpikeData: could not load data, exiting...',filename);
                     cprintf('*Errors', str);
@@ -45,7 +46,7 @@ function varargout = readSpikeData(filename, type)
                  data = loadTextSpike2file(filename, false);
             catch
                 try
-                    data = loadSMRfile([filename '.smr'], false);
+                    data = loadSMRfile([filename '.smr'], false, isBatch);
                 catch 
                     str = sprintf('readSpikeData: file %s type is unrecognised, exiting...',filename);
                     cprintf('*Errors', str);
@@ -150,8 +151,9 @@ function data = loadMatlabSpike2file(filename, verbose)
    
 end
 
-function [data, ok] = loadSMRfile(filename, verbose)
+function [data, ok] = loadSMRfile(filename, verbose, varargin)
    if nargin<2, verbose = true; end
+   if nargin<3, isBatch = false; else, isBatch = varargin{1}; end
    data = []; ok = false;
    if ~exist(filename, 'file')
       if verbose
@@ -227,18 +229,25 @@ function [data, ok] = loadSMRfile(filename, verbose)
       % need to update default value for lists from being string to
       % being index into list, else inputsdlg has a hissy
        def{1}  = 1;
-
-      % ask user which channel they want to read from
-      prompt   = {'Which channel would you like to read from?'};
-      name     = 'Spike2 channel';
-      % formats.size = -1 --> % auto-expand width and auto-set height
-      options  = struct( 'Resize','on', 'WindowStyle','normal', 'Interpreter','tex' );
-      default  = {1};   
-      [answer,canceled] = inputsdlg(prompt, name, formats, default, options);
-      if canceled
-         [ ok ] = CEDS64Close( fhand );
-         return;
+      
+      % Chose the channel
+      if ~isBatch
+         % ask user which channel they want to read from
+         prompt   = {'Which channel would you like to read from?'};
+         name     = 'Spike2 channel';
+         % formats.size = -1 --> % auto-expand width and auto-set height
+         options  = struct( 'Resize','on', 'WindowStyle','normal', 'Interpreter','tex' );
+         default  = {1};   
+         [answer,canceled] = inputsdlg(prompt, name, formats, default, options);
+         if canceled
+            [ ok ] = CEDS64Close( fhand );
+            return;
+         end
+      else
+         % If it's batch processing, chose always channel 1
+         answer = {1};
       end
+      
       channel = avail( answer{1} );
 
       

@@ -20,7 +20,17 @@
 %                template, and within the cell another cell for each
 %                family, and within that cell an array of peak times for
 %                each spike within that family
-function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, params, normAPs )
+function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, params, normAPs ,opts)
+   
+   if opts.auto_params
+      % Get auto params
+      pp = getAutomaticParams(tseries, [], 'extractspikes', method, params);
+      % If returned value is empty, leave the default parameters untouched
+      if ~isempty(pp)
+         params = pp;
+      end
+   end
+
    APspikes  = [];  APtimes = [];
    [nT, nAP] = size(APtemplates); % num samples in each template, & num templates
    orig_nAP  = nAP; % if allowing new templates, record how many we started with
@@ -93,7 +103,10 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                % aligned
                rho = zeros( nAP, 1 );
                for ap=1:nAP
-                  [c, lags] = xcorr( curr_spike, APtemplates(:,ap), 2, 'normalized' );
+                  % Replaced the option 'normalized' with 'coeff' to ensure
+                  % compatibility with older versions. New versions accept
+                  % both.
+                  [c, lags] = xcorr( curr_spike, APtemplates(:,ap), 2, 'coeff');
                   % use max autocorr
                   rho(ap) = max( abs(c) );
                end
@@ -115,7 +128,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
       % add it to one of the template families, or start a new family 
       % if the spike amplitude is not sufficiently similar.
       if any(rho > matchthresh)
-         [~, k] = max(rho); % template with closest match
+         k = compare_templates(rho, curr_spike, APtemplates); % template with closest match
          
          % if no spike families yet, create one
          if isempty(APfamilies{k})
@@ -156,9 +169,10 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
             % can pass the validity test
             change_test   = [ change_test1; change_test2 ];
             % test with change rate / 2 since it can go above or below the
-            % mean spike for the family
-            valid1        = all( change_test1 < change_rate/2, 2 ); 
-            valid2        = all( change_test2 < change_rate/2, 2 ); 
+            % mean spike for the family. 
+            % * Wasn't really doing much with the /2, so I removed it.
+            valid1        = all( change_test1 < change_rate, 2 ); % all( change_test1 < change_rate/2, 2 ); 
+            valid2        = all( change_test2 < change_rate, 2 ); % all( change_test2 < change_rate/2, 2 ); 
             valid         = valid1 | valid2;
             if any( [ valid1; valid2 ] )
                [minrate, mini] = min( change_rates(valid) );
@@ -194,7 +208,14 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
             if normAPs
                curr_spike  = curr_spike / std(curr_spike); 
             end
-            APtemplates(:,k) = (APtemplates(:,k)*APnumsamples(k) + curr_spike) / (APnumsamples(k)+1);
+            % Equal importance to all past spikes
+            % APtemplates(:,k) = (APtemplates(:,k)*APnumsamples(k) + ...
+            % curr_spike) / (APnumsamples(k)+1); % uncomment this line and
+            % comment the next one to go back
+            % Forget factor. lambda defines how much weight do older spikes
+            % have
+            lambda = 0.95;
+            APtemplates(:,k) = APtemplates(:,k) * lambda + (1 - lambda) * curr_spike;
             APnumsamples(k)  = APnumsamples(k) + 1;
          end
 

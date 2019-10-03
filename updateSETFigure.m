@@ -16,7 +16,7 @@ function handles = updateSETFigure(handles, tseries)
    else
       handles = plotDataFromMatrix(handles, tseries);
    end
-      
+
 
 
 end
@@ -25,7 +25,7 @@ end
 % Each AP template of a certain shape has a set of families with matching
 % shape but different amplitudes. Plot these on the same axes.
 function handles = plotDataFromCell(handles, tseries)
-   tlim  = double(handles.data.tlim); 
+   tlim  = double(handles.data.tlim);
    vlim  = double(handles.data.vlim);
    panel = handles.plot_panel;
    %subplot(111); % resets axes
@@ -67,10 +67,10 @@ function handles = plotDataFromCell(handles, tseries)
    sind = max( round(double(tlim(1)/dt)), 1 );
    eind = round( double(tlim(2)/dt) );
    time = toVec((sind:eind)*dt);
-   
+
    % time & data keep being out by 1 sample, so just cheat...bad you!
    % - only do for arrays, not for event based spikes coz we'll extract
-   % time for them later 
+   % time for them later
    if isnumeric(data{1}) && length(time) > size(data{1},1)
       eind = size(data{1},1);
       time = time(1:eind);
@@ -88,7 +88,7 @@ tscale=1; tlabel='s';
    for i=1:Np
       if ~isempty( data{ plot_ax(i) } )
          ax1 = subplot(nr, nc, i, 'Parent', panel); hold off;
-         
+
          % spike data can be either in a timeseries, or in event based spikes
          if ~iscell( data{ plot_ax(i) } )
             x = data{ plot_ax(i) }(sind:eind, :);
@@ -135,11 +135,11 @@ tscale=1; tlabel='s';
             end
             lind = lind(idx);
          end
-         
+
          [vscale, vlabel] = getUnitScale( vlim(2)*10, 'V' );
-         
+
          numlines = min([max_lines, size(x,2)]);
-         
+
          if isnumeric(x)
             try
                lh = plot(ax1, time/tscale, x(:,lind)/vscale);
@@ -157,7 +157,7 @@ tscale=1; tlabel='s';
             cols = getColourMatrix( numlines );
             for ff=1:numlines
                plot(ax1, t{lind(ff)}, x{lind(ff)}, '-', 'color', cols(ff,:));
-               hold on; 
+               hold on;
             end
          end
          xlim(tlim/tscale);
@@ -183,7 +183,7 @@ end % end plotDataFromCell
 
 
 function handles = plotDataFromMatrix(handles, tseries)
-   tlim = double(handles.data.tlim); 
+   tlim = double(handles.data.tlim);
    vlim = double(handles.data.vlim);
    panel = handles.plot_panel;
    % subplot(1,1,1); % resets axes
@@ -231,7 +231,7 @@ function handles = plotDataFromMatrix(handles, tseries)
    % time & data keep being out by 1 samples, so just cheat...bad you!
    if eind > size(data,1)
       time = time( 1:end - (eind-size(data,1)) );
-      eind = eind - (eind-size(data,1)); 
+      eind = eind - (eind-size(data,1));
    end
    data = data(sind:eind, :);
    if length(time) < size(data,1)
@@ -252,7 +252,7 @@ tscale=1; tlabel='s';
    end
    for i=1:Np
       ax1 = subplot(nr, nc, i, 'Parent', panel); hold off;
-      if strcmp('app', handles.f.uiType) 
+      if strcmp('app', handles.f.uiType)
          try
             close(1);
          catch
@@ -272,7 +272,7 @@ tscale=1; tlabel='s';
          end
       end
       set( ax1, 'xlim', tlim/tscale);
-      set( ax1, 'ylim', vlim/vscale); 
+      set( ax1, 'ylim', vlim/vscale);
 
       set( get(ax1,'Xlabel'), 'String', sprintf('Time (%s)',    tlabel), fopts{:} );
       set( get(ax1,'Ylabel'), 'String', sprintf('Voltage (%s)', vlabel), fopts{:} );
@@ -286,10 +286,15 @@ tscale=1; tlabel='s';
          fontsize  = 10; % make font smaller cuz looks silly!
          set(lh, 'color', 'k', 'linewidth', 3);
          try
-            hold on; 
-            nlines = min( max_lines, size( tseries.APfamily{plot_ax(i)}, 2) );
-            plot(ax1, time/tscale, tseries.APfamily{plot_ax(i)}(sind:eind,1:nlines)/vscale);
-            vlim(2) = max( toVec(tseries.APfamily{plot_ax(i)}(sind:eind,1:nlines)) );
+            hold on;
+            % nlines = min( max_lines, size( tseries.APfamily{plot_ax(i)}, 2) );
+            size_lines = size( tseries.APfamily{plot_ax(i)}, 2);
+            nlines = min( max_lines, size_lines );
+            % Show the last max_lines lines, instead of the first ones
+            lind = max(1,(size_lines - max_lines)) : size_lines;
+
+            plot(ax1, time/tscale, tseries.APfamily{plot_ax(i)}(sind:eind,lind)/vscale);
+            vlim(2) = max( toVec(tseries.APfamily{plot_ax(i)}(sind:eind,lind)) );
             % if APs normalised we know they'll be btwn -3/3 so make lims the same
             if tseries.params.normalise_aps.value
                ylim([-3 3]);

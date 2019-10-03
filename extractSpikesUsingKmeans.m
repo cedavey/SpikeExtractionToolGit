@@ -6,9 +6,14 @@
 %
 % Created by Artemio - 24/June/2019
 function [APspikes, APtimes, APfamilies] = extractSpikesUsingKmeans(tseries, method_params, debugOption)
+
    [spikes, stimes, ~] = getSpikesByThresholding(tseries, method_params);
-   [APfamilies, APtimes] = getKmeansClusters(spikes,stimes, debugOption, [1 20]);
-   
+   if method_params.no_clusters.value > 0
+      [APfamilies, APtimes] = getKmeansClusters(spikes,stimes, debugOption, method_params.no_clusters.value);
+   else
+      [APfamilies, APtimes] = getKmeansClusters(spikes,stimes, debugOption, [3 30]);
+   end
+
    % Get peakN (index of peak value
    [~, idx] = max(APfamilies{1}{1}.spikes');
    peakN = round(mean(idx));
@@ -19,23 +24,23 @@ function [APspikes, APtimes, APfamilies] = extractSpikesUsingKmeans(tseries, met
    APtimes ( loner ) = [];
    if isempty( APfamilies )
       displayErrorMsg( 'No axon families found with this parameter configuration' );
-      return; 
+      return;
    end
    nAP = length( APfamilies ); % update num families after removing loners
-   
+
    APspikes = cell(1,nAP);
-   % Each valid spike has been allocated to an APfamiliy. Now for each 
+   % Each valid spike has been allocated to an APfamiliy. Now for each
    % AP family we need to construct a timeseries
    if ~method_params.plot_spikes_consecutively.value
       for ti=1:nAP % for each AP template
-         fam = APfamilies{ti}; 
+         fam = APfamilies{ti};
          nF  = length(fam);
-         
+
          try
             % try allocating a full tseries for each family in template
          	fam_tseries = zeros(length(tseries.data),nF);
          	fam_stimes  = cell(nF, 1);
-            
+
             for ff=1:nF % for each family within the AP templates
                % if we're creating the timeseries extract spikes at
                % appropriate times & copy into voltage timeseries
@@ -43,19 +48,18 @@ function [APspikes, APtimes, APfamilies] = extractSpikesUsingKmeans(tseries, met
                sind(sind == 0) = [];
                fam_tseries(abs(sind),ff) = fam{ff}.spikes(:);
                if size(fam{ff}.stimes,1) == 1
-                  fam_stimes{ff}  = fam{ff}.stimes(1,peakN);
+                  fam_stimes{ff}  = fam{ff}.stimes(:,peakN);
                else
-%                   fam_stimes{ff}  = fam{ff}.stimes(peakN,:);
-                  fam_stimes{ff}  = fam{ff}.stimes(peakN,1);
+                  fam_stimes{ff}  = fam{ff}.stimes(:,peakN);
                end
             end
             APspikes{ti} = fam_tseries;
             APtimes{ti}  = fam_stimes;
-            
+
          catch ME
             % running outta memory so treat each family separately so it's
             % event based rather than discrete time
-            for ff=1:nF 
+            for ff=1:nF
                % for each family within the AP templates, extract the times of
                % spike peaks
                fam_stimes{ff}  = fam{ff}.stimes(peakN,:);
@@ -65,7 +69,7 @@ function [APspikes, APtimes, APfamilies] = extractSpikesUsingKmeans(tseries, met
             APtimes{ti}  = fam_stimes;
          end
       end
-      
+
    % squish spikes together so they can be seen as one long series of spikes
    else
       % determine which family has the most spikes, because we'll make all
@@ -81,14 +85,14 @@ function [APspikes, APtimes, APfamilies] = extractSpikesUsingKmeans(tseries, met
       APspikes = cell(size(APtimes'));
       APtimes = cell(size(APspikes));
       for ti=1:nAP % for each AP template
-         fam = APfamilies{ti}{1}; 
+         fam = APfamilies{ti}{1};
          APspikes{ti} = zeros(spikesize, 1);
          fam_tseries = toVec(fam.spikes');
          APspikes{ti}(1: length(fam_tseries)) = fam_tseries;
          APtimes{1,ti} = cell(1);
          APtimes{1,ti}  = {fam.stimes(:,peakN)};
       end
-      
+
    end
-   
+
 end

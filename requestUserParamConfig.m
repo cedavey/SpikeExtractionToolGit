@@ -138,6 +138,11 @@ function [params, cancel] = requestUserParamConfig(params, dlg_title)
  
    dlg_title = ['Set parameters for ' dlg_title];
    try
+      % Fixing bug about wrong parameter format on APs view
+      if strcmp('timeseries name',prompt{end}) && ~isinteger(def{end})
+         def{end} = [];
+      end
+      
       [userparams, cancel] = inputsdlg(prompt, dlg_title, formats, def, other);
    catch ME
       str = getCatchMEstring( ME, 'Error setting parameters', true );

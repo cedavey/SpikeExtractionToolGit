@@ -135,7 +135,7 @@ function varargout = SpikeExtractionTool(varargin)
 
 % Edit the above text to modify the response to help SpikeExtractionTool
 
-% Last Modified by GUIDE v2.5 25-Jul-2019 19:46:18
+% Last Modified by GUIDE v2.5 24-Sep-2019 13:00:28
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -201,7 +201,7 @@ set(hObject, 'Name', 'Spike Extraction Tool');
 % prepare for user confirmation when GUI is closed
 set(handles.figure1, 'CloseRequestFcn', @closeGUI);
 %     set(gcf, 'WindowScrollWheelFcn', {@figure1_figScroll, handles});
-removeToolBarButtons();
+removeToolBarButtons(handles);
 
 % from property inspector in guide, under WindowScrollWheelFcn
 % @(hObject,eventdata)SpikeExtractionTool('figure1_WindowScrollWheelFcn',hObject,eventdata,guidata(hObject))
@@ -210,6 +210,7 @@ removeToolBarButtons();
 handles.options.loadingWindowOn = true;
 handles.options.debugOption = 'semi';
 handles.options.rescaleOption = 'at_end';
+handles.options.auto_params = 'false';
 
 % Initialize tooltips
 handles = setTooltips(handles);
@@ -220,7 +221,7 @@ guidata(hObject, handles);
 % UIWAIT makes SpikeExtractionTool wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
 
-% Starts logging everything to the log file: 'log_all.log'. 
+% Starts logging everything to the log file: 'log_all.log'.
 % Everything means all the text printed in the command window, except for
 % the one that is sent by the function 'printMessage'. Use such function
 % when sending text to the command window that you don't want to be saved
@@ -228,10 +229,15 @@ guidata(hObject, handles);
 %                 cprintf('Keyword',str);
 % try:
 %                 printMessage('off','Keyword',str);
-fid = fopen('./log_all.log', 'a'); % Opens log file to append this session's string
+
+% Get location of log files
+a = which('SpikeExtractionTool');
+locs = strfind(a, '\');
+path = a(1:locs(end));
+fid = fopen([path 'log_all.log'], 'a'); % Opens log file to append this session's string
 fprintf(fid, '\n\n-------------- %s @ %s | %s ---------------\n', getenv('Username'),getenv('UserDomain'),datestr(now, 0));
 fclose(fid); % Close log file
-diary('log_all.log'); % Activates the diary function, i.e. save all the activity into a file.
+diary([path 'log_all.log']); % Activates the diary function, i.e. save all the activity into a file.
 end
 
 % --- Executes when user attempts to close figure1.
@@ -315,7 +321,7 @@ switch axis
       %                 str = sprintf('%3.3g', stat(slice_X, slice_Y, slice_Z));
       %                 set(handles.voxelValue, 'String', str);
       %                 updateImages(handles, stat, '', slice_Y, slice_Z);
-      
+
    otherwise
       error('Unknown axes');
 end % end switch axes
@@ -477,14 +483,14 @@ for ii=1:nmerge
    prompt{ii,1} = sprintf( 'Select template ID of AP to merge into template %d', mergeid );
    prompt{ii,2} = name;    % name of struct field for result
    prompt{ii,3} = units;   % units of parameter
-   
+
    % list options
    options      = ids;
    tmp          = list;
    tmp.limits   = [1 length(options)];
    tmp.items    = options;
    formats(ii,1)= tmp;
-   
+
    % need to update default value for lists from being string to
    % being index into list, else inputsdlg has a hissy
    def{ii,1}    = find( def{ii,1} == options );
@@ -648,6 +654,11 @@ end
 set(handles.voltage_max, 'String', sprintf('%.2f',newv)); % reset to new val
 
 handles.data.vlim(2) = newv;
+if ~(minv < newv)
+   currtseries = handles.data.curr_tseries;
+   minv = min(handles.data.tseries{currtseries}.data);
+   handles.voltage_min.String = num2str(minv);
+end
 handles.data.vlim(1) = minv;
 
 % Update voltage sliders
@@ -698,7 +709,7 @@ set(new_handles.curr_signal, 'String', new_handles.data.tseries_str);
 set(new_handles.curr_signal, 'Value', 1);
 
 % plot data that was put in new figure
-curr_signal_Callback( new_handles.curr_signal, [], new_handles );
+curr_signal_changed( new_handles.curr_signal, [], new_handles );
 end
 
 % --- Executes on slider movement.
@@ -901,7 +912,7 @@ function debugFull_Callback(hObject, eventdata, handles)
       handles.debugNone.Enable = true;
       handles.options.debugOption = 'full';
       hObject.Enable = false;
-   end   
+   end
    % Update handles structure
    guidata(hObject, handles);
 end
@@ -919,7 +930,7 @@ function rescaleAtTheEnd_Callback(hObject, eventdata, handles)
       handles.rescaleJumpAhead.Enable = true;
       handles.options.rescaleOption = 'at_end';
       hObject.Enable = false;
-   end   
+   end
    % Update handles structure
    guidata(hObject, handles);
 end
@@ -937,7 +948,7 @@ function rescalePeaks_Callback(hObject, eventdata, handles)
       handles.rescaleJumpAhead.Enable = true;
       handles.options.rescaleOption = 'peaks';
       hObject.Enable = false;
-   end   
+   end
    % Update handles structure
    guidata(hObject, handles);
 end
@@ -955,7 +966,7 @@ function rescaleJumpAhead_Callback(hObject, eventdata, handles)
       handles.rescalePeaks.Enable = true;
       handles.options.rescaleOption = 'JA';
       hObject.Enable = false;
-   end   
+   end
    % Update handles structure
    guidata(hObject, handles);
 end
@@ -1030,13 +1041,19 @@ function saveVoltageMenuBar_Callback(hObject, eventdata, handles)
 save_voltage_Callback(hObject, eventdata, handles);
 end
 
-function removeToolBarButtons()
-removeItems = ([{'Save Figure'}, {'New Figure'}, {'Open File'}, {'Print Figure'}, {'Link Plot'}, {'Open Property Inspector'}, {'Insert Colorbar'}]);
-for i = 1:size(removeItems,2)
-   listOfElements = findall(gcf);
-   element = findall(listOfElements,'ToolTipString',string(removeItems(i)));
-   set(element,'Visible','off');
-end
+function removeToolBarButtons(handles)
+
+   v = ver('matlab');
+   % Check if version is older than 2018b
+   if str2double(v.Version) >= 9.5
+     removeToolbarExplorationButtons(handles.figure1.Children(12));
+   end
+   removeItems = ([{'Save Figure'}, {'Insert Legend'}, {'Edit Plot'}, {'New Figure'}, {'Open File'}, {'Print Figure'}, {'Link Plot'}, {'Open Property Inspector'}, {'Insert Colorbar'}]);
+   for i = 1:size(removeItems,2)
+      listOfElements = findall(gcf);
+      element = findall(listOfElements,'ToolTipString',string(removeItems(i)));
+      set(element,'Visible','off');
+   end
 end
 
 % --- Executes on button press in toggleZoomButton.
@@ -1050,12 +1067,18 @@ function toggleZoomButton_CreateFcn(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
    warning('off','MATLAB:imagesci:png:libraryWarning'); % Ignore PNG associated warning
-   [x,map]=imread('fig/magnifierIcon.png'); % Load the zoom icon
+
+   % Get location of log files
+   a = which('SpikeExtractionTool');
+   locs = strfind(a, '\');
+   path = a(1:locs(end));
+
+   [x,map]=imread([path 'fig' filesep 'magnifierIcon.png']); % Load the zoom icon
    I2=imresize(x, [22 22]); % Resize icon
    hObject.CData = I2; % Assign icon to the button
    hObject.BackgroundColor = [1 0.6 0.6]; % Change color to match other buttons
    hObject.String = ''; % Remove string
-   hObject.UserData = 'zoom'; % Change state to zoom     
+   hObject.UserData = 'zoom'; % Change state to zoom
 end
 
 
@@ -1064,7 +1087,12 @@ function helpMenuItem_Callback(hObject, eventdata, handles)
 % hObject    handle to helpMenuItem (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-   open('resources\SEThelp.pdf');
+   % Get location of log files
+   a = which('SpikeExtractionTool');
+   locs = strfind(a, '\');
+   path = a(1:locs(end));
+
+   open([path 'resources' filesep 'SEThelp.pdf']);
 end
 
 % --------------------------------------------------------------------
@@ -1076,4 +1104,113 @@ end
 % --- Executes on button press in automatic_params.
 function automatic_params_Callback(hObject, eventdata, handles)
    handles.f.automatic_params(handles, hObject);
+end
+
+
+% --------------------------------------------------------------------
+function batchProcessingMenu_Callback(hObject, eventdata, handles)
+   try
+      mouseWaitingFunction(handles.figure1,@runBatchProcessing,hObject,eventdata,handles);
+   catch E
+      handles.options.isBatch = false;
+      guidata(hObject,handles);
+      str = sprintf('\tUnexpected error during batch processing\n');
+      runtimeErrorHandler(E, 'message', str);
+   end
+end
+
+function runBatchProcessing(hObject, eventdata, handles)
+% hObject    handle to batchProcessingMenu (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+   try
+      opts = batchProcessing();
+   catch E
+      if strcmp('No_choice', E.message)
+         str = sprintf('\tBatch process cancelled\n');
+         printMessage('off', 'Error', str);
+         return;
+      else
+         runtimeErrorHandler(E, 'rethrow');
+      end
+   end
+
+   % Load files
+   for i = 1:numel(opts.files)
+      last_dir = handles.data.last_dir; % keep before we write over it
+      old_numtseries = handles.data.num_tseries;
+      % get rid of all previous data
+      handles = toggleSETGUIstate(handles,'off');
+      handles.data.last_dir = last_dir;
+      data    = handles.data;    % get user data from gui handle
+      [data, success] = openVoltageFile(data, 'batch', opts.path, opts.files(i));
+      data.last_tseries = 1;
+      data.curr_tseries = 1;
+      data.last_tool    = 1;
+      data.curr_tool    = 1;
+
+      if success==0 % if success==0 --> no valid images found or user cancelled
+         displayErrorMsg('No valid voltage data found - please reload');
+         % don't update handles with the data_struct changes
+         return;
+      elseif success==-1
+         if old_numtseries>0 % user cancelled out of open file dialogue
+            displayErrorMsg('Load voltage cancelled, but old data was removed (sorry!)');
+         end
+         return;
+      end
+      % if new data loaded re-enable GUI
+      handles.data = data;
+      handles = toggleSETGUIstate(handles,'on');
+
+      guidata(hObject,handles);   % saves the change to handles
+      set(handles.curr_signal, 'String', data.tseries_str);
+      set(handles.curr_signal, 'Value',  1);
+      % guidata(hObject,handles);
+
+      % curr_signal_changed doesn't return handles so we have to save handles
+      % manually, then request a fresh copy using guidata
+      curr_signal_changed(handles.curr_signal, '', handles);
+
+      [tl, ml] = getBatchToolList(); % Load the list of tools available
+      % Tool method and params
+      for j = 1:numel(opts.tool)
+         % Implement the tool using the method & params requested
+         set(handles.tool_list, 'String', opts.tool(j));
+         set(handles.tool_list, 'Value', 1);
+         idx = find(ismember(tl, opts.tool{j}));
+         if ~isempty(idx)
+            method = ml{idx};
+         else
+            error('Wrong tool selected for batch processing.');
+         end
+
+         set(handles.method_list, 'String',{method});
+         set(handles.method_list, 'Value', 1);
+         % Automatic parameters will always be true for batch processing
+         handles.options.auto_params = true;
+         handles.options.isBatch = true;
+         handles.options.batchPath = opts.saveFolder;
+         handles.options.debugOption = 'none';
+
+         try
+            handles = run_tool(hObject, eventdata, handles);
+            % Save all open tseries. These will be all the processed tools on the
+            % current file
+            save_voltage_Callback(hObject, eventdata, handles)
+            handles.options.isBatch = false;
+         catch E
+            str = sprintf('\tBatch processing failed at i = %s, j = %s\n\tError: %s\n',opts.files{i}, opts.tool{j}, E.message);
+            runtimeErrorHandler(E, 'message', str);
+            handles.options.isBatch = false;
+            guidata(hObject,handles);
+            break;
+         end
+      end % Tools and Params <j>
+   end % Files <i>
+   guidata(hObject, handles);
+end
+
+function figure1_ButtonDownFcn(hObject, eventdata, handles)
+
 end
