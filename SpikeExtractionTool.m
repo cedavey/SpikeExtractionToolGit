@@ -135,7 +135,7 @@ function varargout = SpikeExtractionTool(varargin)
 
 % Edit the above text to modify the response to help SpikeExtractionTool
 
-% Last Modified by GUIDE v2.5 24-Sep-2019 13:00:28
+% Last Modified by GUIDE v2.5 07-Oct-2019 13:53:11
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -1092,7 +1092,7 @@ function helpMenuItem_Callback(hObject, eventdata, handles)
    locs = strfind(a, '\');
    path = a(1:locs(end));
 
-   open([path 'resources' filesep 'SEThelp.pdf']);
+   open_pdf([path 'resources' filesep 'SEThelp.pdf']);
 end
 
 % --------------------------------------------------------------------

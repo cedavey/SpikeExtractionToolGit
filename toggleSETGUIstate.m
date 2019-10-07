@@ -202,12 +202,11 @@ function handles = toggleSETGUIstate(handles,state)
 
       case 'off'
          if strcmp('gui', uiType)
-            if strcmp('current', MLvers), ctrl = false; else, ctrl = 'off'; end
-              % Right click menu
-              % Right click menu
-              handles.addVoltageMenu.Enable = ctrl;
-              handles.clearVoltageMenu.Enable = ctrl;
-            end
+           if strcmp('current', MLvers), ctrl = false; else, ctrl = 'off'; end
+           % Right click menu
+           % Right click menu
+           handles.addVoltageMenu.Enable = ctrl;
+           handles.clearVoltageMenu.Enable = ctrl;
          end
          % Menu Bar
          handles.addVoltageMenuBar.Enable = ctrl;

@@ -590,8 +590,8 @@ methods (Static)
         h.toggleZoomButton.Icon = [path 'fig' filesep 'magnifierIcon.png'];
       end
 
-      h.time_slider.Value = handles.data.zoomPercentage(1); % Update the position of the slider to represent zoom.
-      h.voltage_slider.Value = handles.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
+      h.time_slider.Value = h.data.zoomPercentage(1); % Update the position of the slider to represent zoom.
+      h.voltage_slider.Value = h.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
 
       if strcmp('gui', h.f.uiType)
         h.time_slider.SliderStep = [0.01 0.1]; % Make sure it is within 0 and 1.
@@ -1580,7 +1580,7 @@ methods (Static)
             h.time_slider.SliderStep(1) = zoom(1) / 2;% max(handles.time_slider.SliderStep(1) , handles.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
             h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*2);
             % Update tooltip
-            h = setTooltips(handles, {hObject.Tag}, getTooltips({'toggleZoomButton_toZoom'}));
+            h = setTooltips(h, {hObject.Tag}, getTooltips({'toggleZoomButton_toZoom'}));
          else
             h.toggleZoomButton.Icon = [path 'fig' filesep 'arrowsIcon.png'];
          end
@@ -1591,14 +1591,14 @@ methods (Static)
       else
          if strcmp('gui', h.f.uiType)
             % Zoom function has been selected
-            [x,~]=imread([path 'fig' filesep 'arrowsIcon.png']);% Load the displacement icon
+            [x,~]=imread([path 'fig' filesep 'magnifierIcon.png']);% Load the displacement icon
             I2=imresize(x, [22 22]); % Resize icon
             hObject.CData = I2; % Assign icon to the button
 
             h.time_slider.SliderStep =  [0.001 0.1];%max(app.time_slider.SliderStep(1) , app.data.displacementPercentage(1)); % Change the size of the horizontal slider indicator to match the value displaced in.
             h.voltage_slider.SliderStep =  [0.01 0.1];%max(app.voltage_slider.SliderStep(1) , app.data.displacementPercentage(2)); %  Change the size of the vertical slider indicator to match the value displaced in.
          else
-            h.toggleZoomButton.Icon = [path 'fig' filesep 'arrowsIcon.png'];
+            h.toggleZoomButton.Icon = [path 'fig' filesep 'magnifierIcon.png'];
          end
 
          hObject.UserData = 'zoom'; % Change state to zoom
