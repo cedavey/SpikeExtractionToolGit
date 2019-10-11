@@ -23,6 +23,8 @@ function h = setTooltips(h, varargin)
    switch w.class
       case 'SpikeExtractionApp'
          guiType = 'app';
+      case 'SpikeExtractionTool_App'
+         guiType = 'app';
       case 'struct'
          guiType = 'gui';
       otherwise

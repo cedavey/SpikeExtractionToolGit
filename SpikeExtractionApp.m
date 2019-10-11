@@ -14,6 +14,8 @@ classdef SpikeExtractionApp < matlab.apps.AppBase
         accessVoltageMenuBar   matlab.ui.container.Menu
         saveVoltageMenuBar     matlab.ui.container.Menu
         exitMenuBar            matlab.ui.container.Menu
+        toolsMenu              matlab.ui.container.Menu
+        batchProcessingMenuBar matlab.ui.container.Menu
         helpMenu               matlab.ui.container.Menu
         helpMenuItem           matlab.ui.container.Menu
         aboutMenuItem          matlab.ui.container.Menu
@@ -171,12 +173,12 @@ classdef SpikeExtractionApp < matlab.apps.AppBase
             end
         end
         
-        function figure1_WindowButtonDownFcn(app, hObject, eventdata, handles)
-            if ~haveUserData(handles), return; end
+        function figure1_WindowButtonDownFcn(app, hObject, eventdata)
+            if ~haveUserData(app), return; end
         end
         
-        function figure1_WindowButtonMotionFcn(app, hObject, eventdata, handles)
-            if ~haveUserData(handles), return; end
+        function figure1_WindowButtonMotionFcn(app, hObject, eventdata)
+            if ~haveUserData(app), return; end
         end
                 
         function name = getFileName(app, instruct, defVal, maxLength)
@@ -276,6 +278,10 @@ classdef SpikeExtractionApp < matlab.apps.AppBase
         function updateTimeSlider(app)
             app.f.updateTimeSlider(app);
         end        
+        
+        function voltage_slider_updated(app, hObject)
+            app.f.voltage_slider_updated(app, hObject);
+        end
     end
     
 
@@ -347,7 +353,7 @@ classdef SpikeExtractionApp < matlab.apps.AppBase
 
         % Menu selected function: aboutMenuItem
         function aboutMenuItem_Callback(app, event)
-            app.f.aboutMenuItem();
+            app.f.aboutMenuItem(app);
         end
 
         % Menu selected function: accessVoltageMenuBar
@@ -372,6 +378,11 @@ classdef SpikeExtractionApp < matlab.apps.AppBase
         % Value changed function: automatic_params
         function automatic_params_Callback(app, event)
             app.f.automatic_params(app, event.Source);
+        end
+        
+        % Menu selected function: batchProcessingMenuBar
+        function batchProcessingMenuBar_Callback(app, event)
+           app.f.runBatchProcessing(app, event.Source, event);
         end
 
         % Menu selected function: clearDifferentMenuBar
@@ -445,7 +456,11 @@ classdef SpikeExtractionApp < matlab.apps.AppBase
             % hObject    handle to helpMenuItem (see GCBO)
             % eventdata  reserved - to be defined in a future version of MATLAB
             % handles    structure with handles and user data (see GUIDATA)
-               open('resources\SEThelp.pdf');
+            a = which('SpikeExtractionTool');
+            locs = strfind(a, '\');
+            path = a(1:locs(end));
+
+            open_pdf([path 'resources' filesep 'SEThelp.pdf']);
         end
 
         % Button pushed function: load_voltage_button
@@ -509,7 +524,7 @@ classdef SpikeExtractionApp < matlab.apps.AppBase
 
         % Value changed function: scroll_axes_slider
         function scroll_axes_slider_Callback(app, event)
-            mouseWaitingFunction(app.figure1, @scroll_axes, hObject, eventdata, handles);
+            mouseWaitingFunction(app.figure1, @scroll_axes, event.Source, event, app);
         end
 
         % Button pushed function: set_tool_params
@@ -564,9 +579,6 @@ classdef SpikeExtractionApp < matlab.apps.AppBase
             mouseWaitingFunction(app.figure1,@voltage_slider_updated, app, event.Source);
         end
         
-        function voltage_slider_updated(app, hObject)
-            app.f.voltage_slider_updated(app, hObject);
-        end
     end
 
     % Component initialization
@@ -634,6 +646,17 @@ classdef SpikeExtractionApp < matlab.apps.AppBase
             app.exitMenuBar.MenuSelectedFcn = createCallbackFcn(app, @exitMenuBar_Callback, true);
             app.exitMenuBar.Separator = 'on';
             app.exitMenuBar.Text = 'Exit';
+            
+            % Create toolsMenu
+            app.toolsMenu = uimenu(app.figure1);
+            app.toolsMenu.Text = 'Tools';
+            
+            % Create batchProcessingMenuBar
+            app.batchProcessingMenuBar = uimenu(app.toolsMenu);
+            app.batchProcessingMenuBar.MenuSelectedFcn = createCallbackFcn(app, @batchProcessingMenuBar_Callback, true);
+            app.batchProcessingMenuBar.Enable = 'on';
+            app.batchProcessingMenuBar.Accelerator = 'B';
+            app.batchProcessingMenuBar.Text = 'Batch Processing';
 
             % Create helpMenu
             app.helpMenu = uimenu(app.figure1);

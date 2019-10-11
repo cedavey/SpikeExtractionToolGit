@@ -1,0 +1,177 @@
+<deployment-project plugin="plugin.apptool" plugin-version="1.0">
+  <configuration build-checksum="1402079924" file="C:\Users\artemios\OneDrive - The University of Melbourne\Documents\GitHub\SpikeExtractionToolGit\SETAppBeta.prj" location="C:\Users\artemios\OneDrive - The University of Melbourne\Documents\GitHub\SpikeExtractionToolGit" name="SETAppBeta" target="target.mlapps" target-name="Package App">
+    <param.appname>SETAppBeta</param.appname>
+    <param.authnamewatermark>Artemio</param.authnamewatermark>
+    <param.email>artemio.soto@unimelb.edu.au</param.email>
+    <param.company>The University of Melbourne</param.company>
+    <param.icon>${PROJECT_ROOT}\SETAppBeta_resources\icon_24.png</param.icon>
+    <param.icons>
+      <file>${PROJECT_ROOT}\SETAppBeta_resources\icon_48.png</file>
+      <file>${PROJECT_ROOT}\SETAppBeta_resources\icon_24.png</file>
+      <file>${PROJECT_ROOT}\SETAppBeta_resources\icon_16.png</file>
+    </param.icons>
+    <param.summary />
+    <param.description>GUI</param.description>
+    <param.screenshot>C:\Users\artemios\Pictures\SETscreenshot.png</param.screenshot>
+    <param.version>0.2</param.version>
+    <param.products.name>
+      <item>MATLAB</item>
+      <item>Econometrics Toolbox</item>
+      <item>Image Processing Toolbox</item>
+      <item>Robotics System Toolbox</item>
+      <item>Signal Processing Toolbox</item>
+      <item>Statistics and Machine Learning Toolbox</item>
+      <item>Wavelet Toolbox</item>
+    </param.products.name>
+    <param.products.id>
+      <item>1</item>
+      <item>125</item>
+      <item>17</item>
+      <item>142</item>
+      <item>8</item>
+      <item>19</item>
+      <item>35</item>
+    </param.products.id>
+    <param.products.version>
+      <item>9.6</item>
+      <item>5.2</item>
+      <item>10.4</item>
+      <item>2.2</item>
+      <item>8.2</item>
+      <item>11.5</item>
+      <item>5.2</item>
+    </param.products.version>
+    <param.platforms />
+    <param.output>C:\Users\artemios\OneDrive - The University of Melbourne\PostDoc\Code\SpikeExtractionAppCompilation\Beta0.2</param.output>
+    <param.guid>8e1cc9cf-bdc6-4e54-8492-3b131a61b772</param.guid>
+    <unset>
+      <param.summary />
+      <param.platforms />
+    </unset>
+    <fileset.main>
+      <file>${PROJECT_ROOT}\SpikeExtractionTool.m</file>
+    </fileset.main>
+    <fileset.depfun>
+      <file>${PROJECT_ROOT}\acf.m</file>
+      <file>${PROJECT_ROOT}\batchProcessing.m</file>
+      <file>${PROJECT_ROOT}\breusch_godfrey.m</file>
+      <file>${PROJECT_ROOT}\check4RepeatString.m</file>
+      <file>${PROJECT_ROOT}\checkStringInput.m</file>
+      <file>${PROJECT_ROOT}\compare_templates.m</file>
+      <file>${PROJECT_ROOT}\compareFloats.m</file>
+      <file>${PROJECT_ROOT}\cov_x_Yvec.m</file>
+      <file>${PROJECT_ROOT}\cprintf.m</file>
+      <file>${PROJECT_ROOT}\createAReqnMatrix.m</file>
+      <file>${PROJECT_ROOT}\createAReqnMatrix_2vars.m</file>
+      <file>${PROJECT_ROOT}\deleteAPtemplates.m</file>
+      <file>${PROJECT_ROOT}\denoiseVoltage.m</file>
+      <file>${PROJECT_ROOT}\displayErrorMsg.m</file>
+      <file>${PROJECT_ROOT}\evolveResistance.m</file>
+      <file>${PROJECT_ROOT}\exportToExcel.m</file>
+      <file>${PROJECT_ROOT}\extractSpikesUsingKmeans.m</file>
+      <file>${PROJECT_ROOT}\extractSpikesUsingTemplates.m</file>
+      <file>${PROJECT_ROOT}\FiltFiltM.m</file>
+      <file>${PROJECT_ROOT}\frontEndFunctions.m</file>
+      <file>${PROJECT_ROOT}\generateRateStatistics.m</file>
+      <file>${PROJECT_ROOT}\generateSpikeStatistics.m</file>
+      <file>${PROJECT_ROOT}\getARcoeff.m</file>
+      <file>${PROJECT_ROOT}\getARcoeff_2vars.m</file>
+      <file>${PROJECT_ROOT}\getAutomaticParams.m</file>
+      <file>${PROJECT_ROOT}\getBatchToolList.m</file>
+      <file>${PROJECT_ROOT}\getCatchMEstring.m</file>
+      <file>${PROJECT_ROOT}\getColourMatrix.m</file>
+      <file>${PROJECT_ROOT}\getDefaultToolParams.m</file>
+      <file>${PROJECT_ROOT}\getKmeansClusters.m</file>
+      <file>${PROJECT_ROOT}\getMaxInd.m</file>
+      <file>${PROJECT_ROOT}\getMotherWavelet.m</file>
+      <file>${PROJECT_ROOT}\getRateFromSpikes.m</file>
+      <file>${PROJECT_ROOT}\getSETToolList.m</file>
+      <file>${PROJECT_ROOT}\getSETToolMethodsList.m</file>
+      <file>${PROJECT_ROOT}\getSpikesByThresholding.m</file>
+      <file>${PROJECT_ROOT}\getStructFieldFromCell.m</file>
+      <file>${PROJECT_ROOT}\getTimeAndVoltageLimits.m</file>
+      <file>${PROJECT_ROOT}\getToolAndMethodParams.m</file>
+      <file>${PROJECT_ROOT}\getTooltips.m</file>
+      <file>${PROJECT_ROOT}\getUnitScale.m</file>
+      <file>${PROJECT_ROOT}\getWaveletSpikes.m</file>
+      <file>${PROJECT_ROOT}\identifyAPs.m</file>
+      <file>${PROJECT_ROOT}\identifyUniqueAPs.m</file>
+      <file>${PROJECT_ROOT}\inputsdlg.m</file>
+      <file>${PROJECT_ROOT}\isDim.m</file>
+      <file>${PROJECT_ROOT}\iseven.m</file>
+      <file>${PROJECT_ROOT}\isint.m</file>
+      <file>${PROJECT_ROOT}\isType.m</file>
+      <file>${PROJECT_ROOT}\iswhite.m</file>
+      <file>${PROJECT_ROOT}\ljung_box.m</file>
+      <file>${PROJECT_ROOT}\makeRecursiveLeastSquaresMatrix.m</file>
+      <file>${PROJECT_ROOT}\mergeAPtemplates.m</file>
+      <file>${PROJECT_ROOT}\mouseWaitingFunction.m</file>
+      <file>${PROJECT_ROOT}\movingAverageUnevenSamples.m</file>
+      <file>${PROJECT_ROOT}\movingAverageVariance.m</file>
+      <file>${PROJECT_ROOT}\multCorr.m</file>
+      <file>${PROJECT_ROOT}\noiseLikelihood.m</file>
+      <file>${PROJECT_ROOT}\normStudt.m</file>
+      <file>${PROJECT_ROOT}\open_pdf.m</file>
+      <file>${PROJECT_ROOT}\openVoltageFile.m</file>
+      <file>${PROJECT_ROOT}\pos.m</file>
+      <file>${PROJECT_ROOT}\printMessage.m</file>
+      <file>${PROJECT_ROOT}\readSpikeData.m</file>
+      <file>${PROJECT_ROOT}\recursiveLeastSquares.m</file>
+      <file>${PROJECT_ROOT}\removeStringFromList.m</file>
+      <file>${PROJECT_ROOT}\requestUserParamConfig.m</file>
+      <file>${PROJECT_ROOT}\rescaleVoltage.m</file>
+      <file>${PROJECT_ROOT}\runSpikeOperations.m</file>
+      <file>${PROJECT_ROOT}\runtimeErrorHandler.m</file>
+      <file>${PROJECT_ROOT}\setToolAndMethodParams.m</file>
+      <file>${PROJECT_ROOT}\setTooltips.m</file>
+      <file>${PROJECT_ROOT}\SpikeExtractionTool.fig</file>
+      <file>${PROJECT_ROOT}\stdGenStudt.m</file>
+      <file>${PROJECT_ROOT}\ternaryOp.m</file>
+      <file>${PROJECT_ROOT}\title2Str.m</file>
+      <file>${PROJECT_ROOT}\toggleSETGUIstate.m</file>
+      <file>${PROJECT_ROOT}\toVec.m</file>
+      <file>${PROJECT_ROOT}\truncateVoltage.m</file>
+      <file>${PROJECT_ROOT}\updateGUIParams.m</file>
+      <file>${PROJECT_ROOT}\updateSETFigure.m</file>
+      <file>${PROJECT_ROOT}\userConfirmation.m</file>
+      <file>${PROJECT_ROOT}\userpath.m</file>
+      <file>${PROJECT_ROOT}\varGenStudt.m</file>
+      <file>${PROJECT_ROOT}\voltageUtilities.m</file>
+    </fileset.depfun>
+    <fileset.resources>
+      <file>${PROJECT_ROOT}\fig</file>
+      <file>${PROJECT_ROOT}\resources</file>
+    </fileset.resources>
+    <fileset.package />
+    <build-deliverables>
+      <file location="C:\Users\artemios\OneDrive - The University of Melbourne\PostDoc\Code\SpikeExtractionAppCompilation" name="Beta0.2" optional="false">C:\Users\artemios\OneDrive - The University of Melbourne\PostDoc\Code\SpikeExtractionAppCompilation\Beta0.2</file>
+    </build-deliverables>
+    <workflow />
+    <matlab>
+      <root>C:\Program Files\MATLAB\R2019a</root>
+      <toolboxes>
+        <toolbox name="neuralnetwork" />
+      </toolboxes>
+      <toolbox>
+        <neuralnetwork>
+          <enabled>true</enabled>
+        </neuralnetwork>
+      </toolbox>
+    </matlab>
+    <platform>
+      <unix>false</unix>
+      <mac>false</mac>
+      <windows>true</windows>
+      <win2k>false</win2k>
+      <winxp>false</winxp>
+      <vista>false</vista>
+      <linux>false</linux>
+      <solaris>false</solaris>
+      <osver>10.0</osver>
+      <os32>false</os32>
+      <os64>true</os64>
+      <arch>win64</arch>
+      <matlab>true</matlab>
+    </platform>
+  </configuration>
+</deployment-project>

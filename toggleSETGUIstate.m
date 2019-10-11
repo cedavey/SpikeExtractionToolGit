@@ -54,6 +54,15 @@ function handles = toggleSETGUIstate(handles,state)
          else
             haveData = false;
          end
+      case 'SpikeExtractionTool_App'
+         uiType = 'app';
+         % Check if data exists
+         if handles.data.num_tseries>0
+            data = handles.data;
+            haveData = true;
+         else
+            haveData = false;
+         end
       case 'struct'
          uiType = 'gui';
          % Check if data exists
@@ -201,13 +210,15 @@ function handles = toggleSETGUIstate(handles,state)
          end
 
       case 'off'
+         if strcmp('current', MLvers), ctrl = false; else, ctrl = 'off'; end
+         
          if strcmp('gui', uiType)
-           if strcmp('current', MLvers), ctrl = false; else, ctrl = 'off'; end
            % Right click menu
            % Right click menu
            handles.addVoltageMenu.Enable = ctrl;
            handles.clearVoltageMenu.Enable = ctrl;
          end
+         
          % Menu Bar
          handles.addVoltageMenuBar.Enable = ctrl;
          handles.clearMenuBar.Enable = ctrl;

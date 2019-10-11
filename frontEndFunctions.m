@@ -15,7 +15,7 @@ methods (Static)
    end
 
    %% Shared methods
-   function aboutMenuItem
+   function aboutMenuItem(h)
    % hObject    handle to aboutMenuItem (see GCBO)
    % eventdata  reserved - to be defined in a future version of MATLAB
    % handles    structure with handles and user data (see GUIDATA)
@@ -37,14 +37,20 @@ methods (Static)
       locs = strfind(a, '\');
       path = a(1:locs(end));
 
-      logo = uicontrol('parent',aboutWindow,'Style','pushbutton',...
-            'Position',[187,200,187,187]);
-      [x,map]=imread([path 'fig' filesep 'unimelb.png']); % Load the zoom icon
+      
       if strcmp('gui', h.f.uiType)
+        logo = uicontrol('parent',aboutWindow,'Style','pushbutton',...
+            'Position',[187,200,187,187]);
+        [x,map]=imread([path 'fig' filesep 'unimelb.png']); % Load the zoom icon
         I2=imresize(x, [187 187]); % Resize icon
         logo.CData = I2; % Assign icon to the button
       else
-        logo.Icon = [path 'fig' filesep 'unimelb.png'];
+         logo = axes('position',[0.3 0.475 0.375 0.475]);
+         I = imread('./fig/unimelb.png');
+         imagesc(I);
+         uistack(logo,'bottom');
+         set(logo,'handlevisibility','off', ...
+         'visible','off')
       end
    end
 
@@ -97,6 +103,115 @@ methods (Static)
       catch E
          runtimeErrorHandler(E);
       end
+   end
+   
+   function runBatchProcessing(handles, varargin)
+      if nargin > 1
+         hObject = varargin{1};
+         eventdata = varargin{2};
+      end
+      
+      try
+         opts = batchProcessing();
+      catch E
+         if strcmp('No_choice', E.message)
+            str = sprintf('\tBatch process cancelled\n');
+            printMessage('off', 'Error', str);
+            return;
+         else
+            runtimeErrorHandler(E, 'rethrow');
+         end
+      end
+
+      % Load files
+      for i = 1:numel(opts.files)
+         last_dir = handles.data.last_dir; % keep before we write over it
+         old_numtseries = handles.data.num_tseries;
+         % get rid of all previous data
+         handles = toggleSETGUIstate(handles,'off');
+         handles.data.last_dir = last_dir;
+         data    = handles.data;    % get user data from gui handle
+         [data, success] = openVoltageFile(data, 'batch', opts.path, opts.files(i));
+         data.last_tseries = 1;
+         data.curr_tseries = 1;
+         data.last_tool    = 1;
+         data.curr_tool    = 1;
+
+         if success==0 % if success==0 --> no valid images found or user cancelled
+            displayErrorMsg('No valid voltage data found - please reload');
+            % don't update handles with the data_struct changes
+            return;
+         elseif success==-1
+            if old_numtseries>0 % user cancelled out of open file dialogue
+               displayErrorMsg('Load voltage cancelled, but old data was removed (sorry!)');
+            end
+            return;
+         end
+         % if new data loaded re-enable GUI
+         handles.data = data;
+         handles = toggleSETGUIstate(handles,'on');
+                  
+         if strcmp('gui',handles.f.uiType)
+            guidata(hObject,handles);  % saves the change to handles
+            set(handles.curr_signal, 'String', data.tseries_str);
+            set(handles.curr_signal, 'Value',  1);
+         else
+            set(handles.curr_signal, 'Items', data.tseries_str);
+            set(handles.curr_signal, 'Value',  handles.curr_signal.Items(1));
+         end
+
+         % curr_signal_changed doesn't return handles so we have to save handles
+         % manually, then request a fresh copy using guidata
+         % curr_signal_changed(handles.curr_signal, '', handles);
+         handles.f.curr_signal(handles.curr_signal, '', handles);
+
+         [tl, ml] = getBatchToolList(); % Load the list of tools available
+         % Tool method and params
+         for j = 1:numel(opts.tool)
+            % Implement the tool using the method & params requested
+            if strcmp('gui',handles.f.uiType)
+               set(handles.tool_list, 'String', opts.tool(j));
+               set(handles.tool_list, 'Value', 1);
+            else
+               set(handles.tool_list, 'Items', opts.tool);
+               set(handles.tool_list, 'Value',  handles.tool_list.Items(1));
+            end
+            idx = find(ismember(tl, opts.tool{j}));
+            if ~isempty(idx)
+               method = ml{idx};
+            else
+               error('Wrong tool selected for batch processing.');
+            end
+            
+            if strcmp('gui',handles.f.uiType)
+               set(handles.method_list, 'String',{method});
+               set(handles.method_list, 'Value', 1);
+            else
+               set(handles.method_list, 'Items', {method});
+               set(handles.method_list, 'Value',  handles.method_list.Items(1));
+            end
+            % Automatic parameters will always be true for batch processing
+            handles.options.auto_params = true;
+            handles.options.isBatch = true;
+            handles.options.batchPath = opts.saveFolder;
+            handles.options.debugOption = 'none';
+
+            try
+               handles = handles.f.run_tool(handles);
+               % Save all open tseries. These will be all the processed tools on the
+               % current file
+               handles.f.save_voltage(handles, hObject);
+               handles.options.isBatch = false;
+            catch E
+               str = sprintf('\tBatch processing failed at i = %s, j = %s\n\tError: %s\n',opts.files{i}, opts.tool{j}, E.message);
+               runtimeErrorHandler(E, 'message', str);
+               handles.options.isBatch = false;
+               if strcmp('gui', handles.f.uiType), guidata(hObject,handles); end% saves changes to handles
+               break;
+            end
+         end % Tools and Params <j>
+      end % Files <i>
+      if strcmp('gui', handles.f.uiType), guidata(hObject,handles); end% saves changes to handles
    end
 
    function curr_signal(hObject, eventdata, handles)
@@ -483,7 +598,8 @@ methods (Static)
       set(new_app.curr_signal, 'Value', 1);
 
       % plot data that was put in new figure
-      curr_signal_Callback( new_app.curr_signal, [], new_handles );
+      % curr_signal_Callback( new_app.curr_signal, [], new_handles );
+      new_app.f.curr_signal(new_app.curr_signal, [], new_handles);
    end
 
    function varargout = removeVoltage(h, varargin)
@@ -696,7 +812,7 @@ methods (Static)
 
                case 'identify ap templates'
                   % get time series to apply AP templates to
-                  [APtemplates, APfamily] = identifyAPs(tseries, method, method_params,  h.options.debugOption);
+                  [APtemplates, APfamily] = identifyAPs(tseries, method, method_params,  h.options);
                   if isempty(APtemplates)
                      str = sprintf('\tNo templates could be identified.\n');
                      printMessage('off', 'Error', str);
@@ -809,7 +925,7 @@ methods (Static)
                   % get number of samples that each AP template is estimated from
                   APnumsamples        = cellfun(@(f) size(f,2), tseries.APfamily);
                   [APspikes, APstimes]= ...
-                     extractSpikesUsingTemplates(APtemplates, APnumsamples, voltage_tseries, method, method_params, normAPs);
+                     extractSpikesUsingTemplates(APtemplates, APnumsamples, voltage_tseries, method, method_params, normAPs, h.options);
                   if isempty(APspikes)
                      return;
                   end
@@ -968,7 +1084,10 @@ methods (Static)
       h.f.curr_signal(h.curr_signal, [], h);
 
       if isfield(h.options, 'isBatch') && h.options.isBatch
-        guidata([], h);
+        %guidata([], h);
+        if strcmp('gui', h.f.uiType)
+            guidata(h.run_tool_button, h); % saves the change to handles
+        end
         varargout = {h};
       end
    end
@@ -1016,6 +1135,9 @@ methods (Static)
           % If its processing batches
           fname = sname;
           pname = h.options.batchPath;
+          % Check for double backslashes
+          dbl_bkslsh = strfind(pname,'\\');
+          pname(dbl_bkslsh) = [];
           findex = 1;
         end
 
@@ -1463,24 +1585,26 @@ methods (Static)
          % slider zooms in/out to max/min values given in text boxes, so that
          % slider is a percentage of possible max/mins.
          percent = hObject.Value;
-         if percent == 1
-            percent = 0.99999;
-            h.time_slider.SliderStep(2) = 1;
-            h.time_slider.SliderStep(1) = 0.00005;
-            h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
-         elseif percent > 0.999
-            h.time_slider.SliderStep(2) = 1;
-            h.time_slider.SliderStep(1) = 0.00005;
-            h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
-         elseif percent > 0.95
-            h.time_slider.SliderStep(2) = 1;
-            h.time_slider.SliderStep(1) = 0.001;
-            h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
-         else
-            h.time_slider.SliderStep = [0.01 0.1];
-         end
+         if strcmp('gui',h.f.uiType)
+            if percent == 1
+               percent = 0.99999;
+               h.time_slider.SliderStep(2) = 1;
+               h.time_slider.SliderStep(1) = 0.00005;
+               h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
+            elseif percent > 0.999
+               h.time_slider.SliderStep(2) = 1;
+               h.time_slider.SliderStep(1) = 0.00005;
+               h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
+            elseif percent > 0.95
+               h.time_slider.SliderStep(2) = 1;
+               h.time_slider.SliderStep(1) = 0.001;
+               h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
+            else
+               h.time_slider.SliderStep = [0.01 0.1];
+            end
+         end       
 
-         h.data.zoomPercentage(1) = percent;
+         h.data.zoomPercentage(1) = min(percent, 0.99999);
 
          prev_tlim  = h.data.tlim; % record time lims before slider was moved
 
@@ -1583,6 +1707,7 @@ methods (Static)
             h = setTooltips(h, {hObject.Tag}, getTooltips({'toggleZoomButton_toZoom'}));
          else
             h.toggleZoomButton.Icon = [path 'fig' filesep 'arrowsIcon.png'];
+            h = setTooltips(h, {'toggleZoomButton'}, getTooltips({'toggleZoomButton_toZoom'}));
          end
          hObject.UserData = 'disp'; % Change state to displacement
          h.time_slider.Value = h.data.displacementPercentage(1); % Update the position of the slider to represent displacement.
@@ -1629,9 +1754,12 @@ methods (Static)
                h.time_slider.SliderStep = [0.01 0.1];
            end
            h.voltage_slider.SliderStep =  [0.01 0.1];
+           
+            % Update tooltip
+            h = setTooltips(h, {hObject.Tag}, getTooltips({'toggleZoomButton_toDisplace'}));
+         else
+            h = setTooltips(h, {'toggleZoomButton'}, getTooltips({'toggleZoomButton_toDisplace'}));
          end
-         % Update tooltip
-         h = setTooltips(h, {hObject.Tag}, getTooltips({'toggleZoomButton_toDisplace'}));
       end
    end
 
