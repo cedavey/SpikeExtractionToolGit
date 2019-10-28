@@ -24,7 +24,11 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
    % small, and positive values that remain positive for a short period
    posthresh  = params.positive_threshold.value;   % min pos voltage (std dev)
    negthresh  = params.negative_threshold.value;   % min neg voltage (std dev)
-   glitchthresh = params.glitch_threshold.value;   % glitch threshold
+   try
+      glitchthresh = params.glitch_threshold.value;   % glitch threshold
+   catch
+      glitchthresh = params.glitch_magnitude.value;   % glitch threshold
+   end
    minpostime = params.min_positive_duration.value;% min duration (ms)
    minnegtime = params.min_negative_duration.value;% min duration (ms)
    avg_window = params.avg_window.value;           % size of avg window to incl in calc (seconds)

@@ -75,7 +75,7 @@ function params = getDefaultToolParams
          voltage.rescale.particle_filter.forgetting_factor.type                 = 'normalised float';
          voltage.rescale.particle_filter.forgetting_factor.units                = '\in [0, 1]';
          
-         voltage.rescale.particle_filter.select_peaks.value                     = 'positive';
+         voltage.rescale.particle_filter.select_peaks.value                     = 'separate';
          voltage.rescale.particle_filter.select_peaks.name                      = 'select peaks';
          voltage.rescale.particle_filter.select_peaks.descript                  = 'Select positive, negative, or both positive and negative peaks ';
          voltage.rescale.particle_filter.select_peaks.type                      = 'list';
@@ -95,19 +95,19 @@ function params = getDefaultToolParams
          voltage.rescale.recursive_least_squares.voltage_magnitude.type         = 'positive float';
          voltage.rescale.recursive_least_squares.voltage_magnitude.units        = 'std dev';
 
-         voltage.rescale.recursive_least_squares.glitch_magnitude.value         = 7; 
+         voltage.rescale.recursive_least_squares.glitch_magnitude.value         = 15; 
          voltage.rescale.recursive_least_squares.glitch_magnitude.name          = 'glitch magnitude';
          voltage.rescale.recursive_least_squares.glitch_magnitude.descript      = 'Threshold at which voltage is considered a glitch of some sort';
          voltage.rescale.recursive_least_squares.glitch_magnitude.type          = 'positive float';
          voltage.rescale.recursive_least_squares.glitch_magnitude.units         = 'std dev';
          
-         voltage.rescale.recursive_least_squares.forgetting_factor.value        = 0.8;
+         voltage.rescale.recursive_least_squares.forgetting_factor.value        = 0.99;
          voltage.rescale.recursive_least_squares.forgetting_factor.name         = 'forgetting factor';
          voltage.rescale.recursive_least_squares.forgetting_factor.descript     = 'Controls how quickly we forget past samples (0 - forget fastest, 1 - forget slowest)';
          voltage.rescale.recursive_least_squares.forgetting_factor.type         = 'normalised float';
          voltage.rescale.recursive_least_squares.forgetting_factor.units        = '\in [0, 1]';
          
-         voltage.rescale.recursive_least_squares.select_peaks.value             = 'all';
+         voltage.rescale.recursive_least_squares.select_peaks.value             = 'separate';
          voltage.rescale.recursive_least_squares.select_peaks.name              = 'select peaks';
          voltage.rescale.recursive_least_squares.select_peaks.descript          = 'Select positive, negative, or both positive and negative peaks ';
          voltage.rescale.recursive_least_squares.select_peaks.type              = 'list';
@@ -121,25 +121,25 @@ function params = getDefaultToolParams
          voltage.rescale.recursive_least_squares.jump_ahead.units               = 'seconds';
 
       % Rescale voltage - recursive mean
-         voltage.rescale.recursive_mean.voltage_magnitude.value                 = 7; 
+         voltage.rescale.recursive_mean.voltage_magnitude.value                 = 5; 
          voltage.rescale.recursive_mean.voltage_magnitude.name                  = 'voltage magnitude';
          voltage.rescale.recursive_mean.voltage_magnitude.descript              = 'Size of voltage when it is considered a spike rather than noise';
          voltage.rescale.recursive_mean.voltage_magnitude.type                  = 'positive float';
          voltage.rescale.recursive_mean.voltage_magnitude.units                 = 'std dev';
 
-         voltage.rescale.recursive_mean.glitch_magnitude.value                  = 7; 
+         voltage.rescale.recursive_mean.glitch_magnitude.value                  = 15; 
          voltage.rescale.recursive_mean.glitch_magnitude.name                   = 'glitch magnitude';
          voltage.rescale.recursive_mean.glitch_magnitude.descript               = 'Threshold at which voltage is considered a glitch of some sort';
          voltage.rescale.recursive_mean.glitch_magnitude.type                   = 'positive float';
          voltage.rescale.recursive_mean.glitch_magnitude.units                  = 'std dev';
          
-         voltage.rescale.recursive_mean.forgetting_factor.value                 = 0.8;
+         voltage.rescale.recursive_mean.forgetting_factor.value                 = 0.99;
          voltage.rescale.recursive_mean.forgetting_factor.name                  = 'forgetting factor';
          voltage.rescale.recursive_mean.forgetting_factor.descript              = 'Controls how quickly we forget past samples (0 - forget fastest, 1 - forget slowest)';
          voltage.rescale.recursive_mean.forgetting_factor.type                  = 'normalised float';
          voltage.rescale.recursive_mean.forgetting_factor.units                 = '\in [0, 1]';
          
-         voltage.rescale.recursive_mean.select_peaks.value                      = 'all';
+         voltage.rescale.recursive_mean.select_peaks.value                      = 'positive';
          voltage.rescale.recursive_mean.select_peaks.name                       = 'select peaks';
          voltage.rescale.recursive_mean.select_peaks.descript                   = 'Select positive, negative, or both positive and negative peaks ';
          voltage.rescale.recursive_mean.select_peaks.type                       = 'list';
@@ -642,9 +642,15 @@ function params = getDefaultToolParams
 
          ap.extract_spikes.matched_filter.ap_peak_change.value                  = 60;
          ap.extract_spikes.matched_filter.ap_peak_change.name                   = 'AP peak change';
-         ap.extract_spikes.matched_filter.ap_peak_change.descript               = 'how quickly can AP peak magnitude change with time';
+         ap.extract_spikes.matched_filter.ap_peak_change.descript               = 'how quickly can AP peak magnitude change with time (lambda)';
          ap.extract_spikes.matched_filter.ap_peak_change.type                   = 'percentage';
          ap.extract_spikes.matched_filter.ap_peak_change.units                  = '% per second';
+         
+         ap.extract_spikes.matched_filter.kappa.value                           = 3;
+         ap.extract_spikes.matched_filter.kappa.name                            = 'AP peak change';
+         ap.extract_spikes.matched_filter.kappa.descript                        = 'how much can a peak differ from mean (kappa)';
+         ap.extract_spikes.matched_filter.kappa.type                            = 'positive float';
+         ap.extract_spikes.matched_filter.kappa.units                           = 'standard deviations';
 
          ap.extract_spikes.matched_filter.positive_threshold.value              = 4;
          ap.extract_spikes.matched_filter.positive_threshold.name               = 'positive threshold';
@@ -705,6 +711,8 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.plot_spikes_consecutively.descript    = 'plot resulting spikes without inactive time between them';
          ap.extract_spikes.matched_filter.plot_spikes_consecutively.type        = 'boolean';
          ap.extract_spikes.matched_filter.plot_spikes_consecutively.units       = 'true or false';
+         
+       % Merge spike templates
    
          ap.merge_templates.user_selection.template_to_merge_with.value         = 1;
          ap.merge_templates.user_selection.template_to_merge_with.name          = 'template to merge with';

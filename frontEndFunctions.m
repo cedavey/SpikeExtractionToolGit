@@ -770,10 +770,6 @@ methods (Static)
                      method_params.select_peaks.value = 'positive';
                      [voltage, Rest, prev_params] = rescaleVoltage(tseries, method, method_params, h.options);
                      voltage = voltage.*heaviside(voltage);
-      %                ff = fields(prev_params);
-      %                for fi = 1:length(ff)
-      %                   method_params.(ff{fi}).value = prev_params.(ff{fi}).value;
-      %                end
                      method_params.select_peaks.value = 'negative';
                      [nvoltage, Nest] = rescaleVoltage(tseries, method, method_params, h.options);
                      nvoltage = -nvoltage;

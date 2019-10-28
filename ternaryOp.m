@@ -10,7 +10,7 @@
 % If you would like a or b to simply return the value of the condition
 % being evaluated, then set to 'input', e.g. 
 %     ternaryOp(cond,'input',b)
-% returns cond if the condition is true, else returns b.
+% returns 'input' if the condition is true, else returns b.
 %
 % If the condition is scalar then results a & b can be whatever size, and
 % the whole object will be returned. However, if the condition is a vector,

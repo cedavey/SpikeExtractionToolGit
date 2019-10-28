@@ -36,6 +36,8 @@ function params = getAutomaticParams(tseries, noisestd, tool, method, params)
                      params = calculateAutomaticParamsRescale(tseries, noisestd, params);
                   case 'recursive least squares'
                      params = calculateAutomaticParamsRescale(tseries, noisestd, params);
+                  case 'recursive mean'
+                     params = calculateAutomaticParamsRescale(tseries, noisestd, params);
                   otherwise
                      % There is no automatic parameter configuration for the
                      % current data type and method combination.
@@ -97,16 +99,15 @@ function params = calculateAutomaticParamsRescale(tseries, noisestd, params)
    params.voltage_magnitude.value = sqrt(SNR); % Spike threshold is the sqrt of the signal to noise ratio
    params.glitch_magnitude.value = 2 * SNR; % Glitch threshold is twice the signal to noise ratio
    params.forgetting_factor.value = 0.99; % This has proved to be the best value
-   %params.jump_ahead.value = 500/sp_rate;
    params.jump_ahead.value = 10/(sp_rate * median(spike_amp/max(spike_amp))); % max(0.5/(sp_rate * var(spike_amp)), 0.5);
 end
 
 %% Calculates the parameters for identify AP templates
 function params = calculateAutomaticParamsAPtemplates(tseries, params, tool)
    if strcmpi('identifyap', tool)
-      params.remove_small_templates.value = floor(tseries.time(end)/10); % if any template contains a number of spikes less than 1 twentieth of the time, remove it
+      params.remove_small_templates.value = floor(tseries.time(end)/20); % if any template contains a number of spikes less than 1 twentieth of the time, remove it
    else
-      params.min_spiking_threshold.value = floor(tseries.time(end)/10); % if any template contains a number of spikes less than 1 twentieth of the time, remove it
+      params.min_spiking_threshold.value = floor(tseries.time(end)/20); % if any template contains a number of spikes less than 1 twentieth of the time, remove it
    end
 end
 
