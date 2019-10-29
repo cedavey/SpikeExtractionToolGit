@@ -8,7 +8,7 @@ function methods = getSETToolMethodsList(tool, data_type)
          
          switch lower(tool)
             case 'rescale'
-               methods = {'Particle filter', 'Recursive least squares' 'Recursive mean', 'Variance'};
+               methods = {'Recursive least squares', 'Particle filter', 'Recursive mean', 'Variance'};
 
             case 'denoise'
                methods = {'Wavelets', 'Threshold', 'Filter'};

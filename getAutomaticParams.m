@@ -99,7 +99,8 @@ function params = calculateAutomaticParamsRescale(tseries, noisestd, params)
    params.voltage_magnitude.value = sqrt(SNR); % Spike threshold is the sqrt of the signal to noise ratio
    params.glitch_magnitude.value = 2 * SNR; % Glitch threshold is twice the signal to noise ratio
    params.forgetting_factor.value = 0.99; % This has proved to be the best value
-   params.jump_ahead.value = 10/(sp_rate * median(spike_amp/max(spike_amp))); % max(0.5/(sp_rate * var(spike_amp)), 0.5);
+   JA = 10/(sp_rate * median(spike_amp/max(spike_amp))); % max(0.5/(sp_rate * var(spike_amp)), 0.5);
+   params.jump_ahead.value = max(JA, tseries.time(end)/2000);
 end
 
 %% Calculates the parameters for identify AP templates

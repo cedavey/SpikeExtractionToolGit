@@ -119,13 +119,16 @@ function generateSpikeStatistics(tseries, method, method_params)
             else
                fi = sum(ceil(nfam(1:ii-1)/nc))*nc + 1;
             end
-
+            
+            max_count = 0;
             for jj=1:nfam(ii)
                stimes = tseries.APstimes{ii}{jj};
                isi    = diff(stimes);
                isi(isi>max_isi) = [];
                [count, bins] = hist(isi, num_bins);
+               % figure(fa); subplot(nr, nc, fi); autocorr(isi,'NumLags',size(isi,2)-1);
                count  = count / sum(count);
+               if max(count) > max_count, max_count = max(count); end
                str    = sprintf('AP %d, axon %d: %d spikes', ii, jj, length(stimes));
                figure(ft);
                subplot(nr, nc, fi), fi=fi+1;
@@ -133,6 +136,19 @@ function generateSpikeStatistics(tseries, method, method_params)
                   title(str);
                   xlabel('Time (s)');
                   ylabel('Probability');               
+            end
+            
+            % Adjust y axis
+            % start new APs axes at beginning of new row
+            if ii==1
+               fi_ = 1;
+            else
+               fi_ = sum(ceil(nfam(1:ii-1)/nc))*nc + 1;
+            end
+            for jj=1:nfam(ii)
+               figure(ft);
+               subplot(nr, nc, fi_), fi_=fi_+1;
+               ylim([0 max_count]);
             end
          end
          set(ft, 'Visible', 'on');
@@ -155,7 +171,8 @@ function generateSpikeStatistics(tseries, method, method_params)
             end
             resize = ternaryOp( nfam>6, 2, 1 ); % lots in family -> resize plots
             nr = resize*nap; nc = ceil(nfam/resize);
-
+            
+            max_count = 0;
             for jj=1:nfam
                numspikes = length(tseries.APstimes{ii}{jj}); 
                peakinds  = round( tseries.APstimes{ii}{jj} / dt );
@@ -177,11 +194,19 @@ function generateSpikeStatistics(tseries, method, method_params)
                figure(fh);
                subplot(nap, nfam, (ii-1)*nfam + jj)
                   [count, bins] = hist( peaks, nbins );
+                  max_count = max(max_count, max(count)/sum(count));
                   bar( bins, count/sum(count) );
                   title(str);
                   xlabel('Spike amp');
                   ylabel('Probability');
             end
+            
+            % Adjust y-axis
+            for jj = 1:nfam
+               subplot(nap, nfam, (ii-1)*nfam + jj);
+               ylim([0 max_count]);
+            end
+            
             ah = findobj(ft, 'type', 'axes');
             set(ah, 'ylim', [0 Mv], 'xlim', [1 nT]*dt);
             

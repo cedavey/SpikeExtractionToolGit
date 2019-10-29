@@ -142,7 +142,9 @@ tscale=1; tlabel='s';
 
          if isnumeric(x)
             try
-               lh = plot(ax1, time/tscale, x(:,lind)/vscale);
+               max_pks = max(x(:,lind));
+               [~, sorted] = sort(max_pks, 'descend');
+               lh = plot(ax1, time/tscale, x(:,sorted)/vscale);
             catch ME
                % keep having trouble with floats making time vector the wrong size
                lh = plot(ax1, (1:size(x,1))*dt/tscale, x(:,lind)/vscale);

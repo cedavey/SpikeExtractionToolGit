@@ -272,7 +272,7 @@ methods (Static)
          end
       end
 
-      if strcmp('load_voltage', eventdata) || ~compareFloats(curr_vlim(2), last_vlim(2), 0.01, 'perc')
+      if strcmp('load_voltage', eventdata) || ~compareFloats(curr_vlim(2), last_vlim(2), 0.01, 'perc') || ts_num ~= handles.data.last_tseries
          % set time slider and time max/min text boxes from scale of data
          handles.data.vlim = curr_vlim;
          minv = handles.data.vlim(1); maxv = handles.data.vlim(2);
