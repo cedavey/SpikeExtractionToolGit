@@ -390,6 +390,10 @@ end
 
 % --- Executes on selection change in curr_signal.
 function curr_signal_Callback(hObject, eventdata, handles)
+   mouseWaitingFunction(handles.figure1,@different_signal_selected,hObject,eventdata,handles);
+end
+
+function different_signal_selected(hObject, eventdata, handles)
    handles.f.curr_signal(hObject,eventdata,handles);
 end
 

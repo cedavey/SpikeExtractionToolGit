@@ -44,7 +44,8 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
    % peakdiff function calculates diff btwn peaks, e.g. btwn total range or
    % sums diff btwn maxes & mins, & perhaps accounts for time btwn spikes
    % - weight positive peak more heavily than minimum peak
-   peakdiff  = @(curr_peak, last_peaks) sum( abs((curr_peak - last_peaks) .* [1/2 2] ./ last_peaks), 2 );
+   % peakdiff  = @(curr_peak, last_peaks) sum( abs((curr_peak - last_peaks) .* [1/2 2] ./ last_peaks), 2 );
+   peakdiff  = @(x, y) abs(((x(2)-x(1))-(y(:,2)-y(:,1)))./(y(:,2)-y(:,1))) ;
    % require both +ve & -ve peaks to be within change threshold, and then
    % take spike with the min change
    peaktest  = @(curr_peak, last_peaks) abs( (curr_peak - last_peaks) ./ last_peaks );
@@ -123,8 +124,9 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
             case 'cov'
                % to compare using covariance means that the APs have to have
                % the same amplitude to be considered part of the same family.
-               % In order to have a match threshold independent of amplitude,
-               % scale by the size of the template's signal. Since cov is
+               % In order to have a match threshold independent of
+               % amplitude,-]k
+              % scale by the size of the template's signal. Since cov is
                % voltage squared, scale by variance rather than std dev
                rho = cov_x_Yvec(curr_spike, APtemplates) ./ var(APtemplates); 
                
@@ -148,11 +150,9 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
             APfamilies{k}{1}.last_peak = peakfn(curr_spike); % size of last spike in family
             APfamilies{k}{1}.last_time = timefn(curr_stime); % time of last spike
             % Distribution of peaks (mean and var)
-            APfamilies{k}{1}.mup = APfamilies{k}{1}.last_peak(2); % Positive peak mean
-            APfamilies{k}{1}.mun = APfamilies{k}{1}.last_peak(1); % Negative peak mean
-            APfamilies{k}{1}.varp = 0; % Positive peak variance
-            APfamilies{k}{1}.varn = 0; % Negative peak variance
-            
+            [APfamilies{k}{1}.mup, APfamilies{k}{1}.varp] = initialize_mu(spikes, si, APtemplates(:,k), matchthresh, peakfn, 'positive'); % APfamilies{k}{1}.last_peak(2); % Positive peak mean
+            [APfamilies{k}{1}.mun, APfamilies{k}{1}.varn] = initialize_mu(spikes, si, APtemplates(:,k), matchthresh, peakfn, 'negative'); % APfamilies{k}{1}.last_peak(1); % Negative peak mean
+                         
             if ~strcmp('none',opts.debugOption)
                APfamilies{k}{1}.mup_vector = [APfamilies{k}{1}.mup];
                APfamilies{k}{1}.mun_vector = [APfamilies{k}{1}.mun];
@@ -223,10 +223,10 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
             valid1 = zeros(size(mup));
             valid2 = zeros(size(mun));
             for j = 1:numel(mup)
-               valid1(j) = (curr_peak(1) >= mun(j) - kappa * stdn_(j)) & (curr_peak(1) <= mun(j) + kappa * stdn_(j));
-               valid2(j) = (curr_peak(2) >= mup(j) - kappa * stdp_(j)) & (curr_peak(2) <= mup(j) + kappa * stdp_(j));
+               valid1(j) = (curr_peak(1) >= mun(j) - kappa * stdn_(j)) && (curr_peak(1) <= mun(j) + kappa * stdn_(j));
+               valid2(j) = (curr_peak(2) >= mup(j) - kappa * stdp_(j)) && (curr_peak(2) <= mup(j) + kappa * stdp_(j));
             end
-            valid = valid1 | valid2;
+            valid = valid1 & valid2;
                         
             if any(valid)
                % Adding one spike to current axon
@@ -269,8 +269,8 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                if ~strcmp('none',opts.debugOption)
                   APfamilies{k}{i}.mup_vector = [ APfamilies{k}{i}.mup_vector mup_curr];
                   APfamilies{k}{i}.mun_vector = [ APfamilies{k}{i}.mun_vector mun_curr];
-                  APfamilies{k}{i}.varp_vector = [ APfamilies{k}{i}.varp_vector APfamilies{k}{i}.varp];
-                  APfamilies{k}{i}.varn_vector = [ APfamilies{k}{i}.varn_vector APfamilies{k}{i}.varn];
+                  APfamilies{k}{i}.varp_vector = [ APfamilies{k}{i}.varp_vector sqrt(APfamilies{k}{i}.varp)];
+                  APfamilies{k}{i}.varn_vector = [ APfamilies{k}{i}.varn_vector sqrt(APfamilies{k}{i}.varn)];
                end
                
                % getting peak to peak from family mean now, because it
@@ -287,16 +287,14 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                APfamilies{k}{end}.last_peak = peakfn( curr_spike ); % size of last spike in family
                APfamilies{k}{end}.last_time = timefn( curr_stime ); % time of last spike
                               
-               APfamilies{k}{end}.mup = APfamilies{k}{end}.last_peak(2); % Positive peak mean
-               APfamilies{k}{end}.mun = APfamilies{k}{end}.last_peak(1); % Negative peak mean
-               APfamilies{k}{end}.varp = 0; % Positive peak variance
-               APfamilies{k}{end}.varn = 0; % Negative peak variance
-               
+               [APfamilies{k}{end}.mup, APfamilies{k}{end}.varp] =  initialize_mu(spikes, si, APtemplates(:,k), matchthresh, peakfn, 'positive'); % APfamilies{k}{end}.last_peak(2); % Positive peak mean
+               [APfamilies{k}{end}.mun, APfamilies{k}{end}.varn] =  initialize_mu(spikes, si, APtemplates(:,k), matchthresh, peakfn, 'negative'); % APfamilies{k}{end}.last_peak(1); % Negative peak mean
+                              
                if ~strcmp('none',opts.debugOption)
                   APfamilies{k}{end}.mup_vector = [ mup_curr];
                   APfamilies{k}{end}.mun_vector = [ mun_curr];
-                  APfamilies{k}{end}.varp_vector = [APfamilies{k}{end}.varp];
-                  APfamilies{k}{end}.varn_vector = [APfamilies{k}{end}.varn];
+                  APfamilies{k}{end}.varp_vector = [sqrt(APfamilies{k}{end}.varp)];
+                  APfamilies{k}{end}.varn_vector = [sqrt(APfamilies{k}{end}.varn)];
                end
             end
          end
@@ -429,6 +427,44 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
          APtimes{ti}  = fam_stimes;
       end
       
+   end
+end
+
+function [mu, sigma] = initialize_mu(spikes, si, APtemplate, matchthresh, peakfn, option)
+   % Initialize the Mean peak for a new family. Goes through the first 5
+   % sipkes that match the template and choses that value as the mean.
+   switch option
+      case 'positive'
+         idx = 2;
+      case 'negative'
+         idx = 1;
+      otherwise
+         error('The argument''option'' must be either ''positive'' or ''negative''');
+   end
+   
+   count = 0;
+   pk = [];
+   while count < 10 && si < size(spikes,2)
+      curr_spike = spikes(:,si);
+      c = xcorr(curr_spike, APtemplate, 2, 'coeff');
+      rho = max(abs(c));
+      % If spike is closeley correlated to the template
+      if rho > matchthresh
+         count = count + 1;
+         pk_ = peakfn(spikes(:,si));
+         pk(count) = pk_(idx);
+      end
+      si = si + 1;
+   end
+   
+   % If at least 1 spike matched the template (hopefully 5 did)
+   if count > 0
+      mu = mean(pk);
+      sigma = var(pk);
+   else
+      mu_ = peakfn(APtemplate);
+      mu = mu_(idx);
+      sigma = 0;
    end
 end
 
