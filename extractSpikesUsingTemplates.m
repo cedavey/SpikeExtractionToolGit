@@ -22,6 +22,7 @@
 %                each spike within that family
 function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, params, normAPs ,opts)
    
+   if isfield(opts,'loadingWindowOn'), progress_window = opts.loadingWindowOn; else, progress_window = false; end
    if opts.auto_params
       % Get auto params
       pp = getAutomaticParams(tseries, [], 'extractspikes', method, params);
@@ -29,7 +30,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
       if ~isempty(pp)
          params = pp;
       end
-   end
+   end   
 
    APspikes  = [];  APtimes = [];
    [nT, nAP] = size(APtemplates); % num samples in each template, & num templates
@@ -45,7 +46,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
    % sums diff btwn maxes & mins, & perhaps accounts for time btwn spikes
    % - weight positive peak more heavily than minimum peak
    % peakdiff  = @(curr_peak, last_peaks) sum( abs((curr_peak - last_peaks) .* [1/2 2] ./ last_peaks), 2 );
-   peakdiff  = @(x, y) abs(((x(2)-x(1))-(y(:,2)-y(:,1)))./(y(:,2)-y(:,1))) ;
+   peakdiff  = @(x, y) abs(((x(:,2)-x(:,1))-(y(:,2)-y(:,1)))./(y(:,2)-y(:,1))) ;
    % require both +ve & -ve peaks to be within change threshold, and then
    % take spike with the min change
    peaktest  = @(curr_peak, last_peaks) abs( (curr_peak - last_peaks) ./ last_peaks );
@@ -95,11 +96,29 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
    
    nS = size(spikes, 2);
    prevProg = 1;
+   % Create new progress window
+   if progress_window
+      waitbar_handles = waitbar(0,[method ' is 0% done'],...
+         'Name','Extracting spikes - close me to stop');
+   end
    for si=1:nS % for each possible spike (format: time x spike)
       % Print current percentage
       if 10*floor(si/nS*10) ~= prevProg
           fprintf( '\t%s is approx %d%% done\n', method, 10*floor(si/nS*10) );
           prevProg = 10*floor(si/nS*10);
+      end
+      
+      % Update Progress window
+      if progress_window
+         try
+            waitbar_handles = waitbar(si/nS, waitbar_handles,...
+               [method ' is ', num2str(round( si/nS*100 )), '% done']);
+         catch
+            delete(waitbar_handles);
+            str = ['The process has been manually stopped on time: ',num2str(stimes{si}),' seconds.\n'];
+            printMessage('off','Error',str);
+            break;
+         end
       end
       
       curr_spike = spikes(:,si);
@@ -184,29 +203,14 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
             % growing) when we divide by last peaks you're dividing by a 
             % small number, which makes the change rate larger, & less
             % likely to be within the allowed limit
-%             change_rates1 = peakdiff( curr_peak, last_peaks );
-%             change_test1  = peaktest( curr_peak, last_peaks );
-%             change_rates2 = peakdiff( last_peaks, curr_peak );
-%             change_test2  = peaktest( last_peaks, curr_peak );
             change_rates1 = peakdiff( curr_peak, [mun mup] );
-            change_test1  = peaktest( curr_peak, [mun mup] );
             change_rates2 = peakdiff( [mun mup], curr_peak );
-            change_test2  = peaktest( [mun mup], curr_peak );
-%             mspk = zeros(size(meanspike,2), 2);
-%             for ii = 1:size(meanspike,2), mspk(ii,:) = peakfn(meanspike(:,ii)); end
-%             change_rates1 = peakdiff( curr_peak, mspk );
-%             change_test1  = peaktest( curr_peak, mspk );
-%             change_rates2 = peakdiff( mspk, curr_peak );
-%             change_test2  = peaktest( mspk, curr_peak );
             
             % use the change_rates with the smallest value since it'll be
             % the min change rate that's selected below
             change_rates  = ternaryOp( min( change_rates1(:) ) < min( change_rates2(:) ), ...
                                        change_rates1, change_rates2 );
                                     
-            % allow the spike to grow or shrink - merge so either direction
-            % can pass the validity test
-            change_test   = [ change_test1; change_test2 ];
             % test with change rate / 2 since it can go above or below the
             % mean spike for the family. 
             % * Wasn't really doing much with the /2, so I removed it.
@@ -245,20 +249,14 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                mup_prev = APfamilies{k}{i}.mup;
                mun_prev = APfamilies{k}{i}.mun;
                
-%                mup_curr = (APfamilies{k}{1}.last_peak(2) + ((N_ - 1) * mup_prev * lambda))/N_; % Positive peak mean
                mup_curr = mup_prev + (APfamilies{k}{i}.last_peak(2) - mup_prev); % Positive peak mean
                mup_curr = mup_prev * lambda + mup_curr * (1 - lambda);
                APfamilies{k}{i}.mup = mup_curr;
-               
-%                mun_curr = (APfamilies{k}{1}.last_peak(1) + ((N_ - 1) * mun_prev * lambda))/N_; % Negative peak mean
+
                mun_curr = mun_prev + (APfamilies{k}{i}.last_peak(1) - mun_prev); % Negative peak mean 
                mun_curr = mun_prev * lambda + mun_curr * (1 - lambda);
                APfamilies{k}{i}.mun = mun_curr;
-               
-%                Snp_prev = (N_-1)*(APfamilies{k}{i}.varp^2); % Previous standard deviation
-%                Snn_prev = (N_-1)*(APfamilies{k}{i}.varn^2); % Previous standard deviation
-%                APfamilies{k}{i}.varp = abs( sqrt((Snp_prev + (APfamilies{k}{i}.last_peak(2) - mup_prev) * (APfamilies{k}{i}.last_peak(2) - mup_curr)) / N_) ); % Positive peak variance
-%                APfamilies{k}{i}.varn = abs( sqrt((Snn_prev + (APfamilies{k}{i}.last_peak(1) - mun_prev) * (APfamilies{k}{i}.last_peak(1) - mun_curr)) / N_) ); % Negative peak variance
+
                varp_prev = APfamilies{k}{i}.varp;
                varn_prev = APfamilies{k}{i}.varn;
                varp_curr = varp_prev + ((APfamilies{k}{i}.last_peak(2) - mup_curr) .* (APfamilies{k}{i}.last_peak(2) - mup_prev) - varp_prev);
@@ -276,7 +274,6 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                % getting peak to peak from family mean now, because it
                % wasn't working at all well using the last spike
                APfamilies{k}{i}.last_peak  = peakfn( curr_spike ); % size of last spike in family
-%                APfamilies{k}{i}.last_peak   = peakfn( APfamilies{k}{i}.meanspike ); % size of last spike in family
                APfamilies{k}{i}.last_time   = timefn( curr_stime ); % time of last spike
             else
                % Creating new axon
@@ -334,6 +331,21 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
          end
       end
    end
+   % Close progress window
+   if progress_window
+      try
+         close(waitbar_handles);
+      catch ME
+         if strcmp('Invalid figure handle.',ME.message)
+            if exist('waitbar_handles','var')
+               clear('waitbar_handles');
+            end
+         else
+            runtimeErrorHandler(ME);
+         end
+      end
+   end
+
    
    if ~strcmp('none',opts.debugOption)
       figure;subplot(1,2,1); hold;

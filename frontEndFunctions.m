@@ -1598,7 +1598,7 @@ methods (Static)
             else
                h.time_slider.SliderStep = [0.01 0.1];
             end
-         end       
+         end
 
          h.data.zoomPercentage(1) = min(percent, 0.99999);
 
@@ -1697,7 +1697,7 @@ methods (Static)
             h.voltage_slider.SliderStep =  [0.01 0.1];
 
             h.time_slider.SliderStep(2) = 1;
-            h.time_slider.SliderStep(1) = zoom(1) / 2;% max(handles.time_slider.SliderStep(1) , handles.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
+            h.time_slider.SliderStep(1) = zoom(1) / 3;% max(handles.time_slider.SliderStep(1) , handles.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
             h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*2);
             % Update tooltip
             h = setTooltips(h, {hObject.Tag}, getTooltips({'toggleZoomButton_toZoom'}));
@@ -1832,7 +1832,7 @@ methods (Static)
         end
         if strcmp('gui', h.f.uiType) % Only if its GUI
           h.time_slider.SliderStep(2) = 1;
-          h.time_slider.SliderStep(1) = zoom(1) / 2;% max(handles.time_slider.SliderStep(1) , handles.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
+          h.time_slider.SliderStep(1) = zoom(1) / 3;% max(handles.time_slider.SliderStep(1) , handles.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
           h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*2);
         end
       end
@@ -1852,7 +1852,7 @@ methods (Static)
             h.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(h.data.tseries{currtseries}.data) - min(h.data.tseries{currtseries}.data)));
             h.data.zoomPercentage(2) = max(h.data.zoomPercentage(2), 0); % Prevents the zoom to be less than 0
          catch E
-            if strcmp('MATLAB:max:wrongInput',E.identifier)
+            if strcmp('MATLAB:min:wrongInput', E.identifier) || strcmp('MATLAB:max:wrongInput', E.identifier)
                h.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(max(h.data.tseries{currtseries}.data{1}{1}.spikes)) - min(min(h.data.tseries{currtseries}.data{1}{1}.spikes))));
             else
                rethrow(E);
@@ -1866,7 +1866,7 @@ methods (Static)
             h.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(max(h.data.tseries{currtseries}.data{1}{1}.spikes)) - min(min(h.data.tseries{currtseries}.data{1}{1}.spikes))));
             h.data.displacementPercentage(2) = 1 - maxv / max(max(h.data.tseries{currtseries}.data{1}{1}.spikes));
          catch E
-            if strcmp('MATLAB:max:wrongInput',E.identifier)|| strcmp('MATLAB:cellRefFromNonCell',E.identifier)
+            if strcmp('MATLAB:max:wrongInput',E.identifier) || strcmp('MATLAB:min:wrongInput', E.identifier) || strcmp('MATLAB:cellRefFromNonCell',E.identifier)
                h.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(h.data.tseries{currtseries}.data) - min(h.data.tseries{currtseries}.data)));
                h.data.displacementPercentage(2) = 1 - maxv / max(h.data.tseries{currtseries}.data);
             else
@@ -1893,18 +1893,31 @@ methods (Static)
 
          % calculate new min & max time lims by zoomin in from both ends
          tseries = h.f.getCurrentVoltage(h);
-         vrange = max(tseries.data) - min(tseries.data);
-         zoom_min = mean([h.data.vlim(1) h.data.vlim(2)]) - (vrange * (1-percent) / 2);
-         zoom_max = mean([h.data.vlim(1) h.data.vlim(2)]) + (vrange * (1-min(percent,0.999)) / 2);
+         try
+            vrange = max(tseries.data) - min(tseries.data);
+            zoom_min = mean([h.data.vlim(1) h.data.vlim(2)]) - (vrange * (1-percent) / 2);
+            zoom_max = mean([h.data.vlim(1) h.data.vlim(2)]) + (vrange * (1-min(percent,0.999)) / 2);
 
-         h.data.vlim(1) = max( zoom_min, min(tseries.data));
-         h.data.vlim(2) = min( zoom_max, max(tseries.data));
+            h.data.vlim(1) = max( zoom_min, min(tseries.data));
+            h.data.vlim(2) = min( zoom_max, max(tseries.data));
+         catch E
+            if strcmp('MATLAB:min:wrongInput', E.identifier) || strcmp('MATLAB:max:wrongInput', E.identifier)
+               vrange = max(tseries.data{:},[],[1 2]) - min(tseries.data{:},[],[1 2]);
+               zoom_min = mean([h.data.vlim(1) h.data.vlim(2)]) - (vrange * (1-percent) / 2);
+               zoom_max = mean([h.data.vlim(1) h.data.vlim(2)]) + (vrange * (1-min(percent,0.999)) / 2);
+
+               h.data.vlim(1) = max( zoom_min, min(tseries.data{:},[],[1 2]));
+               h.data.vlim(2) = min( zoom_max, max(tseries.data{:},[],[1 2]));
+            else
+               rethrow(E);
+            end
+         end
 
          h.data.displacementPercentage(2) = 0;
       else
          % Displacement
          newdisplacement = hObject.Value;
-         if newdisplacement > handles.data.displacementPercentage(2)
+         if newdisplacement > h.data.displacementPercentage(2)
             displacement = newdisplacement;%handles.data.displacementPercentage(2) - newdisplacement;
          else
             displacement = -newdisplacement;
@@ -1917,8 +1930,17 @@ methods (Static)
          disp_min = h.data.vlim(1) + displacement;
          disp_max = h.data.vlim(2) + displacement;
 
-         h.data.vlim(1) = max( disp_min, min(tseries.data));
-         h.data.vlim(2) = min( disp_max, max(tseries.data));
+         try
+            h.data.vlim(1) = max( disp_min, min(tseries.data));
+            h.data.vlim(2) = min( disp_max, max(tseries.data));
+         catch E
+            if strcmp('MATLAB:min:wrongInput', E.identifier) || strcmp('MATLAB:max:wrongInput', E.identifier)
+               h.data.vlim(1) = max( disp_min, min(tseries.data{:},[],[1 2]));
+               h.data.vlim(2) = min( disp_max, max(tseries.data{:},[],[1 2]));
+            else
+               rethrow(E);
+            end
+         end
       end
 
       if strcmp('gui', h.f.uiType)

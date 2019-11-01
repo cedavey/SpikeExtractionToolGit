@@ -149,7 +149,7 @@ function varargout = SpikeExtractionTool(varargin)
 
 % Edit the above text to modify the response to help SpikeExtractionTool
 
-% Last Modified by GUIDE v2.5 07-Oct-2019 13:53:11
+% Last Modified by GUIDE v2.5 31-Oct-2019 17:50:29
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -222,7 +222,7 @@ removeToolBarButtons(handles);
 
 % Initialize options for debug and loading window
 handles.options.loadingWindowOn = true;
-handles.options.debugOption = 'semi';
+handles.options.debugOption = 'none';
 handles.options.rescaleOption = 'at_end';
 handles.options.auto_params = 'false';
 
@@ -1149,4 +1149,31 @@ end
 
 function figure1_ButtonDownFcn(hObject, eventdata, handles)
 
+end
+
+
+% --- Executes on button press in reset_button.
+function reset_button_Callback(hObject, eventdata, handles)
+% hObject    handle to reset_button (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+end
+
+% --- Executes during object creation, after setting all properties.
+function reset_button_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to reset_button (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+   warning('off','MATLAB:imagesci:png:libraryWarning'); % Ignore PNG associated warning
+
+   % Get location of log files
+   a = which('SpikeExtractionTool');
+   locs = strfind(a, '\');
+   path = a(1:locs(end));
+
+   [x,map]=imread([path 'fig' filesep 'resetIcon.png']); % Load the zoom icon
+   I2=imresize(x, [22 22]); % Resize icon
+   hObject.CData = I2; % Assign icon to the button
+   hObject.BackgroundColor = [1 0.6 0.6]; % Change color to match other buttons
+   hObject.String = ''; % Remove string
 end
