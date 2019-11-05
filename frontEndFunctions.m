@@ -684,6 +684,49 @@ methods (Static)
 
       if numel(varargin) == 1,varargout = {h};end % When removing multiple voltages at once, we want to update the state of handles for the caller method
    end
+   
+   function resetButtonClicked(h, hObject)
+      tseries = h.data.tseries{h.data.curr_tseries};
+      [curr_tlim, curr_vlim] = getTimeAndVoltageLimits(tseries);
+      
+      % set time slider and time max/min text boxes from time length of data
+      h.data.tlim = curr_tlim;
+      mint = h.data.tlim(1); maxt = h.data.tlim(2);
+      set(h.time_slider, 'Value',  0);
+      if strcmp('gui', h.f.uiType)
+         set(h.time_max,    'String', sprintf('%.2f',maxt));
+         set(h.time_min,    'String', sprintf('%.2f',mint));
+      else
+         set(h.time_max,    'Value', sprintf('%.2f',maxt));
+         set(h.time_min,    'Value', sprintf('%.2f',mint));
+      end
+      
+     % set time slider and time max/min text boxes from scale of data
+      h.data.vlim = curr_vlim;
+      minv = h.data.vlim(1); maxv = h.data.vlim(2);
+
+      if strcmp('gui', h.f.uiType)
+         set(h.voltage_max,    'String', sprintf('%.2f',maxv));
+         set(h.voltage_min,    'String', sprintf('%.2f',minv));
+
+         % udpate figure to show tseries chosen by user
+         guidata(hObject,h); % saves changes to handles
+         h = updateSETFigure(h, tseries);
+         updateGUIParams(h, tseries);
+
+         guidata(hObject,h); % saves changes to handles
+      else
+         set(h.voltage_max,    'Value', sprintf('%.2f',maxv));
+         set(h.voltage_min,    'Value', sprintf('%.2f',minv));
+
+         % udpate figure to show tseries chosen by user
+         guidata(hObject,h); % saves changes to handles
+         h = updateSETFigure(h, tseries);
+         updateGUIParams(h, tseries);
+      end
+      
+      h.f.resetSliders(h, hObject);
+   end
 
    function h = resetSliders(h, varargin)
       if strcmp('gui', h.f.uiType) && (nargin > 1)

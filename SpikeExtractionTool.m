@@ -1154,9 +1154,11 @@ end
 
 % --- Executes on button press in reset_button.
 function reset_button_Callback(hObject, eventdata, handles)
-% hObject    handle to reset_button (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
+   mouseWaitingFunction(handles.figure1, @reset_button_clicked, handles, hObject);
+end
+
+function reset_button_clicked(handles, hObject)
+   handles.f.resetButtonClicked(handles, hObject);
 end
 
 % --- Executes during object creation, after setting all properties.
