@@ -35,7 +35,12 @@ function [H, pval] = iswhite(data, varargin)
 
     switch lower(test)
         case {'ljung-box','lb','l'} % H=1: data random, H=0: not random
+           try
             [H, pval] = ljung_box( data, p, alpha );
+           catch
+              H = 0;
+              return
+           end
             
         case {'breusch-godfrey','bg','b'} % H=1: data random, H1: not random
             [H, pval] = breusch_godfrey( data, p, alpha );

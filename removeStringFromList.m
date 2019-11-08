@@ -7,15 +7,16 @@
 function names = removeStringFromList(names, rmstr)
    for i=1:size(names,1)
       str = names{i,1};
-      if ~isempty(strfind(rmstr, str))
-         % if only 1 use of str then remove from names
-         if names{i,2}==1
-             names(i,:) = [];
-             
+      % if only 1 use of str then remove from names
+      if names{i,2}==1 && contains(str, rmstr)
+          names(i,:) = [];
+          break;
+      end   
+      if contains([str '_v' num2str(names{i,2})], rmstr)
          % if more than 1 use of str then if rmstr is the last occurence
          % of it (i.e. has index = frequency of str) then reduce
          % frequency by 1
-         elseif names{i,2}==str2num(rmstr(end)) % rmstr index is last occurence
+         if names{i,2}==str2num(rmstr(end)) % rmstr index is last occurence
             % if there's more than 1 use of str, & rmstr is an earlier
             % occurence of it, then just leave frequency as is, else if we
             % reduce it by 1 when the str next occurs we'll repeat the last index

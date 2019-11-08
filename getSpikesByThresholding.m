@@ -12,17 +12,23 @@
 %  templateN - number of samples in the template spike (optional)
 %  peakN     - the peak index of the template spike to allow alignment (optional)
 function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, templateN, peakN)
-%% TO DO: 
-%  - change from aligning at peak indices to aligning at maximal mutual info
    spikes = []; stimes = [];
    dt         = double( tseries.dt );
    voltage    = double( tseries.data(:) );
    time       = double( tseries.time(:) );
+   
+   str = sprintf( '\tIdentifying possible spikes...\n' );
+   printMessage('off', 'Keywords', str );
 
    % threshold the voltage timeseries - remove values that are too
    % small, and positive values that remain positive for a short period
    posthresh  = params.positive_threshold.value;   % min pos voltage (std dev)
    negthresh  = params.negative_threshold.value;   % min neg voltage (std dev)
+   try
+      glitchthresh = params.glitch_threshold.value;   % glitch threshold
+   catch
+      glitchthresh = 100;%params.glitch_magnitude.value;   % glitch threshold
+   end
    minpostime = params.min_positive_duration.value;% min duration (ms)
    minnegtime = params.min_negative_duration.value;% min duration (ms)
    avg_window = params.avg_window.value;           % size of avg window to incl in calc (seconds)
@@ -54,6 +60,7 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
    pass       = timepos>minpostime & timeneg>minnegtime; 
    if sum(pass)==0
       displayErrorMsg('No spikes have suffic positive and negative duration, abandoning ship...');
+      spikes = []; stimes = []; sindices = []; % This line to prevent run time error "not assigned during getSpikesByThresholding"
       return;
    end
    changePos  = changePos(pass);
@@ -114,7 +121,7 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
       stddev  = std(voltage);
    end
    posthresh  = stddev*posthresh;
-   negthresh  = stddev*negthresh;
+   negthresh  = stddev*negthresh; 
 
    % get threshold at appropriate point in timeseries if have mvg avg std dev
    if avg_window > 0
@@ -122,10 +129,14 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
      negthresh= negthresh(startind);
    end
    keep       = (pos_max >= posthresh) & (neg_min <= -negthresh);
-   if sum(keep)==0
+   
+   % Glitch threshold
+   [glitchpos, glitchneg] = getGlitchThreshold(glitchthresh, stddev(keep), pos_max(keep), neg_min(keep));
+   keep_glitch = (pos_max(keep) <= glitchpos) & (neg_min(keep) >= glitchneg);
+   if sum(keep_glitch)==0
       displayErrorMsg('No spikes have suffic positive and negative amplitude, sadly giving up...');
       return;
-   elseif sum(keep)<100
+   elseif sum(keep_glitch)<100
       str = sprintf('Warning: not many spikes (%d) to sort by AP template', sum(keep));
       displayErrorMsg(str);
    end
@@ -133,6 +144,9 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
    stimes     = stimes(keep);
    sinds      = sinds(keep);
    
+   spikes     = spikes(keep_glitch);
+   stimes     = stimes(keep_glitch);
+   sinds      = sinds(keep_glitch);
    % now make sure spike peaks are aligned else they might be the same but
    % have just slightly different befores/afters - exclude beginning & end
    % part so max isn't at first or last samples rather than middle peak
@@ -168,9 +182,26 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
                               1:length(sp),'uniformoutput', false);
    sindices   = arrayfun(@(i) voltage( sinds{i}(peakind(i))+shift-tbefore+1 : sinds{i}(peakind(i))+shift+tafter), ...
                               1:length(spikes),'uniformoutput', false);
+                          
+                          
+   str = sprintf( '\tDone.\n' );
+   printMessage('off', 'Keywords', str );
 end
 
 
-
+function [newglitchth_pos, newglitchth_neg] = getGlitchThreshold(glitchthresh, stdev, pos_max, neg_min)
+   newglitchth_pos = zeros(size(pos_max));
+   newglitchth_neg = zeros(size(neg_min));
+   
+   for i = 1:length(pos_max)
+      if i <= 30
+         newglitchth_pos(i) = glitchthresh * stdev(i);
+         newglitchth_neg(i) = glitchthresh * -stdev(i);
+      else
+         newglitchth_pos(i) = 2 * mean(pos_max(i-30:i));
+         newglitchth_neg(i) = 2 * mean(neg_min(i-30:i));
+      end
+   end
+end
 
 

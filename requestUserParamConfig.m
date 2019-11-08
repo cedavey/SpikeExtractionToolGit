@@ -138,11 +138,26 @@ function [params, cancel] = requestUserParamConfig(params, dlg_title)
  
    dlg_title = ['Set parameters for ' dlg_title];
    try
+      % Fixing bug about wrong parameter format on APs view
+      if strcmp('timeseries name',prompt{end}) && ~isinteger(def{end})
+         def{end} = [];
+      end
+      
       [userparams, cancel] = inputsdlg(prompt, dlg_title, formats, def, other);
    catch ME
-      str = getCatchMEstring( ME, 'Error setting parameters', false );
-      displayErrorMsg( 'Error setting parameters, reverting to old values' );
-      return;
+      str = getCatchMEstring( ME, 'Error setting parameters', true );
+      if contains(str, 'Cell array can contain only non-empty character vectors')
+         for ii = 1:length(formats(end).items)
+            if iscell(formats(end).items{ii})
+               formats(end).items{ii} = formats(end).items{ii}{1};
+            end
+         end
+         [userparams, cancel] = inputsdlg(prompt, dlg_title, formats, def, other);
+      else
+         runtimeErrorHandler(ME,'message',str);
+         displayErrorMsg( 'Error setting parameters, reverting to old values' );
+         return;
+      end
    end
    if cancel
       return;

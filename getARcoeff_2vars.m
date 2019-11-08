@@ -56,7 +56,7 @@ function [Ax, Ay, Xest, Yest, ex, ey] = getARcoeff_2vars(X, Y, p, doplot, warn)
     end
     X = squeeze(X); % if got 1 pixel out of a 4D volume x time matrix
     if size(X,1) < size(X,2), X = X'; end % convert to column vector
-    if size(Y,1) < size(Y,2), X = X'; end % convert to column vector
+    if size(Y,1) < size(Y,2), Y = Y'; end % convert to column vector
     
     % X & Y both gotta be type double to perform matrix ops
     if isinteger(X), X = im2double(uint16(X));  end

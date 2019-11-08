@@ -4,6 +4,9 @@
 function denoised_voltage = denoiseVoltage(tseries, method, params)
    if nargin==0, help denoiseVoltage; return; end
    denoised_voltage = [];
+   % Print denoising message
+   str = sprintf( '\tDenoising voltage using %s...\n', method);
+   cprintf( 'Keywords', str );
    switch lower(method)
       case 'filter'
 %          try
@@ -85,4 +88,7 @@ function denoised_voltage = denoiseVoltage(tseries, method, params)
          displayErrorMsg(str);
          denoised_voltage = [];
    end
+   % Print 'done' message
+   str = sprintf( '\tDone!\n');
+   cprintf( 'Keywords', str );
 end

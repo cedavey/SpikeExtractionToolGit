@@ -1,9 +1,28 @@
-% [APs, time] = identifyAPs(tseries, method, method_params)
+% [APs, time] = identifyAPs(tseries, method, method_params, <options>)
 % Extract AP families from voltage timeseries using thresholding for
 % positive and negative peaks, as well as minimum duration positive and
 % negative components. Require APs to have user specified similarity to be
 % considered part of the same family.
-function [APtemplates, componentAPs] = identifyAPs(tseries, method, params)
+function [APtemplates, componentAPs] = identifyAPs(tseries, method, params, varargin)
+   if nargin > 3
+      opts = varargin{1};
+   else
+      opts = struct;
+      opts.debugOption = 'none';
+      opts.auto_params = true;
+   end
+   
+   debug = opts.debugOption;
+   
+   if opts.auto_params
+      % Get auto params
+      pp = getAutomaticParams(tseries, [], 'identifyAP', method, params);
+      % If returned value is empty, leave the default parameters untouched
+      if ~isempty(pp)
+         params = pp;
+      end
+   end
+   
    if nargin==0
       help identifyAPs;
       return;
@@ -13,11 +32,13 @@ function [APtemplates, componentAPs] = identifyAPs(tseries, method, params)
    switch lower(method)
       case 'threshold'
          [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params);
-         
       case 'wavelets'
          % now most of the signal is 0's we can use spike extraction tool
          [spikes, stimes] = getWaveletSpikes(tseries, params);
-
+      case 'k means'
+         [spikes, stimes, ~] = getSpikesByThresholding(tseries, params);
+         [componentAPs, APtemplates] = getKmeansClusters(spikes,stimes, varargin);
+         return
       otherwise 
          str = 'No such method for identifying AP templates, ...exiting';
          displayErrorMsg(str);
@@ -29,7 +50,8 @@ function [APtemplates, componentAPs] = identifyAPs(tseries, method, params)
    [APtemplates, Nsamples, componentAPs] = identifyUniqueAPs(spikes, matchtype, ...
                                                 params.match_similarity.value,...
                                                 params.normalise_aps.value);
-   
+  
+                                            
    % user may request to ditch AP templates made from only a few spikes
    if params.remove_small_templates.value>0
       remove = Nsamples <= params.remove_small_templates.value;

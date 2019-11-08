@@ -8,16 +8,16 @@ function methods = getSETToolMethodsList(tool, data_type)
          
          switch lower(tool)
             case 'rescale'
-               methods = {'Particle filter', 'Recursive least squares' 'Recursive mean', 'Variance'};
+               methods = {'Recursive least squares', 'Particle filter', 'Recursive mean', 'Variance'};
 
             case 'denoise'
                methods = {'Wavelets', 'Threshold', 'Filter'};
                
             case 'identify ap templates'
-               methods = {'Threshold', 'Wavelets'};
+               methods = {'Threshold', 'Wavelets', 'K means'};
                
             case 'extract spikes'
-               methods = {'Matched Filter'};
+               methods = {'Matched Filter', 'K means'};
 
             case 'utilities'
                methods = {'Downsample', 'Truncate'};
@@ -32,6 +32,9 @@ function methods = getSETToolMethodsList(tool, data_type)
                
             case 'merge templates'
                methods = {'User selection'};
+               
+            case 'delete templates'
+               methods = {'User selection'};
          end
          
       case 'spike'
@@ -45,6 +48,8 @@ function methods = getSETToolMethodsList(tool, data_type)
             case 'spike operations'
                methods = {'Merge spikes'};
                
+            case 'export to excel'
+               methods = {'Spike rate and count'};
          end
          
       case 'rate'

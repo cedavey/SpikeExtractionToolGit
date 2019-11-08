@@ -24,7 +24,12 @@ function updateGUIParams(handles, tseries)
       params    = rmfield( params, {'tool', 'method'} ); 
       genstr    = sprintf('Generation parameters for %s using %s', toolstr, methodstr);
       fontsize  = ternaryOp( length(genstr)>40, 14, 16 );
-      set( handles.gen_params, 'String', genstr );
+      
+      if strcmp('gui', handles.f.uiType)
+         set( handles.gen_params, 'String', genstr );
+      else
+         set( handles.gen_params, 'Text', genstr );
+      end
       
       names  = fieldnames(params);
       % don't populate with nested parameters 
@@ -36,7 +41,11 @@ function updateGUIParams(handles, tseries)
    else
       Np     = 0;
       i      = 0;
-      set( handles.gen_params, 'String', 'Generation parameters' );
+      if strcmp('gui', handles.f.uiType)
+         set( handles.gen_params, 'String', 'Generation parameters' );
+      else
+         set( handles.gen_params, 'Text', 'Generation parameters' );
+      end
    end
 
    for i=1:Np
@@ -71,20 +80,33 @@ function updateGUIParams(handles, tseries)
          otherwise
             value = sprintf('%g %s', value, units);
       end
-      
-      eval(['set(handles.param' num2str(i) ', ''String'', ''' name ''');']);
-      eval(['set(handles.param' num2str(i) ', ''Visible'',  ''on'');']);
-      eval(['set(handles.val'   num2str(i) ', ''String'', ''' value ''');']);
-      eval(['set(handles.val'   num2str(i) ', ''Visible'',  ''on'');']);
+      if strcmp('gui',handles.f.uiType)
+         eval(['set(handles.param' num2str(i) ', ''String'', ''' name ''');']);
+         eval(['set(handles.param' num2str(i) ', ''Visible'',  ''on'');']);
+         eval(['set(handles.val'   num2str(i) ', ''String'', ''' value ''');']);
+         eval(['set(handles.val'   num2str(i) ', ''Visible'',  ''on'');']);
+      else
+         eval(['set(handles.param' num2str(i) ', ''Text'', ''' name ''');']);
+         eval(['set(handles.param' num2str(i) ', ''Visible'',  ''on'');']);
+         eval(['set(handles.val'   num2str(i) ', ''Text'', ''' value ''');']);
+         eval(['set(handles.val'   num2str(i) ', ''Visible'',  ''on'');']);
+      end
 
    end
    % if i is 0 the above for loop makes it empty - gotta fix this shit!
    i = ternaryOp(isempty(i), 0, i);
    for j=(i+1):maxParams
-      eval(['set(handles.param' num2str(j) ', ''String'', ''off'');']);
-      eval(['set(handles.param' num2str(j) ', ''Visible'', ''off'');']);
-      eval(['set(handles.val'   num2str(j) ', ''String'', ''off'');']);
-      eval(['set(handles.val'   num2str(j) ', ''Visible'', ''off'');']);
+      if strcmp('gui',handles.f.uiType)
+         eval(['set(handles.param' num2str(j) ', ''String'', ''off'');']);
+         eval(['set(handles.param' num2str(j) ', ''Visible'', ''off'');']);
+         eval(['set(handles.val'   num2str(j) ', ''String'', ''off'');']);
+         eval(['set(handles.val'   num2str(j) ', ''Visible'', ''off'');']);
+      else
+         eval(['set(handles.param' num2str(j) ', ''Text'', ''off'');']);
+         eval(['set(handles.param' num2str(j) ', ''Visible'', ''off'');']);
+         eval(['set(handles.val'   num2str(j) ', ''Text'', ''off'');']);
+         eval(['set(handles.val'   num2str(j) ', ''Visible'', ''off'');']);
+      end
    end
 
 %          voltage.denoise.threshold.minposduration.value      = 5;
