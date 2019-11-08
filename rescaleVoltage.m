@@ -217,16 +217,21 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
       [vsp, currt] = getCurrentSpike( peakfn, v, prevt, jumpahead, noisethresh );
       % Flag to re-check spike is within thresholds and it is not too short
       confirm_is_spike = true;
+      
       % Use the new glitch thresrhold that depends on spike amplitude,
       % instead of noise.
       if ~exist('newglitchth', 'var') || isempty(newglitchth)
          newglitchth = glitchthresh * noisesig;
          glitch_plot = [newglitchth currt];
       end
+      
       % Store newglitchth if we are plotting in debug option
       if ~contains( debug, 'no', 'ignorecase', true )
          glitch_plot = [glitch_plot; [newglitchth currt]];
+      else
+         clear glitch_plot;
       end
+      
       % This has to be checked in a loop cause when one of them happens, the
       % current spike is updated to the next spike, so thresholds and
       % duration have to be checked again.
@@ -320,8 +325,8 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
 
       % Now that we have a peak, we can change the glitch threshold to
       % depend on the value of the peaks, rather than the noise.
-      newglitchth = 1.2 * max(vpeak_vec);
-%       newglitchth = 2 * mean(Rest_vec);
+%       newglitchth = 1.2 * max(vpeak_vec);
+      newglitchth = 3 * mean(Rest_vec);
 
       % if we have at least 2 voltage peaks, update state estimate
       if length( tpeak_vec ) > (nlags+1)
@@ -510,6 +515,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
                   [v(find(time == tpeak_vec(end-1),1,'first')) v(find(time == tpeak_vec(end),1,'first'))],'ro','LineWidth',2);
                plot(time(currt), vrescale(currt),'kx','LineWidth',2);
                plot(time(pprevt), vrescale(pprevt),'mx','LineWidth',2);
+               plot(time(rscltstart:rscltend), newglitchth*ones(1,1+rscltend-rscltstart));
                xlim([time(max(1,rscltstart - 100)) time(currt)]);
                ylim([-3 3]);
                box off;

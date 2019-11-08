@@ -149,7 +149,7 @@ function varargout = SpikeExtractionTool(varargin)
 
 % Edit the above text to modify the response to help SpikeExtractionTool
 
-% Last Modified by GUIDE v2.5 31-Oct-2019 17:50:29
+% Last Modified by GUIDE v2.5 07-Nov-2019 11:08:08
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;

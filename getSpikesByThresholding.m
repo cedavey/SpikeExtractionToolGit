@@ -27,7 +27,7 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
    try
       glitchthresh = params.glitch_threshold.value;   % glitch threshold
    catch
-      glitchthresh = params.glitch_magnitude.value;   % glitch threshold
+      glitchthresh = 100;%params.glitch_magnitude.value;   % glitch threshold
    end
    minpostime = params.min_positive_duration.value;% min duration (ms)
    minnegtime = params.min_negative_duration.value;% min duration (ms)
