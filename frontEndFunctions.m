@@ -34,7 +34,7 @@ methods (Static)
 
       % Get location of log files
       a = which('SpikeExtractionTool');
-      locs = strfind(a, '\');
+      locs = strfind(a, filesep);
       path = a(1:locs(end));
 
       
@@ -46,7 +46,7 @@ methods (Static)
         logo.CData = I2; % Assign icon to the button
       else
          logo = axes('position',[0.3 0.475 0.375 0.475]);
-         I = imread('./fig/unimelb.png');
+         I = imread(['.' filesep 'fig' filesep 'unimelb.png']);
          imagesc(I);
          uistack(logo,'bottom');
          set(logo,'handlevisibility','off', ...
@@ -737,7 +737,7 @@ methods (Static)
       h.data.displacementPercentage = [0 0.5]; % Records currently chosen displacement value
       % Get location of GUI files
       a = which('SpikeExtractionTool');
-      locs = strfind(a, '\');
+      locs = strfind(a, filesep);
       path = a(1:locs(end));
 
       [x,~]=imread([path 'fig' filesep 'magnifierIcon.png']);% Load the zoom icon
@@ -1723,7 +1723,7 @@ methods (Static)
 
       % Get location of GUI files
       a = which('SpikeExtractionTool');
-      locs = strfind(a, '\');
+      locs = strfind(a, filesep);
       path = a(1:locs(end));
 
 
@@ -1802,35 +1802,35 @@ methods (Static)
       end
    end
 
-   function tool_list(hObject, handles)
+   function tool_list(hObject, h)
       % get name of tool chosen and update available methods
-      [tseries, ~, data_type] = handles.f.getCurrentVoltage(handles);
+      [tseries, ~, data_type] = h.f.getCurrentVoltage(h);
 
       % Chec UI Type
-      if strcmp('gui', handles.f.uiType)
+      if strcmp('gui', h.f.uiType)
          tool_num  = get(hObject, 'Value');
          tool_name = get(hObject, 'String');
          % get methods list & update on gui, selecting first in list as currmethod
          methods   = getSETToolMethodsList(tool_name{tool_num}, data_type);
-         set(handles.method_list, 'String', methods);
-         set(handles.method_list, 'Value', 1);
+         set(h.method_list, 'String', methods);
+         set(h.method_list, 'Value', 1);
       else
          tn = cellfun(@(x) strcmp(x,hObject.Value), hObject.Items);
          tool_num = find(tn == 1);
          tool_name = get(hObject, 'Items');
          % get methods list & update on gui, selecting first in list as currmethod
          methods   = getSETToolMethodsList(tool_name{tool_num}, data_type);
-         set(handles.method_list, 'Items', methods);
-         set(handles.method_list, 'Value', handles.method_list.Items(1));
+         set(h.method_list, 'Items', methods);
+         set(h.method_list, 'Value', h.method_list.Items(1));
       end
 
       % update the tooltips
       tooltip_name = {['run_tool_' lower(tool_name{tool_num})]};
-      handles = setTooltips(handles, {'run_tool_button'}, getTooltips(tooltip_name));
+      h = setTooltips(h, {'run_tool_button'}, getTooltips(tooltip_name));
       tooltip_name = {['tool_list_' lower(tool_name{tool_num})]};
-      handles = setTooltips(handles, {'tool_list'}, getTooltips(tooltip_name));
+      h = setTooltips(h, {'tool_list'}, getTooltips(tooltip_name));
 
-      guidata(hObject,handles); % saves changes to handles
+      guidata(hObject,h); % saves changes to handles
    end
 
    function updateTimeSlider(h)
@@ -1866,7 +1866,7 @@ methods (Static)
            end
          end
       else
-        if maxt >= handles.data.tseries{currtseries}.time(end-1)
+        if maxt >= h.data.tseries{currtseries}.time(end-1)
           h.time_slider.Value = 1;
         elseif mint <= h.data.tseries{currtseries}.time(1)
           h.time_slider.Value = 0;
@@ -1874,6 +1874,9 @@ methods (Static)
           h.time_slider.Value = h.data.displacementPercentage(1); % Update the position of the slider to represent displacement.
         end
         if strcmp('gui', h.f.uiType) % Only if its GUI
+          percent = h.data.zoomPercentage(1);
+          zoom = 1 - percent;
+          
           h.time_slider.SliderStep(2) = 1;
           h.time_slider.SliderStep(1) = zoom(1) / 3;% max(handles.time_slider.SliderStep(1) , handles.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
           h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*2);

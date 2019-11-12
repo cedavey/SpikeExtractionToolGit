@@ -246,7 +246,7 @@ guidata(hObject, handles);
 
 % Get location of log files
 a = which('SpikeExtractionTool');
-locs = strfind(a, '\');
+locs = strfind(a, filesep);
 path = a(1:locs(end));
 fid = fopen([path 'log_all.log'], 'a'); % Opens log file to append this session's string
 fprintf(fid, '\n\n-------------- %s @ %s | %s ---------------\n', getenv('Username'),getenv('UserDomain'),datestr(now, 0));
@@ -1091,7 +1091,7 @@ function toggleZoomButton_CreateFcn(hObject, eventdata, handles)
 
    % Get location of log files
    a = which('SpikeExtractionTool');
-   locs = strfind(a, '\');
+   locs = strfind(a, filesep);
    path = a(1:locs(end));
 
    [x,map]=imread([path 'fig' filesep 'magnifierIcon.png']); % Load the zoom icon
@@ -1110,7 +1110,7 @@ function helpMenuItem_Callback(hObject, eventdata, handles)
 % handles    structure with handles and user data (see GUIDATA)
    % Get location of log files
    a = which('SpikeExtractionTool');
-   locs = strfind(a, '\');
+   locs = strfind(a, filesep);
    path = a(1:locs(end));
 
    open_pdf([path 'resources' filesep 'SEThelp.pdf']);
@@ -1170,7 +1170,7 @@ function reset_button_CreateFcn(hObject, eventdata, handles)
 
    % Get location of log files
    a = which('SpikeExtractionTool');
-   locs = strfind(a, '\');
+   locs = strfind(a, filesep);
    path = a(1:locs(end));
 
    [x,map]=imread([path 'fig' filesep 'resetIcon.png']); % Load the zoom icon
