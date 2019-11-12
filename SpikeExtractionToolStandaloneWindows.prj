@@ -1,12 +1,12 @@
 <deployment-project plugin="plugin.ezdeploy" plugin-version="1.0">
-  <configuration build-checksum="2501749786" file="C:\Users\artemios\OneDrive - The University of Melbourne\Documents\GitHub\SpikeExtractionToolGit\SpikeExtractionToolStandalone.prj" location="C:\Users\artemios\OneDrive - The University of Melbourne\Documents\GitHub\SpikeExtractionToolGit" name="SpikeExtractionToolStandalone" preferred-package-location="C:\Users\artemios\OneDrive - The University of Melbourne\PostDoc\Code\SET Production\Standalone\for_redistribution" preferred-package-type="package.type.exe" target="target.ezdeploy.standalone" target-name="Application Compiler">
+  <configuration build-checksum="2150896024" file="C:\Users\artemios\OneDrive - The University of Melbourne\Documents\GitHub\SpikeExtractionToolGit\SpikeExtractionToolStandaloneWindows.prj" location="C:\Users\artemios\OneDrive - The University of Melbourne\Documents\GitHub\SpikeExtractionToolGit" name="SpikeExtractionToolStandaloneWindows" preferred-package-location="C:\Users\artemios\OneDrive - The University of Melbourne\PostDoc\Code\SET Production\Standalone\for_redistribution" preferred-package-type="package.type.exe" target="target.ezdeploy.standalone" target-name="Application Compiler">
     <param.appname>SpikeExtractionTool</param.appname>
-    <param.icon>${PROJECT_ROOT}\SpikeExtractionToolStandalone_resources\icon.ico</param.icon>
+    <param.icon>${PROJECT_ROOT}\SpikeExtractionToolStandaloneWindows_resources\icon.ico</param.icon>
     <param.icons>
-      <file>${PROJECT_ROOT}\SpikeExtractionToolStandalone_resources\icon_48.png</file>
-      <file>${PROJECT_ROOT}\SpikeExtractionToolStandalone_resources\icon_32.png</file>
-      <file>${PROJECT_ROOT}\SpikeExtractionToolStandalone_resources\icon_24.png</file>
-      <file>${PROJECT_ROOT}\SpikeExtractionToolStandalone_resources\icon_16.png</file>
+      <file>${PROJECT_ROOT}\SpikeExtractionToolStandaloneWindows_resources\icon_48.png</file>
+      <file>${PROJECT_ROOT}\SpikeExtractionToolStandaloneWindows_resources\icon_32.png</file>
+      <file>${PROJECT_ROOT}\SpikeExtractionToolStandaloneWindows_resources\icon_24.png</file>
+      <file>${PROJECT_ROOT}\SpikeExtractionToolStandaloneWindows_resources\icon_16.png</file>
     </param.icons>
     <param.version>1.0</param.version>
     <param.authnamewatermark>Artemio Soto-Breceda, Katie Davey</param.authnamewatermark>
@@ -36,7 +36,7 @@
     <param.package.mcr.name>SpikeExtractionTool_Installer_Runtime</param.package.mcr.name>
     <param.no.mcr.name>MyAppInstaller_app</param.no.mcr.name>
     <param.windows.command.prompt>true</param.windows.command.prompt>
-    <param.create.log>true</param.create.log>
+    <param.create.log>false</param.create.log>
     <param.log.file>setLog</param.log.file>
     <param.native.matlab>false</param.native.matlab>
     <param.checkbox>false</param.checkbox>
@@ -65,6 +65,7 @@
       <param.no.mcr />
       <param.no.mcr.name />
       <param.windows.command.prompt />
+      <param.create.log />
       <param.native.matlab />
       <param.checkbox />
       <param.example />
@@ -76,7 +77,9 @@
       <file>${PROJECT_ROOT}\fig</file>
       <file>${PROJECT_ROOT}\resources</file>
     </fileset.resources>
-    <fileset.package />
+    <fileset.package>
+      <file>${PROJECT_ROOT}\resources\SEThelp.pdf</file>
+    </fileset.package>
     <fileset.depfun>
       <file>${PROJECT_ROOT}\acf.m</file>
       <file>${PROJECT_ROOT}\batchProcessing.m</file>
@@ -107,6 +110,7 @@
       <file>${PROJECT_ROOT}\getCatchMEstring.m</file>
       <file>${PROJECT_ROOT}\getColourMatrix.m</file>
       <file>${PROJECT_ROOT}\getDefaultToolParams.m</file>
+      <file>${PROJECT_ROOT}\getFilePath.m</file>
       <file>${PROJECT_ROOT}\getKmeansClusters.m</file>
       <file>${PROJECT_ROOT}\getMaxInd.m</file>
       <file>${PROJECT_ROOT}\getMotherWavelet.m</file>

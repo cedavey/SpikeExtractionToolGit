@@ -33,10 +33,7 @@ methods (Static)
             'String', str,'Position',[187,0,187,200],'FontSize',11);
 
       % Get location of log files
-      a = which('SpikeExtractionTool');
-      locs = strfind(a, filesep);
-      path = a(1:locs(end));
-
+      path = getFilePath();
       
       if strcmp('gui', h.f.uiType)
         logo = uicontrol('parent',aboutWindow,'Style','pushbutton',...
@@ -736,9 +733,7 @@ methods (Static)
       h.data.zoomPercentage = [0 0]; % Records currently chosen zoom value
       h.data.displacementPercentage = [0 0.5]; % Records currently chosen displacement value
       % Get location of GUI files
-      a = which('SpikeExtractionTool');
-      locs = strfind(a, filesep);
-      path = a(1:locs(end));
+      path = getFilePath();
 
       [x,~]=imread([path 'fig' filesep 'magnifierIcon.png']);% Load the zoom icon
       if strcmp('gui', h.f.uiType)
@@ -1722,10 +1717,7 @@ methods (Static)
       warning('off','MATLAB:imagesci:png:libraryWarning'); % Ignore PNG associated warning
 
       % Get location of GUI files
-      a = which('SpikeExtractionTool');
-      locs = strfind(a, filesep);
-      path = a(1:locs(end));
-
+      path = getFilePath();
 
       maxt = h.data.tlim(2);
       mint = h.data.tlim(1);

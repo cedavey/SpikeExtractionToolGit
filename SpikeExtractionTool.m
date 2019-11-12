@@ -229,9 +229,6 @@ handles.options.auto_params = 'false';
 % Initialize tooltips
 handles = setTooltips(handles);
 
-% Update handles structure
-guidata(hObject, handles);
-
 % UIWAIT makes SpikeExtractionTool wait for user response (see UIRESUME)
 % uiwait(handles.figure1);
 
@@ -245,13 +242,15 @@ guidata(hObject, handles);
 %                 printMessage('off','Keyword',str);
 
 % Get location of log files
-a = which('SpikeExtractionTool');
-locs = strfind(a, filesep);
-path = a(1:locs(end));
+path = getFilePath('log');
 fid = fopen([path 'log_all.log'], 'a'); % Opens log file to append this session's string
 fprintf(fid, '\n\n-------------- %s @ %s | %s ---------------\n', getenv('Username'),getenv('UserDomain'),datestr(now, 0));
 fclose(fid); % Close log file
 diary([path 'log_all.log']); % Activates the diary function, i.e. save all the activity into a file.
+handles.options.logPath = path;
+
+% Update handles structure
+guidata(hObject, handles);
 end
 
 % --- Executes when user attempts to close figure1.
@@ -1090,10 +1089,8 @@ function toggleZoomButton_CreateFcn(hObject, eventdata, handles)
    warning('off','MATLAB:imagesci:png:libraryWarning'); % Ignore PNG associated warning
 
    % Get location of log files
-   a = which('SpikeExtractionTool');
-   locs = strfind(a, filesep);
-   path = a(1:locs(end));
-
+   path = getFilePath();
+   
    [x,map]=imread([path 'fig' filesep 'magnifierIcon.png']); % Load the zoom icon
    I2=imresize(x, [22 22]); % Resize icon
    hObject.CData = I2; % Assign icon to the button
@@ -1109,9 +1106,8 @@ function helpMenuItem_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
    % Get location of log files
-   a = which('SpikeExtractionTool');
-   locs = strfind(a, filesep);
-   path = a(1:locs(end));
+   % Get location of log files
+   path = getFilePath();
 
    open_pdf([path 'resources' filesep 'SEThelp.pdf']);
 end
@@ -1168,10 +1164,9 @@ function reset_button_CreateFcn(hObject, eventdata, handles)
 % handles    empty - handles not created until after all CreateFcns called
    warning('off','MATLAB:imagesci:png:libraryWarning'); % Ignore PNG associated warning
 
+   % Get location of files
    % Get location of log files
-   a = which('SpikeExtractionTool');
-   locs = strfind(a, filesep);
-   path = a(1:locs(end));
+   path = getFilePath();
 
    [x,map]=imread([path 'fig' filesep 'resetIcon.png']); % Load the zoom icon
    I2=imresize(x, [22 22]); % Resize icon

@@ -456,9 +456,7 @@ classdef SpikeExtractionApp < matlab.apps.AppBase
             % hObject    handle to helpMenuItem (see GCBO)
             % eventdata  reserved - to be defined in a future version of MATLAB
             % handles    structure with handles and user data (see GUIDATA)
-            a = which('SpikeExtractionTool');
-            locs = strfind(a, '\');
-            path = a(1:locs(end));
+            path = getFilePath();
 
             open_pdf([path 'resources' filesep 'SEThelp.pdf']);
         end

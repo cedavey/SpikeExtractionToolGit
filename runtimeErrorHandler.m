@@ -24,9 +24,7 @@ function runtimeErrorHandler(varargin)
    if nargin > 1, action = varargin{2}; else, action = 'rethrow';end
    
    % Get location of log files
-   a = which('SpikeExtractionTool');
-   locs = strfind(a, '\');
-   path = a(1:locs(end));
+   path = getFilePath('log');
    %open file
    fid = fopen([path 'logFile.log'],'a+');
    % write the error to file
