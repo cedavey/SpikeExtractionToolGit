@@ -9,8 +9,11 @@ function addToolbarExplorationButtons(varargin)
     % Check if version is equal or older than 2018a
     if str2double(v.Version) >= 9.4
         try
-           release = v.Release(strfind(v.Release,'(') + 1 : strfind(v.Release,')') - 1);
-           run(['C:\Program Files\MATLAB\' release '\toolbox\matlab\plottools\addToolbarExplorationButtons']);
+           path = fullfile( matlabroot, 'toolbox', 'matlab', 'plottools' );
+           file = fullfile( path, 'addToolbarExplorationButtons.p' );
+           if exist( path, 'file' ) && exist( file, 'file' )
+              run( file );
+           end
         catch
            error('The function ''addToolbarExplorationButtons'' has been overwritten for compatibility purposes. If you are using a recent version of MATLAB (2018a or higher), you can remove the file ''addToolbarExplorationButtons.m'' from the SpikeExtractionTool directory.');
         end
