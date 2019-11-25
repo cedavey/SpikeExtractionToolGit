@@ -1105,11 +1105,9 @@ function helpMenuItem_Callback(hObject, eventdata, handles)
 % hObject    handle to helpMenuItem (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-   % Get location of log files
-   % Get location of log files
-   path = getFilePath();
-
-   open_pdf([path 'resources' filesep 'SEThelp.pdf']);
+   %path = getFilePath();
+   %open_pdf([path 'resources' filesep 'SEThelp.pdf']);
+   web('https://github.com/srarty/SpikeExtractionToolGit/files/3823676/SEThelp.pdf','-browser');
 end
 
 % --------------------------------------------------------------------
