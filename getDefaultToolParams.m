@@ -456,11 +456,17 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.match_similarity.type            = 'normalised float';
          voltage.extract_spikes.matched_filter.match_similarity.units           = '\in [0, 1]';
 
-         voltage.extract_spikes.matched_filter.ap_peak_change.value             = 60;
+         voltage.extract_spikes.matched_filter.ap_peak_change.value             = 20;
          voltage.extract_spikes.matched_filter.ap_peak_change.name              = 'AP peak change';
          voltage.extract_spikes.matched_filter.ap_peak_change.descript          = 'how quickly can AP peak magnitude change with time';
          voltage.extract_spikes.matched_filter.ap_peak_change.type              = 'percentage';
          voltage.extract_spikes.matched_filter.ap_peak_change.units             = '% per second';
+         
+         voltage.extract_spikes.matched_filter.forgetting_factor.value          = 0.9;
+         voltage.extract_spikes.matched_filter.forgetting_factor.name           = 'forgetting factor';
+         voltage.extract_spikes.matched_filter.forgetting_factor.descript       = 'Controls how quickly we forget past samples (0 - forget fastest, 1 - forget slowest)';
+         voltage.extract_spikes.matched_filter.forgetting_factor.type           = 'normalised float';
+         voltage.extract_spikes.matched_filter.forgetting_factor.units          = '\in [0, 1]';
 
          voltage.extract_spikes.matched_filter.positive_threshold.value         = 4;
          voltage.extract_spikes.matched_filter.positive_threshold.name          = 'positive threshold';
@@ -626,7 +632,7 @@ function params = getDefaultToolParams
          voltage.extract_spikes.k_means.plot_spikes_consecutively.type   = 'boolean';
          voltage.extract_spikes.k_means.plot_spikes_consecutively.units  = 'true or false';
    %% AP template data
-   	% Get spikes - using matched filtering   
+   	% Get spikes - using matched filtering
          ap.extract_spikes.matched_filter.match_type.value                      = 'corr';
          ap.extract_spikes.matched_filter.match_type.name                       = 'match type';
          ap.extract_spikes.matched_filter.match_type.descript                   = 'statistic to calculate similarity with';
@@ -640,17 +646,23 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.match_similarity.type                 = 'normalised float';
          ap.extract_spikes.matched_filter.match_similarity.units                = '\in [0, 1]';
 
-         ap.extract_spikes.matched_filter.ap_peak_change.value                  = 60;
-         ap.extract_spikes.matched_filter.ap_peak_change.name                   = 'AP peak change';
-         ap.extract_spikes.matched_filter.ap_peak_change.descript               = 'how quickly can AP peak magnitude change with time (lambda)';
-         ap.extract_spikes.matched_filter.ap_peak_change.type                   = 'percentage';
-         ap.extract_spikes.matched_filter.ap_peak_change.units                  = '% per second';
+         ap.extract_spikes.matched_filter.forgetting_factor.value               = 0.9;
+         ap.extract_spikes.matched_filter.forgetting_factor.name                = 'forgetting factor';
+         ap.extract_spikes.matched_filter.forgetting_factor.descript            = 'Controls how quickly we forget past samples (0 - forget fastest, 1 - forget slowest)';
+         ap.extract_spikes.matched_filter.forgetting_factor.type                = 'normalised float';
+         ap.extract_spikes.matched_filter.forgetting_factor.units               = '\in [0, 1]';
          
-         ap.extract_spikes.matched_filter.kappa.value                           = 3;
-         ap.extract_spikes.matched_filter.kappa.name                            = 'AP peak change';
-         ap.extract_spikes.matched_filter.kappa.descript                        = 'how much can a peak differ from mean (kappa)';
-         ap.extract_spikes.matched_filter.kappa.type                            = 'positive float';
-         ap.extract_spikes.matched_filter.kappa.units                           = 'standard deviations';
+         ap.extract_spikes.matched_filter.kappa_pos.value                       = 3;
+         ap.extract_spikes.matched_filter.kappa_pos.name                        = 'AP peak change';
+         ap.extract_spikes.matched_filter.kappa_pos.descript                    = 'how much can a positive peak differ from the mean peak value';
+         ap.extract_spikes.matched_filter.kappa_pos.type                        = 'positive float';
+         ap.extract_spikes.matched_filter.kappa_pos.units                       = 'standard deviations';
+
+         ap.extract_spikes.matched_filter.kappa_neg.value                       = 3;
+         ap.extract_spikes.matched_filter.kappa_neg.name                        = 'AP peak change';
+         ap.extract_spikes.matched_filter.kappa_neg.descript                    = 'how much can a negative peak differ from the mean negative peak value';
+         ap.extract_spikes.matched_filter.kappa_neg.type                        = 'positive float';
+         ap.extract_spikes.matched_filter.kappa_neg.units                       = 'standard deviations';
 
          ap.extract_spikes.matched_filter.positive_threshold.value              = 4;
          ap.extract_spikes.matched_filter.positive_threshold.name               = 'positive threshold';

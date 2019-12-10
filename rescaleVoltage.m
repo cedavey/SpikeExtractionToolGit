@@ -320,7 +320,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
       tpeak_vec(nP,1) = time(tpeak);
 
       % update voltage std dev
-      [vmu, vvar] = recursiveUpdate( vmu, vstd^2, lambda, vpeak );
+      [vmu, vvar] = recursiveUpdate( vmu, vstd^2, vpeak, lambda );
       vstd = sqrt( vvar );
 
       % Now that we have a peak, we can change the glitch threshold to
@@ -413,7 +413,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
                % pf = initpf( Rest, vstd ); % initialise particle filter with initial resistance
             end
          end
-         [Rmu, Rvar] = recursiveUpdate( Rmu, Rvar, lambda, Rcurr );
+         [Rmu, Rvar] = recursiveUpdate( Rmu, Rvar, Rcurr, lambda );
          Rstd = sqrt(Rvar);
          Rest_vec(nP,1) = Rcurr;
 
@@ -816,7 +816,7 @@ function [mu_curr, sig_curr, mse_curr, N_curr, is_noise, returned_noise] = updat
       mu_curr = mu_prev; sig_curr = sig_prev; mse_curr = mse_prev;
       for ni=1:length(new_noise)
          % recursive noise estimates
-         [mu_curr, var_curr] = recursiveUpdate( mu_prev, sig_prev^2, lambda, new_noise(ni) );
+         [mu_curr, var_curr] = recursiveUpdate( mu_prev, sig_prev^2, new_noise(ni), lambda );
          mse_curr = mse_prev + var_curr;
          mse_curr = mse_prev + (new_noise(ni) - mu_curr) * (new_noise(ni) - mu_prev);
          mu_prev  = mu_curr;
@@ -831,21 +831,6 @@ function [mu_curr, sig_curr, mse_curr, N_curr, is_noise, returned_noise] = updat
    end
 
    sig_curr = sqrt( mse_curr / (N_curr - 1) );
-end
-
-function [mu_curr, var_curr] = recursiveUpdate( mu_prev, var_prev, lambda, new_obs )
-   % mu_curr      = mu_prev * (1-dt) + (new_obs - mu_prev) * dt;
-   mu_curr      = mu_prev  +  (new_obs - mu_prev);
-   mu_curr      = mu_prev * lambda  +  mu_curr * (1-lambda);
-   % mu_curr      = mu_prev * lambda  +  (mu_prev + (new_obs - mu_prev)) * (1-lambda);
-
-   % S(k) = S(k-1) + (x(k) - M(k-1))*(x(k) - M(k));
-   % var_curr     = var_prev * dt ...
-   %             + (new_obs - mu_curr) .* (new_obs - mu_prev) * (1-dt);
-   var_curr     =  var_prev + ( (new_obs - mu_curr) .* (new_obs - mu_prev) - var_prev );
-   var_curr     =  var_prev * lambda  +  var_curr * (1-lambda);
-   % var_curr     = var_prev * lambda ...
-   %              + ( var_prev + (new_obs - mu_curr) .* (new_obs - mu_prev) ) * (1-lambda);
 end
 
 % Initialise particle filter object. If a pf is input then reset it
@@ -953,7 +938,7 @@ function [Rest, Rcoeff, Rmu, Rsig, Rcov] = initRegress(tspike, vspike, lambda, n
    if dorecursive
       for ti=(p+1):nT
          % recursive spike mean/std estimates
-         [Rmu, Rvar] = recursiveUpdate( Rmu, Rvar, lambda, vspike(ti) );
+         [Rmu, Rvar] = recursiveUpdate( Rmu, Rvar, vspike(ti), lambda );
 
          % linear regression for spike std
          [a, b, Rcov, Rest] = recursiveLeastSquares( ( tspike(ti-p:ti) - tspike(1) ), ...

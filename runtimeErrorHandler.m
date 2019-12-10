@@ -25,7 +25,7 @@ function runtimeErrorHandler(varargin)
    
    % Get location of log files
    a = which('SpikeExtractionTool');
-   locs = strfind(a, '\');
+   locs = strfind(a, filesep);
    path = a(1:locs(end));
    %open file
    fid = fopen([path 'logFile.log'],'a+');

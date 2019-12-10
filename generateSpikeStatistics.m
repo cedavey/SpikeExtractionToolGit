@@ -3,7 +3,8 @@
 % the only statistic is autocorrelation. 
 function generateSpikeStatistics(tseries, method, method_params)
    maxax = 12; % max axons within each family to display
-   nap   = length(tseries.data);
+   nap   = length( tseries.data );
+   nfam  = cellfun( @( d ) size(d,2), tseries.data );
    dt    = tseries.dt;
    
    switch lower(method)
@@ -11,11 +12,12 @@ function generateSpikeStatistics(tseries, method, method_params)
       case 'raster'
          fopts = {'fontweight', 'bold', 'fontsize', 16};
          fh = figure; set(fh, 'Visible', 'off'); % figure for histogram of amplitudes
+         
          % for each AP templates, plot the autocorrelation for each family 
          cols  = getColourMatrix(nap); % get each template a unique colour
          index = 0;
          for ii=1:nap
-            [nT, nfam] = size(tseries.data{ii}); 
+            [nT, nfam] = size( tseries.data{ii} ); 
 
             for jj=1:nfam
                stimes = round( tseries.APstimes{ii}{jj} );
@@ -42,14 +44,11 @@ function generateSpikeStatistics(tseries, method, method_params)
          timebins = dbin:dbin:(numsecs+dbin); % add list bin to catch everything above
 
          % for each AP templates, plot the autocorrelation for each family 
-         cols  = getColourMatrix(nap); % get each template a unique colour
-         nc = 6; % max of 2 rows per AP family
-         nr = sum(cellfun(@(d) min([2 ceil(size(d,2)/nc)]), tseries.data));         
+         cols = getColourMatrix(nap); % get each template a unique colour
+         nc   = min( max( nfam ), 6 ); % max of 2 rows per AP family, max 6 cols per row
+         nr   = sum(cellfun(@(d) min([2 ceil(size(d,2)/nc)]), tseries.data));         
 
-         nfam = zeros(nap,1); % keep track of number of axes displayed
          for ii=1:nap
-            [nT, nfam] = size(tseries.data{ii}); 
-            [~, nfam(ii)] = size(tseries.data{ii}); 
             if nfam(ii) > 2*nc % max of 2 rows per family
                str  = sprintf('Only displaying %d from template family of %d', ...
                                maxax, nfam(ii));
@@ -57,22 +56,18 @@ function generateSpikeStatistics(tseries, method, method_params)
                nfam(ii) = 2*nc;
             end
             % start new APs axes at beginning of new row
-            if ii==1
-               fi = 1;
-            else
-               fi = sum(ceil(nfam(1:ii-1)/nc))*nc + 1;
-            end
+            fi = ternaryOp( ii==1, 1, sum(ceil(nfam(1:ii-1)/nc))*nc + 1 );
 
             for jj=1:nfam(ii)
                % for each spike, count the number of spikes in each time
                % bins after it, up to numsecs after the spike
-               stimes    = round( tseries.APstimes{ii}{jj} ); % spike times list
+               stimes    = tseries.APstimes{ii}{jj}; % spike times list
                timecount = zeros(1, num_bins+1 ); % count for each time bin
                while length(stimes)>1
                   sptime = stimes(1);
                   stimes(1) = [];
                   postsp    = stimes( (stimes-sptime) <= numsecs ) - sptime;
-                  count     = hist(postsp, timebins);
+                  count     = hist( postsp, timebins );
                   timecount = timecount + count; 
                end
                timecount = timecount(1:end-1);
@@ -83,10 +78,9 @@ function generateSpikeStatistics(tseries, method, method_params)
                   bar(timebins(1:end-1), timecount );
                   set(get(gca,'children'),'facecolor',cols(ii,:));
                   box off;
-                  xlim([timebins(1) timebins(end)]);
+                  xlim([timebins(1)-(timebins(2)-timebins(1)) timebins(end)]);
                   xlabel('Time (seconds)', fopts{:});
                   xlabel('P(spike)', fopts{:});
-                  xlim( [timebins(1) timebins(end-1)] )
             end
          end
          set(fh, 'Visible', 'on'); % figure for histogram of amplitudes
@@ -174,18 +168,18 @@ function generateSpikeStatistics(tseries, method, method_params)
             
             max_count = 0;
             for jj=1:nfam
-               numspikes = length(tseries.APstimes{ii}{jj}); 
+               numspikes = length( tseries.APstimes{ii}{jj} ); 
                peakinds  = round( tseries.APstimes{ii}{jj} / dt );
                peaks     = tseries.data{ii}(peakinds, jj);
-               allpeaks  = [allpeaks; peaks(:)];
-               alltimes  = [alltimes; peakinds(:)*dt];
+               allpeaks  = [ allpeaks; peaks(:) ];
+               alltimes  = [ alltimes; peakinds(:)*dt ];
                if min(peaks) < mv, mv = min(peaks); end
                if max(peaks) > Mv, Mv = max(peaks); end
                
                str = sprintf('AP %d, axon %d: %d spikes', ii, jj, numspikes);
                figure(ft);
                subplot(nr, nc, (ii-1)*nfam + jj)
-                  plot( peakinds*dt, peaks);
+                  plot( peakinds*dt, peaks, '.' );
                   title(str);
                   xlabel('Time (s)');
                   ylabel('Spike amp');
