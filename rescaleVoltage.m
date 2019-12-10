@@ -1094,7 +1094,7 @@ function [noisemu, noisesig, nS, noiseVector] = initNoiseStdDev(v, varargin)
       try
          vtmp = v(firstS : firstS + nS);
       catch E
-         if contains(lower(E.message), 'index exceeds the number of array elements')
+         if contains(E.identifier, 'MATLAB:badsubscript')
             error(['Couldn''t find a single white period of ' num2str(nS) ' continuous samples in the recording.'])
          else
             runtimeErrorHandler(E,'rethrow');

@@ -13,6 +13,9 @@
 %   fun  - it is the function it runs
 %
 %   all other inputs are passed as arguments to fun.
+%
+% * When running step by step the mouse wheel might not be removed. Press
+%  the scroll wheel or scroll on the mouse pad/track pad to get rid of it.
 % 
 % Artemio - 19/June/2019
 function mouseWaitingFunction(fig1,fun,varargin)
