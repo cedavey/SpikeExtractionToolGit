@@ -15,7 +15,7 @@ function generateSpikeStatistics(tseries, method, method_params)
       maxax   = maxcols * maxrows; % max axons within each family to display
       if any( nfam > maxrows * maxcols )
          str  = sprintf('\tOnly displaying a max of %d families from each template \n', maxax );
-         cprintf( 'Keywords*', str );
+         cprintf( 'Errors*', str );
       end
       nfam( nfam > maxax ) = maxax;
       % calc num cols & num rows in each figure - same for each statistic so calculate once
@@ -85,7 +85,7 @@ function generateSpikeStatistics(tseries, method, method_params)
                   timecount = timecount / sum(timecount); % convert to prob
                   
                   figure(fh);
-                     subplot(nrows, ncols, fi), fi=fi+1;
+                     subplot(nrows, nc, fi), fi=fi+1;
       %                   plot(timebins(1:end-1), timecount, '.', 'color', cols(ii,:) );
                         b = bar( timebins(1:end-1), timecount, 'facecolor', 'flat' ); % weird to control colour
                         b.FaceColor = cols(jj,:);
@@ -98,6 +98,7 @@ function generateSpikeStatistics(tseries, method, method_params)
                end
             end
             set(fh, 'Visible', 'on'); % figure for histogram of amplitudes
+   %          set(gca, 'xcolor', [1 1 1]);
 
          %% ISI
          case 'interspike interval'
@@ -105,6 +106,7 @@ function generateSpikeStatistics(tseries, method, method_params)
             ft = figure; set( ft, 'Visible', 'off' );
             num_bins = method_params.num_bins.value;
             max_isi  = method_params.max_isi.value;
+            nfam     = zeros(nap,1); % keep track of number of axes displayed
 
             for ii=1:nap
                % start new APs axes at beginning of new row
@@ -121,14 +123,14 @@ function generateSpikeStatistics(tseries, method, method_params)
                   max_cnt = ternaryOp( max(count) > max_cnt, max(count), max_cnt );
                   str     = sprintf('AP %d, axon %d: %d spikes', ii, jj, length(stimes));
                   figure(ft);
-                     ah(jj) = subplot(nrows, ncols, fi); fi=fi+1;
+                     ah(ii) = subplot(nrows, ncols, fi); fi=fi+1;
                         b = bar( bins, count, 'facecolor', 'flat' ); % weird to enable controlling color
                         b.FaceColor = cols(jj,:);
                         % set(get(gca,'children'),'facecolor',cols(ii,:));
                         title(str);
                         xlabel('Time (s)');
                         ylabel('Probability');
-                        title( sprintf('ISI: AP %d axon %d', ii,jj) ) ;
+                        title( sprintf('ISI: template %d fam %d', ii,jj) ) ;
                end
                set( ah, 'ylim', [0 max_cnt] ); 
             end
@@ -141,15 +143,15 @@ function generateSpikeStatistics(tseries, method, method_params)
             fh    = figure; set(fh, 'Visible', 'off'); % figure for histogram of amplitudes
             mv    =  Inf;
             Mv    = -Inf;
-            vmin  = min( cellfun( @(v) min( v(:) ), tseries.data ) ) * 0.8;
-            vmax  = max( cellfun( @(v) max( v(:) ), tseries.data ) ) * 0.8;
-            nbins = 40;
+            vmin  = min( cellfun( @(v) min( v(:) ), tseries.data ) );
+            vmax  = max( cellfun( @(v) max( v(:) ), tseries.data ) );
+            nbins = 30;
             dbin  = ( vmax - vmin ) / nbins;
             bins  = vmin : dbin : vmax; 
 
             allpeaks = []; alltimes = [];
             for ii=1:nap
-               nT      = size( tseries.data{ii}, 1 ); 
+               nT      = size( tseries.data{ii} ); 
                max_cnt = 0; ah1 = zeros( nfam(ii), 1 ); ah2 = ah1;
                fi      = ternaryOp( ii==1, 1, sum( AProws(1:ii-1) ) * maxcols + 1 );            
                for jj=1:nfam(ii)
@@ -169,7 +171,6 @@ function generateSpikeStatistics(tseries, method, method_params)
                         title(str);
                         xlabel('Time (s)');
                         ylabel('Spike amp');
-                        xlim( [ 0 nT ] );
 
                   figure(fh);
                      ah2(jj) = subplot( nrows, ncols, fi ); fi=fi+1;
@@ -190,10 +191,9 @@ function generateSpikeStatistics(tseries, method, method_params)
 
             end % end for each AP template
             ax = findobj( ft, 'type', 'axes' );
-            set(ax, 'ylim', [mv Mv]*0.8);
-            
-            % ax = findobj( fh, 'type', 'axes' );
-            % set(ax, 'xlim', [mv Mv]);
+            set(ax, 'ylim', [mv Mv]);
+            ax = findobj( fh, 'type', 'axes' );
+            set(ax, 'xlim', [mv Mv]);
 
             fopts = { 'fontweight', 'bold', 'fontsize', 16 };
             set( ft, 'Visible', 'on' );
@@ -201,13 +201,14 @@ function generateSpikeStatistics(tseries, method, method_params)
             figure; 
                subplot(211),
                   plot( alltimes, allpeaks, '.');
-                  title( 'Amplitude of all spikes', fopts{:} );
-                  xlim( [1 nT]*dt );
-                  ylim( [0 Mv] );
+                  title( 'Amplitude change for all spikes', fopts{:} );
+                  xlim([1 nT]*dt);
+                  ylim([0 Mv]);
                subplot(212),
+                  nbins = min( [ 100 max([ ceil(length(allpeaks)/5) 20])] );
                   count = hist( allpeaks, bins );
                   bar( bins, count/sum(count) );
-                  title( 'Amplitude pdf for all spikes', fopts{:} );
+                  title( 'Amplitude probability for all spikes', fopts{:} );
       end
 
    catch ME

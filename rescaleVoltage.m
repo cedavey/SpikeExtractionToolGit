@@ -380,7 +380,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
                Rcovprev = Rcov;
                Rcurr    = Rest;
                % Update regression to estimate next resistance
-               Rcoeff   = [b(1) a(:)' toVec(b(2:end))'];
+               Rcoeff   = [b(1) a(:)' toVec(b(2:end))']; % [mean poles zeros]
 
             case 'recursive mean'
                Rest     = Rest_vec(end) * lambda  +  vpeak * (1-lambda);

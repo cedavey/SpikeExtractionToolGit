@@ -46,7 +46,7 @@ function k = compare_templates(rho, curr_spike, APtemplates, APfamilies)
 %    k = similars(k);
 
    [~, k] = min( d(:) );
-   [k,~] = ind2sub( [nap max(nfam)], k );
+   [k,~]  = ind2sub( [nap max(nfam)], k );
 end
 
 % Separate a spike into positive and negative parts

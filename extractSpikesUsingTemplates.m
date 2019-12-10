@@ -20,6 +20,10 @@
 %                template, and within the cell another cell for each
 %                family, and within that cell an array of peak times for
 %                each spike within that family
+
+% TO DO: if spike peaks aren't white then it suggests an unmodelled change,
+% such as what I'm seeing which is sudden jumps in amplitude that are then
+% constant for a while, then another jump down in amplitude
 function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, params, normAPs ,opts)
    
    if isfield(opts,'loadingWindowOn'), progress_window = opts.loadingWindowOn; else, progress_window = false; end
@@ -30,7 +34,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
       if ~isempty(pp)
          params = pp;
       end
-   end   
+   end  
 
    APspikes  = [];  APtimes = [];
    [nT, nAP] = size(APtemplates); % num samples in each template, & num templates
@@ -56,7 +60,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
    
    switch lower(method)
       case 'matched filter'
-         [spikes, stimes] = getSpikesByThresholding(tseries, params, nT, peakN);
+         [spikes, stimes] = getSpikesByThresholding( tseries, params, nT, peakN );
 
       % AP templates as mother wavelets gave terrible results, & since we
       % need spikes per template, ditch the use of wavelets for extracting
@@ -118,6 +122,7 @@ try
       
       curr_spike = spikes(:,si);
       curr_stime = stimes{si};
+      
       switch matchtype
             case 'corr'
                % rho = corr(APtemplates, curr_spike); % This line was not
@@ -164,36 +169,20 @@ try
          
          % if no spike families yet, create one
          if isempty(APfamilies{k})
-            APfamilies{k}{1}.spikes    = curr_spike;
-            APfamilies{k}{1}.stimes    = curr_stime;
-            APfamilies{k}{1}.meanspike = curr_spike;
-            APfamilies{k}{1}.last_peak = peakfn(curr_spike); % size of last spike in family
-            APfamilies{k}{1}.last_time = timefn(curr_stime); % time of last spike
             % Distribution of peaks (mean and var)
             [fam_mu, fam_var] = initialize_mu( spikes, si, matchthresh, peakfn, peakdiff ); 
-             APfamilies{k}{1}.mun  = fam_mu(1); 
-             APfamilies{k}{1}.mup  = fam_mu(2); 
-             APfamilies{k}{1}.varn = fam_var(1);
-             APfamilies{k}{1}.varp = fam_var(2);
-
-            if ~strcmp('none',opts.debugOption)
-               APfamilies{k}{1}.mup_vector  = [APfamilies{k}{1}.mup];
-               APfamilies{k}{1}.mun_vector  = [APfamilies{k}{1}.mun];
-               APfamilies{k}{1}.varp_vector = [APfamilies{k}{1}.varp];
-               APfamilies{k}{1}.varn_vector = [APfamilies{k}{1}.varn];
-            end
+            APfamilies{k}{1}  = newAxonFamily( curr_spike, peakfn, curr_stime, timefn, fam_mu, fam_var, opts );
             
          % if we have spike families see if we're at the right
          % scale, so get size of current peak, & time diff btwn
          % last spike and this spike, & check if the peak is
          % sufficiently the same to be considered part of the fam
          else
-            curr_peak     = peakfn(curr_spike);
-            
-            varn          = getStructFieldFromCell(APfamilies{k}, 'varn', 'array');
-            varp          = getStructFieldFromCell(APfamilies{k}, 'varp', 'array');
-            mun           = getStructFieldFromCell(APfamilies{k}, 'mun', 'array');
-            mup           = getStructFieldFromCell(APfamilies{k}, 'mup', 'array');
+            curr_peak = peakfn(curr_spike);           
+            varn      = getStructFieldFromCell( APfamilies{k}, 'varn', 'array' );
+            varp      = getStructFieldFromCell( APfamilies{k}, 'varp', 'array' );
+            mun       = getStructFieldFromCell( APfamilies{k}, 'mun', 'array' );
+            mup       = getStructFieldFromCell( APfamilies{k}, 'mup', 'array' );
 
             % get rate of change from last peak (this is populated with the
             % mean spike now) to current peak, but then switch around
@@ -216,9 +205,9 @@ try
             stdp_  = sqrt(varp);
             valid1 = zeros(size(mup));
             valid2 = zeros(size(mun));
-            for j = 1:numel(mup)
-               valid1(j) = (curr_peak(1) >= mun(j) - kappa_neg * stdn_(j)) && (curr_peak(1) <= mun(j) + kappa_neg * stdn_(j));
-               valid2(j) = (curr_peak(2) >= mup(j) - kappa_pos * stdp_(j)) && (curr_peak(2) <= mup(j) + kappa_pos * stdp_(j));
+            for ti = 1:numel(mup)
+               valid1(ti) = (curr_peak(1) >= mun(ti) - kappa_neg * stdn_(ti)) && (curr_peak(1) <= mun(ti) + kappa_neg * stdn_(ti));
+               valid2(ti) = (curr_peak(2) >= mup(ti) - kappa_pos * stdp_(ti)) && (curr_peak(2) <= mup(ti) + kappa_pos * stdp_(ti));
             end
             valid = valid1 & valid2;
                         
@@ -238,49 +227,21 @@ try
                % APfamilies{k}{i}.meanspike = APfamilies{k}{end}.meanspike + curr_spike * (1-lambda);
 
                % Distribution of peaks (mean and var)
-               mup_prev  = APfamilies{k}{i}.mup;
-               mun_prev  = APfamilies{k}{i}.mun;
-               varp_prev = APfamilies{k}{i}.varp;
-               varn_prev = APfamilies{k}{i}.varn;
-               [mup_curr, varp_curr] = recursiveUpdate( mup_prev, varp_prev, curr_peak(2), lambda );
-               [mun_curr, varn_curr] = recursiveUpdate( mun_prev, varn_prev, curr_peak(1), lambda );
+               [mup_curr, varp_curr] = recursiveUpdate( APfamilies{k}{i}.mup, APfamilies{k}{i}.varp, curr_peak(2), lambda );
+               [mun_curr, varn_curr] = recursiveUpdate( APfamilies{k}{i}.mun, APfamilies{k}{i}.varn, curr_peak(1), lambda );
                APfamilies{k}{i}.mun  = mun_curr;
                APfamilies{k}{i}.varp = varp_curr;
-               APfamilies{k}{i}.varn = varn_curr;
-               
+               APfamilies{k}{i}.varn = varn_curr;             
+               APfamilies{k}{i}.last_peak = peakfn( curr_spike ); % size of last spike in family
+               APfamilies{k}{i}.last_time = timefn( curr_stime ); % time of last spike             
                if ~strcmp( 'none', opts.debugOption )
-                  APfamilies{k}{i}.mup_vector  = [ APfamilies{k}{i}.mup_vector mup_curr];
-                  APfamilies{k}{i}.mun_vector  = [ APfamilies{k}{i}.mun_vector mun_curr];
-                  APfamilies{k}{i}.varp_vector = [ APfamilies{k}{i}.varp_vector sqrt(APfamilies{k}{i}.varp)];
-                  APfamilies{k}{i}.varn_vector = [ APfamilies{k}{i}.varn_vector sqrt(APfamilies{k}{i}.varn)];
+                  APfamilies{k}{i}   = updateDebugInfo( APfamilies{k}{i}, mup_curr, mun_curr, varp_curr, varn_curr );
                end
-               
-               % getting peak to peak from family mean now, because it
-               % wasn't working at all well using the last spike
-               APfamilies{k}{i}.last_peak   = peakfn( curr_spike ); % size of last spike in family
-               APfamilies{k}{i}.last_time   = timefn( curr_stime ); % time of last spike
                
             else
                % Creating new axon family
-               APfamilies{k}(end+1)         = cell(1);
-               APfamilies{k}{end}.spikes    = curr_spike;
-               APfamilies{k}{end}.stimes    = curr_stime;               
-               APfamilies{k}{end}.meanspike = curr_spike; 
-               APfamilies{k}{end}.last_peak = peakfn( curr_spike ); % size of last spike in family
-               APfamilies{k}{end}.last_time = timefn( curr_stime ); % time of last spike
-                
-               [fam_mu, fam_var] = initialize_mu( spikes, si, matchthresh, peakfn, peakdiff ); 
-                APfamilies{k}{end}.mun  = fam_mu(1); 
-                APfamilies{k}{end}.mup  = fam_mu(2); 
-                APfamilies{k}{end}.varn = fam_var(1);
-                APfamilies{k}{end}.varp = fam_var(2);
-                              
-               if ~strcmp( 'none', opts.debugOption )
-                  APfamilies{k}{end}.mup_vector  = fam_mu(2);
-                  APfamilies{k}{end}.mun_vector  = fam_mu(1);
-                  APfamilies{k}{end}.varp_vector = sqrt( fam_var(2) );
-                  APfamilies{k}{end}.varn_vector = sqrt( fam_var(1) );
-               end
+               [fam_mu, fam_var]     = initialize_mu( spikes, si, matchthresh, peakfn, peakdiff ); 
+               APfamilies{k}{end+1}  = newAxonFamily( curr_spike, peakfn, curr_stime, timefn, fam_mu, fam_var, opts );
             end
          end
          
@@ -309,11 +270,9 @@ try
             % make a new AP family within the templates
             APtemplates(:, end+1) = curr_spike;
             APnumsamples(end+1)   = 1;
-            APfamilies(end+1,1)   = cell(1);
-            APfamilies{end}{1}.spikes    = curr_spike;
-            APfamilies{end}{1}.stimes    = curr_stime;
-            APfamilies{end}{1}.last_peak = peakfn(curr_spike); % size of last spike in family
-            APfamilies{end}{1}.last_time = timefn(curr_stime); % time of last spike
+            % Creating new axon family
+            [fam_mu, fam_var]     = initialize_mu( spikes, si, matchthresh, peakfn, peakdiff ); 
+            APfamilies{end+1}{1}  = newAxonFamily( curr_spike, peakfn, curr_stime, timefn, fam_mu, fam_var, opts );
             nAP = nAP + 1;
          end
       end
@@ -321,6 +280,7 @@ try
 catch ME
    str = getCatchMEstring( ME, 'main: ' );
 end
+
    % Close progress window
    if progress_window
       try
@@ -337,27 +297,12 @@ end
    end
 
 try
-   if ~strcmp('none',opts.debugOption)
-      figure;subplot(1,2,1); hold;
-      for j = 1:size(APfamilies)
-         for jj = 1:size(APfamilies{j},2)
-            plot(APfamilies{j}{jj}.stimes(1,:),APfamilies{j}{jj}.mup_vector);
-         end
-      end
-      subplot(1,2,2); hold
-      for j = 1:size(APfamilies)
-         for jj = 1:size(APfamilies{j},2)
-            plot(APfamilies{j}{jj}.stimes(1,:),APfamilies{j}{jj}.varp_vector,'--');
-         end
-      end
-   end
-   
    % get rid of families with very few spikes
    for fi=1:length( APfamilies )
       if ~isempty(APfamilies{fi})
           nf = cellfun( @(fam) size( fam.spikes,2 ), APfamilies{fi} );
           toosmall = nf <= params.min_spiking_threshold.value; 
-          APfamilies{fi}(toosmall) = [];
+          APfamilies{fi}( toosmall ) = [];
       end
    end
    % get rid of empty families, just in case they snuck in there!
@@ -371,6 +316,40 @@ try
    end
    nAP = length( APfamilies ); % update num families after removing loners
    
+   if ~strcmp( 'none', opts.debugOption )
+      figure; 
+      % if not too many templates then plot each templates mean & var in
+      % a different column
+      if nAP<4
+         nc = nAP; nr = 2;
+      else
+         % too many templates --> just plot in pairs
+         nc = ceil( sqrt( nAP*2 ) ); nc = ternaryOp( round(nc/2)~=nc/2, nc+1, nc );
+         nr = ceil( nAP*2 / nc );
+      end
+      for ti = 1:size(APfamilies) % for each template
+         mu_pos = -Inf; var_pos = -Inf;
+         mu_neg =  Inf; var_neg = -Inf;
+         nfam   = size( APfamilies{ti}, 2 );
+         cols   = getColourMatrix( nfam );
+         for fi = 1:nfam % for each family within the template
+            subplot(nr,nc,ti); hold on;
+               plot( APfamilies{ti}{fi}.stimes(1,:), APfamilies{ti}{fi}.mup_vector, 'color', cols(fi,:) );
+               plot( APfamilies{ti}{fi}.stimes(1,:), APfamilies{ti}{fi}.mun_vector, 'color', cols(fi,:) );
+               mu_pos = ternaryOp( mu_pos < max( APfamilies{ti}{fi}.mup_vector ), max( APfamilies{ti}{fi}.mup_vector ), mu_pos );
+               mu_neg = ternaryOp( mu_neg > min( APfamilies{ti}{fi}.mun_vector ), min( APfamilies{ti}{fi}.mun_vector ), mu_neg );
+            subplot(nr,nc,nAP+ti); hold on;
+               plot( APfamilies{ti}{fi}.stimes(1,:), APfamilies{ti}{fi}.varp_vector, 'color', cols(fi,:), 'linewidth', 1 );
+               plot( APfamilies{ti}{fi}.stimes(1,:), APfamilies{ti}{fi}.varn_vector, '--', 'color', cols(fi,:), 'linewidth', 1 );
+               var_pos = ternaryOp( var_pos < max( APfamilies{ti}{fi}.varp_vector ), max( APfamilies{ti}{fi}.varp_vector ), var_pos );
+               var_neg = ternaryOp( var_neg < max( APfamilies{ti}{fi}.varn_vector ), max( APfamilies{ti}{fi}.varn_vector ), var_neg );
+         end
+         subplot(nr,nc,ti),     ylim( [ mu_neg,  mu_pos ] );
+         subplot(nr,nc,nAP+ti), ylim( [      0, var_pos ] );
+      end
+   end
+   
+
    % Each valid spike has been allocated to an AP template, & to an AP
    % familiy within that. Now for each AP family we need to construct a
    % timeseries
@@ -462,7 +441,7 @@ function [mu, sig] = initialize_mu( spikes, si, matchthresh, peakfn, diffpeakfn 
       d   = min( d1, d2 ); % get largest diff btwn pos & neg peak changes
 
       % If spike is closeley correlated to the template
-      if rho > matchthresh && d < 0.3 % TO DO: DON'T HARD-CODE ALLOWABLE DIFFERENCE !! 
+      if rho > matchthresh && d < 0.5 % TO DO: DON'T HARD-CODE ALLOWABLE DIFFERENCE !! 
          cnt     = cnt + 1;
          pk_     = peakfn(spikes(:,si));
          pk(cnt,:) = pk_;
@@ -480,12 +459,32 @@ function [mu, sig] = initialize_mu( spikes, si, matchthresh, peakfn, diffpeakfn 
    end
 end
 
+% Spawn a new axon family with all the necessary struct fields
+function family = newAxonFamily( curr_spike, peakfn, curr_stime, timefn, fam_mu, fam_var, opts )
+   family.spikes    = curr_spike;
+   family.stimes    = curr_stime;
+   family.meanspike = curr_spike;
+   family.last_peak = peakfn(curr_spike); % size of last spike in family
+   family.last_time = timefn(curr_stime); % time of last spike
+   family.mun       = fam_mu(1); 
+   family.mup       = fam_mu(2); 
+   family.varn      = fam_var(1);
+   family.varp      = fam_var(2);
+  
+   if ~strcmp( 'none', opts.debugOption )
+      family.mup_vector  = fam_mu(2);
+      family.mun_vector  = fam_mu(1);
+      family.varp_vector = fam_var(2);
+      family.varn_vector = fam_var(1);
+   end
+end
 
-
-
-
-
-
+function family = updateDebugInfo( family, mup_curr, mun_curr, varp_curr, varn_curr )
+   family.mup_vector  = [ family.mup_vector mup_curr ];
+   family.mun_vector  = [ family.mun_vector mun_curr ];
+   family.varp_vector = [ family.varp_vector sqrt( varp_curr ) ];
+   family.varn_vector = [ family.varn_vector sqrt( varn_curr ) ];
+end
 
 
 

@@ -47,13 +47,13 @@ function [a, b, P, y_est, g] = recursiveLeastSquares(x, y, na, nb, P_prev, a_pre
    if isempty(n),   n = max(length(x),length(y)); end
    if isempty(delay),   delay = 0; end
 
-   if length(y) < max(nb, na+1)
+   if length(y) < max( nb, na+1 )
       str = sprintf('\tOutput needs at least nb, or na+1 (%d) samples\n', na);
       cprintf('Error', str);
       a=a_prev; b=b_prev; P=P_prev; y_est=[]; g=[];
       return;
    end
-   if n < (delay+nb)
+   if n < ( delay+nb )
       str = sprintf('Output needs at least delay + nb (%d) samples\n', delay+nb);
       cprintf('Keywords*', str);
       a=a_prev; b=b_prev; P=P_prev; y_est=[]; g=[];

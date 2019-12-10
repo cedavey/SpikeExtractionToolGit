@@ -166,22 +166,22 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
    end
    % get mean time before & after spike peak - extend voltage so don't go over the edge
    voltage    = [voltage; zeros(tafter,1)];
-   time       = [time; time(end)+(1:tafter)'*dt];
+   time       = [ time; time(end)+(1:tafter)'*dt ];
    % if first spike peaks before avg pre-peak time, add zeros to it
-   if round(stimes{1}(peakind(1))/dt) < tbefore
-      voltage = [zeros(tbefore,1); voltage];
-      time    = [time(1)-(tbefore:-1:1)'*dt; time];
+   if round( stimes{1}(peakind(1)) / dt ) < tbefore
+      voltage = [ zeros(tbefore,1); voltage ];
+      time    = [ time(1)-(tbefore:-1:1)' * dt ; time ];
       shift   = tbefore;
    else
       shift   = 0;
    end
-   sp         = arrayfun(@(i) voltage( sinds{i}(peakind(i))+shift-tbefore+1 : sinds{i}(peakind(i))+shift+tafter), ...
-                              1:length(spikes),'uniformoutput', false);
-   spikes     = cell2mat(sp);
-   stimes     = arrayfun(@(i) time( sinds{i}(peakind(i))+shift-tbefore+1 : sinds{i}(peakind(i))+shift+tafter), ...
-                              1:length(sp),'uniformoutput', false);
-   sindices   = arrayfun(@(i) voltage( sinds{i}(peakind(i))+shift-tbefore+1 : sinds{i}(peakind(i))+shift+tafter), ...
-                              1:length(spikes),'uniformoutput', false);
+   sp         = arrayfun( @(i) voltage( sinds{i}(peakind(i))+shift-tbefore+1 : sinds{i}(peakind(i))+shift+tafter ), ...
+                              1:length(spikes),'uniformoutput', false );
+   spikes     = cell2mat( sp );
+   stimes     = arrayfun( @(i) time( sinds{i}(peakind(i))+shift-tbefore+1 : sinds{i}(peakind(i))+shift+tafter ), ...
+                              1:length(sp),'uniformoutput', false );
+   sindices   = arrayfun( @(i) voltage( sinds{i}(peakind(i))+shift-tbefore+1 : sinds{i}(peakind(i))+shift+tafter ), ...
+                              1:length(spikes),'uniformoutput', false );
                           
                           
    str = sprintf( '\tDone.\n' );
