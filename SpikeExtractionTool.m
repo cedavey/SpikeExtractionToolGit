@@ -243,7 +243,7 @@ handles = setTooltips(handles);
 
 % Get location of log files
 path = getFilePath('log');
-fid = fopen([path 'log_all.log'], 'a'); % Opens log file to append this session's string
+fid  = fopen([path 'log_all.log'], 'a'); % Opens log file to append this session's string
 fprintf(fid, '\n\n-------------- %s @ %s | %s ---------------\n', getenv('Username'),getenv('UserDomain'),datestr(now, 0));
 fclose(fid); % Close log file
 diary([path 'log_all.log']); % Activates the diary function, i.e. save all the activity into a file.
@@ -1089,10 +1089,10 @@ function toggleZoomButton_CreateFcn(hObject, eventdata, handles)
    warning('off','MATLAB:imagesci:png:libraryWarning'); % Ignore PNG associated warning
 
    % Get location of log files
-   path = getFilePath();
+   path    = getFilePath();
+   [x,map] = imread([path 'fig' filesep 'magnifierIcon.png']); % Load the zoom icon
+   I2      = imresize(x, [22 22]); % Resize icon
    
-   [x,map]=imread([path 'fig' filesep 'magnifierIcon.png']); % Load the zoom icon
-   I2=imresize(x, [22 22]); % Resize icon
    hObject.CData = I2; % Assign icon to the button
    hObject.BackgroundColor = [1 0.6 0.6]; % Change color to match other buttons
    hObject.String = ''; % Remove string
@@ -1105,6 +1105,8 @@ function helpMenuItem_Callback(hObject, eventdata, handles)
 % hObject    handle to helpMenuItem (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
+
+   % Put the file on the web so don't have to recompile whole gui to change help file
    %path = getFilePath();
    %open_pdf([path 'resources' filesep 'SEThelp.pdf']);
    web('https://github.com/srarty/SpikeExtractionToolGit/files/3823676/SEThelp.pdf','-browser');

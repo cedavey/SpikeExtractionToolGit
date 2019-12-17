@@ -457,7 +457,6 @@ classdef SpikeExtractionApp < matlab.apps.AppBase
             % eventdata  reserved - to be defined in a future version of MATLAB
             % handles    structure with handles and user data (see GUIDATA)
             path = getFilePath();
-
             open_pdf([path 'resources' filesep 'SEThelp.pdf']);
         end
 

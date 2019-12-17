@@ -748,7 +748,7 @@ methods (Static)
       h.voltage_slider.Value = h.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
 
       if strcmp('gui', h.f.uiType)
-        h.time_slider.SliderStep = [0.01 0.1]; % Make sure it is within 0 and 1.
+        h.time_slider.SliderStep    = [0.01 0.1]; % Make sure it is within 0 and 1.
         h.voltage_slider.SliderStep = [0.01 0.1];
       end
 
@@ -1303,7 +1303,7 @@ methods (Static)
       end
 
       params       = h.data.params; % current parameter values
-      % params = getDefaultToolParams;
+   %   params = getDefaultToolParams; % allows to force to default params when testing
       method_params= getToolAndMethodParams(params, data_type, tool, method);
       dlg_name     = [tool ' using ' method];
 
@@ -1826,14 +1826,14 @@ methods (Static)
    end
 
    function updateTimeSlider(h)
-      maxt = h.data.tlim(2);
-      mint = h.data.tlim(1);
-      trange = maxt - mint;
-      currtseries = h.data.curr_tseries;
+      maxt    = h.data.tlim(2);
+      mint    = h.data.tlim(1);
+      trange  = maxt - mint;
+      curr_ts = h.data.curr_tseries;
 
-      if strcmp('zoom',h.toggleZoomButton.UserData)
-         h.data.zoomPercentage(1) = 1 - ((maxt-mint) / (h.data.tseries{currtseries}.time(end) - h.data.tseries{currtseries}.time(1)));
-         h.data.displacementPercentage(1) = (maxt - trange) / h.data.tseries{currtseries}.time(end);
+      if strcmp( 'zoom', h.toggleZoomButton.UserData )
+         h.data.zoomPercentage(1) = 1 - ((maxt-mint) / (h.data.tseries{curr_ts}.time(end) - h.data.tseries{curr_ts}.time(1)));
+         h.data.displacementPercentage(1) = (maxt - trange) / h.data.tseries{curr_ts}.time(end);
          h.time_slider.Value = h.data.zoomPercentage(1); % Update the position of the slider to represent zoom.
 
          percent = h.data.zoomPercentage(1);
@@ -1857,21 +1857,23 @@ methods (Static)
              h.time_slider.SliderStep = [0.01 0.1];
            end
          end
+         
       else
-        if maxt >= h.data.tseries{currtseries}.time(end-1)
+        percent = h.data.zoomPercentage(1);
+        zoom    = 1 - percent;
+        
+        if maxt >= h.data.tseries{curr_ts}.time(end-1)
           h.time_slider.Value = 1;
-        elseif mint <= h.data.tseries{currtseries}.time(1)
+        elseif mint <= h.data.tseries{curr_ts}.time(1)
           h.time_slider.Value = 0;
         else
           h.time_slider.Value = h.data.displacementPercentage(1); % Update the position of the slider to represent displacement.
         end
-        if strcmp('gui', h.f.uiType) % Only if its GUI
-          percent = h.data.zoomPercentage(1);
-          zoom = 1 - percent;
-          
+
+        if strcmp( 'gui', h.f.uiType ) % Only if its GUI
           h.time_slider.SliderStep(2) = 1;
           h.time_slider.SliderStep(1) = zoom(1) / 3;% max(handles.time_slider.SliderStep(1) , handles.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
-          h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*2);
+          h.time_slider.SliderStep(2) = min( 1, h.time_slider.SliderStep(1)*2 );
         end
       end
 
@@ -1885,7 +1887,7 @@ methods (Static)
       minv = h.data.vlim(1);
       currtseries = h.data.curr_tseries;
 
-      if strcmp('zoom',h.toggleZoomButton.UserData)
+      if strcmp( 'zoom', h.toggleZoomButton.UserData )
          try
             h.data.zoomPercentage(2) = 1 - ((maxv-minv) / (max(h.data.tseries{currtseries}.data) - min(h.data.tseries{currtseries}.data)));
             h.data.zoomPercentage(2) = max(h.data.zoomPercentage(2), 0); % Prevents the zoom to be less than 0

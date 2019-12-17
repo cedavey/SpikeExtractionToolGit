@@ -29,7 +29,7 @@ function handles = plotDataFromCell(handles, tseries)
    vlim  = double(handles.data.vlim);
    panel = handles.plot_panel;
    %subplot(111); % resets axes
-   arrayfun(@cla,findobj(handles.figure1,'type','axes'))
+   arrayfun( @cla, findobj(handles.figure1,'type','axes' ) );
 
    max_ax= 3;      % max number of axes per figure - scrollbar to access others
    max_lines = 10; % max number of families per template (i.e. per axis)
@@ -162,8 +162,8 @@ tscale=1; tlabel='s';
                hold on;
             end
          end
-         xlim(tlim/tscale);
-         ylim(vlim/vscale);
+         xlim( tlim/tscale );
+         ylim( vlim/vscale );
          set( get(ax1,'title'), 'String', sprintf('AP template %d (%d families)', ...
                                                    plot_ax(i), size(x,2)), fopts{:} );
          if i==1
@@ -240,9 +240,9 @@ function handles = plotDataFromMatrix(handles, tseries)
       time = [time; time(end)+dt];
       eind = eind + 1;
    end
-   [tscale, tlabel] = getUnitScale(tlim(2)*10, 's');
+   [ tscale, tlabel ] = getUnitScale( tlim(2)*10, 's' );
 tscale=1; tlabel='s';
-   [vscale, vlabel] = getUnitScale(max(data(:))*10, 'V');
+   [ vscale, vlabel ] = getUnitScale( max(data(:))*10, 'V' );
 
    fopts= {'fontsize', fontsize, 'fontweight', 'bold'};
    figure(handles.figure1); % Change focus to main window
@@ -273,8 +273,8 @@ tscale=1; tlabel='s';
             warn= true;
          end
       end
-      set( ax1, 'xlim', tlim/tscale);
-      set( ax1, 'ylim', vlim/vscale);
+      set( ax1, 'xlim', tlim/tscale );
+      set( ax1, 'ylim', vlim/vscale );
 
       set( get(ax1,'Xlabel'), 'String', sprintf('Time (%s)',    tlabel), fopts{:} );
       set( get(ax1,'Ylabel'), 'String', sprintf('Voltage (%s)', vlabel), fopts{:} );
@@ -299,9 +299,9 @@ tscale=1; tlabel='s';
             vlim(2) = max( toVec(tseries.APfamily{plot_ax(i)}(sind:eind,lind)) );
             % if APs normalised we know they'll be btwn -3/3 so make lims the same
             if tseries.params.normalise_aps.value
-               ylim([-3 3]);
+               ylim( [-3 3] );
             else
-               ylim(vlim/vscale);
+               ylim( vlim/vscale );
             end
             hold off;
             uistack(lh, 'top'); % put mean on top

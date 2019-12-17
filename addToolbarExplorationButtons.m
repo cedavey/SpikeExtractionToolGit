@@ -11,6 +11,7 @@ function addToolbarExplorationButtons(varargin)
         try
            path = fullfile( matlabroot, 'toolbox', 'matlab', 'plottools' );
            file = fullfile( path, 'addToolbarExplorationButtons' );
+
            if exist( path, 'file' ) && exist( file, 'file' )
               run( file );
            end
