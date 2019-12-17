@@ -169,7 +169,7 @@ function generateSpikeStatistics(tseries, method, method_params)
                         title(str);
                         xlabel('Time (s)');
                         ylabel('Spike amp');
-                        xlim( [ 0 nT ] );
+                        xlim( [ 0 nT*dt ] );
 
                   figure(fh);
                      ah2(jj) = subplot( nrows, ncols, fi ); fi=fi+1;

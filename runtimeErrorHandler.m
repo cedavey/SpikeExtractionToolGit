@@ -26,7 +26,7 @@ function runtimeErrorHandler(varargin)
    % Get location of log files
    path = getFilePath('log');
 
-   %open file
+   % open file
    fid = fopen([path 'logFile.log'],'a+');
    % write the error to file
    % first line: message

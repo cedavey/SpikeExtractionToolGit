@@ -748,7 +748,7 @@ methods (Static)
       h.voltage_slider.Value = h.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
 
       if strcmp('gui', h.f.uiType)
-        h.time_slider.SliderStep = [0.01 0.1]; % Make sure it is within 0 and 1.
+        h.time_slider.SliderStep    = [0.01 0.1]; % Make sure it is within 0 and 1.
         h.voltage_slider.SliderStep = [0.01 0.1];
       end
 

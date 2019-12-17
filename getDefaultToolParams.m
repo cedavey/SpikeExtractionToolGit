@@ -450,7 +450,7 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.match_type.units                 = 'statistic';
          voltage.extract_spikes.matched_filter.match_type.list                  = {'corr','cov'};
          
-         voltage.extract_spikes.matched_filter.match_similarity.value           = 0.8;
+         voltage.extract_spikes.matched_filter.match_similarity.value           = 0.9;
          voltage.extract_spikes.matched_filter.match_similarity.name            = 'match similarity';
          voltage.extract_spikes.matched_filter.match_similarity.descript        = 'similarity required for spike shapes to be considered from the same family';
          voltage.extract_spikes.matched_filter.match_similarity.type            = 'normalised float';
@@ -468,13 +468,13 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.forgetting_factor.type           = 'normalised float';
          voltage.extract_spikes.matched_filter.forgetting_factor.units          = '\in [0, 1]';
 
-         voltage.extract_spikes.matched_filter.positive_threshold.value         = 4;
+         voltage.extract_spikes.matched_filter.positive_threshold.value         = 3;
          voltage.extract_spikes.matched_filter.positive_threshold.name          = 'positive threshold';
          voltage.extract_spikes.matched_filter.positive_threshold.descript      = 'only spikes with peak voltage larger than this many std devs considered';
          voltage.extract_spikes.matched_filter.positive_threshold.type          = 'positive float';
          voltage.extract_spikes.matched_filter.positive_threshold.units         = 'std dev';
          
-         voltage.extract_spikes.matched_filter.negative_threshold.value         = 0;
+         voltage.extract_spikes.matched_filter.negative_threshold.value         = 3;
          voltage.extract_spikes.matched_filter.negative_threshold.name          = 'negative threshold magnitude';
          voltage.extract_spikes.matched_filter.negative_threshold.descript      = 'only spikes with a negative voltage of magnitude larger than this considered (0 to ignore)';
          voltage.extract_spikes.matched_filter.negative_threshold.type          = 'positive float';
@@ -498,13 +498,13 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.skip_window.type                 = 'positive float';
          voltage.extract_spikes.matched_filter.skip_window.units                = 'seconds';
 
-         voltage.extract_spikes.matched_filter.min_positive_duration.value      = 1;
+         voltage.extract_spikes.matched_filter.min_positive_duration.value      = 2;
          voltage.extract_spikes.matched_filter.min_positive_duration.name       = 'min positive duration';
          voltage.extract_spikes.matched_filter.min_positive_duration.descript   = 'min duration of positive component of spike';
          voltage.extract_spikes.matched_filter.min_positive_duration.type       = 'positive float';
          voltage.extract_spikes.matched_filter.min_positive_duration.units      = 'ms';
          
-         voltage.extract_spikes.matched_filter.min_negative_duration.value      = 0.1;
+         voltage.extract_spikes.matched_filter.min_negative_duration.value      = 2;
          voltage.extract_spikes.matched_filter.min_negative_duration.name       = 'min negative duration';
          voltage.extract_spikes.matched_filter.min_negative_duration.descript   = 'min duration of negative component of spike';
          voltage.extract_spikes.matched_filter.min_negative_duration.type       = 'positive float';
@@ -516,13 +516,13 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.allow_new_aps.type               = 'boolean';
          voltage.extract_spikes.matched_filter.allow_new_aps.units              = 'true or false';
          
-         voltage.extract_spikes.matched_filter.min_spiking_threshold.value           = false;
-         voltage.extract_spikes.matched_filter.min_spiking_threshold.name            = 'min spiking threshold';
-         voltage.extract_spikes.matched_filter.min_spiking_threshold.descript        = 'remove a family with number of spikes less than this threshold';
-         voltage.extract_spikes.matched_filter.min_spiking_threshold.type            = 'positive integer';
-         voltage.extract_spikes.matched_filter.min_spiking_threshold.units           = 'number of spikes';
+         voltage.extract_spikes.matched_filter.min_spiking_threshold.value      = false;
+         voltage.extract_spikes.matched_filter.min_spiking_threshold.name       = 'min spiking threshold';
+         voltage.extract_spikes.matched_filter.min_spiking_threshold.descript   = 'remove a family with number of spikes less than this threshold';
+         voltage.extract_spikes.matched_filter.min_spiking_threshold.type       = 'positive integer';
+         voltage.extract_spikes.matched_filter.min_spiking_threshold.units      = 'number of spikes';
             
-         voltage.extract_spikes.matched_filter.remove_small_templates.value     = 10;
+         voltage.extract_spikes.matched_filter.remove_small_templates.value     = 200;
          voltage.extract_spikes.matched_filter.remove_small_templates.name      = 'remove small templates';
          voltage.extract_spikes.matched_filter.remove_small_templates.descript  = 'remove AP template estimates from this many or less spikes (0 to ignore)';
          voltage.extract_spikes.matched_filter.remove_small_templates.type      = 'positive integer';
@@ -640,7 +640,7 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.match_type.units                      = 'statistic';
          ap.extract_spikes.matched_filter.match_type.list                       = {'corr','cov'};
          
-         ap.extract_spikes.matched_filter.match_similarity.value                = 0.8;
+         ap.extract_spikes.matched_filter.match_similarity.value                = 0.92;
          ap.extract_spikes.matched_filter.match_similarity.name                 = 'match similarity';
          ap.extract_spikes.matched_filter.match_similarity.descript             = 'similarity required for spike shapes to be considered from the same family';
          ap.extract_spikes.matched_filter.match_similarity.type                 = 'normalised float';
@@ -664,13 +664,13 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.kappa_neg.type                        = 'positive float';
          ap.extract_spikes.matched_filter.kappa_neg.units                       = 'standard deviations';
 
-         ap.extract_spikes.matched_filter.positive_threshold.value              = 4;
+         ap.extract_spikes.matched_filter.positive_threshold.value              = 3;
          ap.extract_spikes.matched_filter.positive_threshold.name               = 'positive threshold';
          ap.extract_spikes.matched_filter.positive_threshold.descript           = 'only spikes with peak voltage larger than this many std devs considered';
          ap.extract_spikes.matched_filter.positive_threshold.type               = 'positive float';
          ap.extract_spikes.matched_filter.positive_threshold.units              = 'std dev';
          
-         ap.extract_spikes.matched_filter.negative_threshold.value              = 0;
+         ap.extract_spikes.matched_filter.negative_threshold.value              = 3;
          ap.extract_spikes.matched_filter.negative_threshold.name               = 'negative threshold magnitude';
          ap.extract_spikes.matched_filter.negative_threshold.descript           = 'only spikes with a negative voltage of magnitude larger than this considered (0 to ignore)';
          ap.extract_spikes.matched_filter.negative_threshold.type               = 'positive float';
@@ -694,13 +694,13 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.skip_window.type                      = 'positive float';
          ap.extract_spikes.matched_filter.skip_window.units                     = 'seconds';
 
-         ap.extract_spikes.matched_filter.min_positive_duration.value           = 1;
+         ap.extract_spikes.matched_filter.min_positive_duration.value           = 2;
          ap.extract_spikes.matched_filter.min_positive_duration.name            = 'min positive duration';
          ap.extract_spikes.matched_filter.min_positive_duration.descript        = 'min duration of positive component of spike';
          ap.extract_spikes.matched_filter.min_positive_duration.type            = 'positive float';
          ap.extract_spikes.matched_filter.min_positive_duration.units           = 'ms';
          
-         ap.extract_spikes.matched_filter.min_negative_duration.value           = 0.1;
+         ap.extract_spikes.matched_filter.min_negative_duration.value           = 2;
          ap.extract_spikes.matched_filter.min_negative_duration.name            = 'min negative duration';
          ap.extract_spikes.matched_filter.min_negative_duration.descript        = 'min duration of negative component of spike';
          ap.extract_spikes.matched_filter.min_negative_duration.type            = 'positive float';
@@ -712,7 +712,7 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.allow_new_aps.type                    = 'boolean';
          ap.extract_spikes.matched_filter.allow_new_aps.units                   = 'true or false';
          
-         ap.extract_spikes.matched_filter.min_spiking_threshold.value           = 100;
+         ap.extract_spikes.matched_filter.min_spiking_threshold.value           = 200;
          ap.extract_spikes.matched_filter.min_spiking_threshold.name            = 'min spiking threshold';
          ap.extract_spikes.matched_filter.min_spiking_threshold.descript        = 'remove a family with number of spikes less than this threshold';
          ap.extract_spikes.matched_filter.min_spiking_threshold.type            = 'positive integer';

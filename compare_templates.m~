@@ -45,13 +45,9 @@ function k = compare_templates(rho, curr_spike, APtemplates, APfamilies)
 %    [~, k] = min( abs(difference) );
 %    k = similars(k);
 
-   [~, k_rho] = min( rho );
-   [~, k]     = min( d(:) );
-   [k,~]      = ind2sub( [nap max(nfam)], k );
-   if k~=k_rho
-      str = sprintf( 'Changing k from %d to %d\n', k_rho, k );
-      cprintf( 'Keywords*', str );
-   end
+
+   [~, k] = min( d(:) );
+   [k,~]  = ind2sub( [nap max(nfam)], k );
 end
 
 % Separate a spike into positive and negative parts

@@ -26,7 +26,8 @@
 % constant for a while, then another jump down in amplitude
 function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, params, normAPs ,opts)
    
-   if isfield(opts,'loadingWindowOn'), progress_window = opts.loadingWindowOn; else, progress_window = false; end
+   if isfield(opts,'loadingWindowOn'), progress_window = opts.loadingWindowOn; 
+   else, progress_window = false; end
    if opts.auto_params
       % Get auto params
       pp = getAutomaticParams(tseries, [], 'extractspikes', method, params);

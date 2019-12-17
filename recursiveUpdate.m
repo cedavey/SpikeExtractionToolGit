@@ -24,8 +24,10 @@ function [mu_curr, var_curr] = recursiveUpdate( mu_prev, var_prev, new_obs, lamb
    
 end
 
-% testing
-% lambda=0.9; mux=x(1); sigx=1; 
+% % testing
+% lambda = 0.9; 
+% x = randn( 5e2, 1 ) * 2 + 10;
+% mux = x(1); sigx = 1; 
 % for i=2:length(x)
 %    [mux(i), sigx(i)] = recursiveUpdate( mux(i-1), sigx(i-1), x(i), lambda ); 
 % end; 
