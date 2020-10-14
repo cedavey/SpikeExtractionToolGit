@@ -204,13 +204,14 @@ try
             % distribution's mu and variance
             stdn_  = sqrt(varn);
             stdp_  = sqrt(varp);
-            valid1 = zeros(size(mup));
+            valid1 = zeros(size(mun)); % mun and mup should be the same size, so whichever works
             valid2 = zeros(size(mun));
             for ti = 1:numel(mup)
                valid1(ti) = (curr_peak(1) >= mun(ti) - kappa_neg * stdn_(ti)) && (curr_peak(1) <= mun(ti) + kappa_neg * stdn_(ti));
                valid2(ti) = (curr_peak(2) >= mup(ti) - kappa_pos * stdp_(ti)) && (curr_peak(2) <= mup(ti) + kappa_pos * stdp_(ti));
             end
-            valid = valid1 & valid2;
+%             valid = valid1 & valid2;
+            valid = valid1 | valid2;
                         
             if any(valid)
                % Adding one spike to current axon family              
@@ -424,6 +425,7 @@ function [mu, sig] = initialize_mu( spikes, si, matchthresh, peakfn, diffpeakfn 
    fsp = spikes(:,si); % spike we're making the family from
    fam_peaks = [ min(fsp) max(fsp) ];
    si  = si + 1; % start matching with spikes after current spike
+   allowed_diff = 0.5; % Allowed difference between spikes to initialize mu
    % if we've run outta spikes in the spike train, return
    if si >= size( spikes, 2 )
       mu = peakfn( fsp ); sig = 0; 
@@ -440,9 +442,10 @@ function [mu, sig] = initialize_mu( spikes, si, matchthresh, peakfn, diffpeakfn 
       d1  = diffpeakfn( sp_peaks, fam_peaks ); % diff in peaks btwn family spike & sp
       d2  = diffpeakfn( fam_peaks, sp_peaks ); % diff in peaks in reverse order
       d   = min( d1, d2 ); % get largest diff btwn pos & neg peak changes
+%       d   = max( d1, d2 ); % get largest diff btwn pos & neg peak changes
 
       % If spike is closeley correlated to the template
-      if rho > matchthresh && d < 0.5 % TO DO: DON'T HARD-CODE ALLOWABLE DIFFERENCE !! 
+      if rho > matchthresh && d < allowed_diff % TO DO: DON'T HARD-CODE ALLOWABLE DIFFERENCE !! 
          cnt     = cnt + 1;
          pk_     = peakfn(spikes(:,si));
          pk(cnt,:) = pk_;

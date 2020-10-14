@@ -1923,12 +1923,19 @@ methods (Static)
 
    function voltage_slider_updated(h, hObject)
       method = h.toggleZoomButton.UserData; % Loads current option (zoom or displacement)
+      
+      doUpdateVoltageSlider = false;
 
       if strcmp('zoom',method)
          % slider zooms in/out to max/min values given in text boxes, so that
          % slider is a percentage of possible max/mins.
          percent = hObject.Value;
          h.data.zoomPercentage(2) = percent;
+         if (0 < h.data.zoomPercentage(2)) && (0.1 > h.data.zoomPercentage(2))
+             h.data.zoomPercentage(2) = 0.1;
+             percent = 0.1;
+             doUpdateVoltageSlider = true;
+         end
          prev_vlim  = h.data.vlim; % record time lims before slider was moved
 
          % calculate new min & max time lims by zoomin in from both ends

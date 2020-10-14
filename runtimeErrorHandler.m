@@ -20,7 +20,7 @@ function runtimeErrorHandler(varargin)
 % Will deal with the catched errors and log them to a file (different to
 % the diary 'log_all.log', which saves everything that's displayed on the
 % command window).
-   if nargin >0, ME = varargin{1}; else, error('Not enough input arguments.');end
+   if nargin > 0, ME = varargin{1}; else, error('Not enough input arguments.');end
    if nargin > 1, action = varargin{2}; else, action = 'rethrow';end
    
    % Get location of log files
