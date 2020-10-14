@@ -27,9 +27,7 @@
 %         templates are not stationary, but evolve over time
 %
 %% TO DO:
-% - when extracting spikes, families can become v.similar in size so also
-%   use correlation to determine which family within the template
-% - also whene extracting spikes a one-off large spike spawns a new family,
+% - also when extracting spikes a one-off large spike spawns a new family,
 %   which it perhaps shouldn't? Perhaps make allowed size diff. dependent
 %   on noise?
 % - button to reset axes (& perhaps to refresh?)
@@ -205,7 +203,7 @@ data.displacementPercentage = [0 0.5]; % Records currently chosen displacement v
 data.last_dir    = pwd;  % where they opened gui from
 handles.data     = data; % record user data in handle
 
-handles = toggleSETGUIstate(handles,'off'); % switch everything off until data's loaded
+handles          = toggleSETGUIstate(handles,'off'); % switch everything off until data's loaded
 
 % assign gui a name
 set(hObject, 'Name', 'Spike Extraction Tool');
@@ -222,9 +220,9 @@ removeToolBarButtons(handles);
 
 % Initialize options for debug and loading window
 handles.options.loadingWindowOn = true;
-handles.options.debugOption = 'none';
-handles.options.rescaleOption = 'at_end';
-handles.options.auto_params = 'false';
+handles.options.debugOption     = 'none';
+handles.options.rescaleOption   = 'at_end';
+handles.options.auto_params     = false;
 
 % Initialize tooltips
 handles = setTooltips(handles);
@@ -729,7 +727,10 @@ set(new_handles.curr_signal, 'String', new_handles.data.tseries_str);
 set(new_handles.curr_signal, 'Value', 1);
 
 % plot data that was put in new figure
-curr_signal_changed( new_handles.curr_signal, [], new_handles );
+% curr_signal_changed( new_handles.curr_signal, [], new_handles );
+new_handles.f.curr_signal(new_handles.curr_signal, '', handles);
+new_handles = updateSETFigure(new_handles, tseries);
+guidata(new_handles.figure1, new_handles);
 end
 
 % --- Executes on slider movement.

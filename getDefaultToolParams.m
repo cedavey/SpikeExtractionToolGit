@@ -246,13 +246,13 @@ function params = getDefaultToolParams
          voltage.denoise.wavelets.wavelet_level.units                           = 'integer';
    
       % AP template - by thresholding
-         voltage.identify_ap_templates.threshold.positive_threshold.value       = 7;
+         voltage.identify_ap_templates.threshold.positive_threshold.value       = 5;
          voltage.identify_ap_templates.threshold.positive_threshold.name        = 'positive threshold';
          voltage.identify_ap_templates.threshold.positive_threshold.descript    = 'only spikes with peak voltage larger than this many std devs considered';
          voltage.identify_ap_templates.threshold.positive_threshold.type        = 'positive float';
          voltage.identify_ap_templates.threshold.positive_threshold.units       = 'std dev';
          
-         voltage.identify_ap_templates.threshold.negative_threshold.value       = 5;
+         voltage.identify_ap_templates.threshold.negative_threshold.value       = 3;
          voltage.identify_ap_templates.threshold.negative_threshold.name        = 'negative threshold';
          voltage.identify_ap_templates.threshold.negative_threshold.descript    = 'only spikes with a negative voltage of magnitude larger than this considered';
          voltage.identify_ap_templates.threshold.negative_threshold.type        = 'positive float';
@@ -295,7 +295,13 @@ function params = getDefaultToolParams
          voltage.identify_ap_templates.threshold.match_type.units               = 'statistic';
          voltage.identify_ap_templates.threshold.match_type.list                = {'corr','cov'};
          
-         voltage.identify_ap_templates.threshold.match_similarity.value         = 0.8;
+         voltage.identify_ap_templates.threshold.allow_diff_lengths.value       = true;
+         voltage.identify_ap_templates.threshold.allow_diff_lengths.name        = 'allow diff lengths';
+         voltage.identify_ap_templates.threshold.allow_diff_lengths.descript    = 'allow different length spikes and family templates if true';
+         voltage.identify_ap_templates.threshold.allow_diff_lengths.type        = 'boolean';
+         voltage.identify_ap_templates.threshold.allow_diff_lengths.units       = 'true or false';
+         
+         voltage.identify_ap_templates.threshold.match_similarity.value         = 0.95;
          voltage.identify_ap_templates.threshold.match_similarity.name          = 'match similarity';
          voltage.identify_ap_templates.threshold.match_similarity.descript      = 'similarity required for spike shapes to be considered from the same template';
          voltage.identify_ap_templates.threshold.match_similarity.type          = 'normalised float';
@@ -442,7 +448,7 @@ function params = getDefaultToolParams
 %          voltage.identify_ap_templates.wavelets.timeposneg.type                 = 'positive float';
 %          voltage.identify_ap_templates.wavelets.timeposneg.units                = 'ms';
 
-   	% Get spikes - by thresholding (getting spikes without AP template --> all in together
+   	% Get spikes - by thresholding (get templates & extract spikes all in one go)
          voltage.extract_spikes.matched_filter.match_type.value                 = 'corr';
          voltage.extract_spikes.matched_filter.match_type.name                  = 'match type';
          voltage.extract_spikes.matched_filter.match_type.descript              = 'statistic to calculate similarity with';
@@ -468,6 +474,18 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.forgetting_factor.type           = 'normalised float';
          voltage.extract_spikes.matched_filter.forgetting_factor.units          = '\in [0, 1]';
 
+         voltage.extract_spikes.matched_filter.kappa_pos.value                  = 3;
+         voltage.extract_spikes.matched_filter.kappa_pos.name                   = 'AP peak change';
+         voltage.extract_spikes.matched_filter.kappa_pos.descript               = 'how much can a positive spike peak differ from the mean peak value';
+         voltage.extract_spikes.matched_filter.kappa_pos.type                   = 'positive float';
+         voltage.extract_spikes.matched_filter.kappa_pos.units                  = 'standard deviations';
+
+         voltage.extract_spikes.matched_filter.kappa_neg.value                  = 3;
+         voltage.extract_spikes.matched_filter.kappa_neg.name                   = 'AP peak change';
+         voltage.extract_spikes.matched_filter.kappa_neg.descript               = 'how much can a negative spike peak differ from the mean negative peak value';
+         voltage.extract_spikes.matched_filter.kappa_neg.type                   = 'positive float';
+         voltage.extract_spikes.matched_filter.kappa_neg.units                  = 'standard deviations';
+
          voltage.extract_spikes.matched_filter.positive_threshold.value         = 3;
          voltage.extract_spikes.matched_filter.positive_threshold.name          = 'positive threshold';
          voltage.extract_spikes.matched_filter.positive_threshold.descript      = 'only spikes with peak voltage larger than this many std devs considered';
@@ -482,7 +500,7 @@ function params = getDefaultToolParams
          
          voltage.extract_spikes.threshold.glitch_threshold.value                = 10;
          voltage.extract_spikes.threshold.glitch_threshold.name                 = 'glitch threshold';
-         voltage.extract_spikes.threshold.glitch_threshold.descript             = 'spikes larger than this are considered a giltch';
+         voltage.extract_spikes.threshold.glitch_threshold.descript             = 'spikes larger than this threshold times the average spike magnitude are considered a giltch';
          voltage.extract_spikes.threshold.glitch_threshold.type                 = 'positive float';
          voltage.extract_spikes.threshold.glitch_threshold.units                = 'avg spike amplitude';
          
@@ -522,6 +540,12 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.min_spiking_threshold.type       = 'positive integer';
          voltage.extract_spikes.matched_filter.min_spiking_threshold.units      = 'number of spikes';
             
+         voltage.extract_spikes.matched_filter.allow_diff_lengths.value         = true;
+         voltage.extract_spikes.matched_filter.allow_diff_lengths.name          = 'allow diff lengths';
+         voltage.extract_spikes.matched_filter.allow_diff_lengths.descript      = 'allow different length spikes and family templates if true';
+         voltage.extract_spikes.matched_filter.allow_diff_lengths.type          = 'boolean';
+         voltage.extract_spikes.matched_filter.allow_diff_lengths.units         = 'true or false';
+         
          voltage.extract_spikes.matched_filter.remove_small_templates.value     = 200;
          voltage.extract_spikes.matched_filter.remove_small_templates.name      = 'remove small templates';
          voltage.extract_spikes.matched_filter.remove_small_templates.descript  = 'remove AP template estimates from this many or less spikes (0 to ignore)';
@@ -541,96 +565,96 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.plot_spikes_consecutively.units  = 'true or false';
 
          % Extract spikes by k-means clustering
-         voltage.extract_spikes.k_means.no_clusters.value                 = 0;
-         voltage.extract_spikes.k_means.no_clusters.name                  = 'number of clusters';
-         voltage.extract_spikes.k_means.no_clusters.descript              = 'Clusters for the K-means, 0 for automatic';
-         voltage.extract_spikes.k_means.no_clusters.type                  = 'positive integer';
-         voltage.extract_spikes.k_means.no_clusters.units                 = 'integer';
+         voltage.extract_spikes.k_means.no_clusters.value                       = 0;
+         voltage.extract_spikes.k_means.no_clusters.name                        = 'number of clusters';
+         voltage.extract_spikes.k_means.no_clusters.descript                    = 'Clusters for the K-means, 0 for automatic';
+         voltage.extract_spikes.k_means.no_clusters.type                        = 'positive integer';
+         voltage.extract_spikes.k_means.no_clusters.units                       = 'integer';
          
-         voltage.extract_spikes.k_means.match_type.value                 = 'corr';
-         voltage.extract_spikes.k_means.match_type.name                  = 'match type';
-         voltage.extract_spikes.k_means.match_type.descript              = 'statistic to calculate similarity with';
-         voltage.extract_spikes.k_means.match_type.type                  = 'list';
-         voltage.extract_spikes.k_means.match_type.units                 = 'statistic';
-         voltage.extract_spikes.k_means.match_type.list                  = {'corr','cov'};
+         voltage.extract_spikes.k_means.match_type.value                        = 'corr';
+         voltage.extract_spikes.k_means.match_type.name                        = 'match type';
+         voltage.extract_spikes.k_means.match_type.descript                    = 'statistic to calculate similarity with';
+         voltage.extract_spikes.k_means.match_type.type                        = 'list';
+         voltage.extract_spikes.k_means.match_type.units                       = 'statistic';
+         voltage.extract_spikes.k_means.match_type.list                        = {'corr','cov'};
          
-         voltage.extract_spikes.k_means.match_similarity.value           = 0.8;
-         voltage.extract_spikes.k_means.match_similarity.name            = 'match similarity';
-         voltage.extract_spikes.k_means.match_similarity.descript        = 'similarity required for spike shapes to be considered from the same family';
-         voltage.extract_spikes.k_means.match_similarity.type            = 'normalised float';
-         voltage.extract_spikes.k_means.match_similarity.units           = '\in [0, 1]';
+         voltage.extract_spikes.k_means.match_similarity.value                 = 0.8;
+         voltage.extract_spikes.k_means.match_similarity.name                  = 'match similarity';
+         voltage.extract_spikes.k_means.match_similarity.descript              = 'similarity required for spike shapes to be considered from the same family';
+         voltage.extract_spikes.k_means.match_similarity.type                  = 'normalised float';
+         voltage.extract_spikes.k_means.match_similarity.units                 = '\in [0, 1]';
 
-         voltage.extract_spikes.k_means.ap_peak_change.value             = 20;
-         voltage.extract_spikes.k_means.ap_peak_change.name              = 'AP peak change';
-         voltage.extract_spikes.k_means.ap_peak_change.descript          = 'how quickly can AP peak magnitude change with time';
-         voltage.extract_spikes.k_means.ap_peak_change.type              = 'percentage';
-         voltage.extract_spikes.k_means.ap_peak_change.units             = '% per second';
+         voltage.extract_spikes.k_means.ap_peak_change.value                   = 20;
+         voltage.extract_spikes.k_means.ap_peak_change.name                    = 'AP peak change';
+         voltage.extract_spikes.k_means.ap_peak_change.descript                = 'how quickly can AP peak magnitude change with time';
+         voltage.extract_spikes.k_means.ap_peak_change.type                    = 'percentage';
+         voltage.extract_spikes.k_means.ap_peak_change.units                   = '% per second';
 
-         voltage.extract_spikes.k_means.positive_threshold.value         = 4;
-         voltage.extract_spikes.k_means.positive_threshold.name          = 'positive threshold';
-         voltage.extract_spikes.k_means.positive_threshold.descript      = 'only spikes with peak voltage larger than this many std devs considered';
-         voltage.extract_spikes.k_means.positive_threshold.type          = 'positive float';
-         voltage.extract_spikes.k_means.positive_threshold.units         = 'std dev';
+         voltage.extract_spikes.k_means.positive_threshold.value               = 4;
+         voltage.extract_spikes.k_means.positive_threshold.name                = 'positive threshold';
+         voltage.extract_spikes.k_means.positive_threshold.descript            = 'only spikes with peak voltage larger than this many std devs considered';
+         voltage.extract_spikes.k_means.positive_threshold.type                = 'positive float';
+         voltage.extract_spikes.k_means.positive_threshold.units               = 'std dev';
          
-         voltage.extract_spikes.k_means.negative_threshold.value         = 0;
-         voltage.extract_spikes.k_means.negative_threshold.name          = 'negative threshold magnitude';
-         voltage.extract_spikes.k_means.negative_threshold.descript      = 'only spikes with a negative voltage of magnitude larger than this considered (0 to ignore)';
-         voltage.extract_spikes.k_means.negative_threshold.type          = 'positive float';
-         voltage.extract_spikes.k_means.negative_threshold.units         = 'std dev';
+         voltage.extract_spikes.k_means.negative_threshold.value               = 0;
+         voltage.extract_spikes.k_means.negative_threshold.name                = 'negative threshold magnitude';
+         voltage.extract_spikes.k_means.negative_threshold.descript            = 'only spikes with a negative voltage of magnitude larger than this considered (0 to ignore)';
+         voltage.extract_spikes.k_means.negative_threshold.type                = 'positive float';
+         voltage.extract_spikes.k_means.negative_threshold.units               = 'std dev';
          
-         voltage.extract_spikes.k_means.glitch_threshold.value           = 10;
-         voltage.extract_spikes.k_means.glitch_threshold.name            = 'glitch threshold';
-         voltage.extract_spikes.k_means.glitch_threshold.descript        = 'spikes larger than this are considered a giltch';
-         voltage.extract_spikes.k_means.glitch_threshold.type            = 'positive float';
-         voltage.extract_spikes.k_means.glitch_threshold.units           = 'avg spike amplitude';
+         voltage.extract_spikes.k_means.glitch_threshold.value                 = 10;
+         voltage.extract_spikes.k_means.glitch_threshold.name                  = 'glitch threshold';
+         voltage.extract_spikes.k_means.glitch_threshold.descript              = 'spikes larger than this are considered a giltch';
+         voltage.extract_spikes.k_means.glitch_threshold.type                  = 'positive float';
+         voltage.extract_spikes.k_means.glitch_threshold.units                 = 'avg spike amplitude';
          
-         voltage.extract_spikes.k_means.avg_window.value                 = 10; % MA window in seconds
-         voltage.extract_spikes.k_means.avg_window.name                  = 'averaging window';
-         voltage.extract_spikes.k_means.avg_window.descript              = 'length of moving average window for estimating std dev to use in thresholding';
-         voltage.extract_spikes.k_means.avg_window.type                  = 'positive float';
-         voltage.extract_spikes.k_means.avg_window.units                 = 'seconds';
+         voltage.extract_spikes.k_means.avg_window.value                       = 10; % MA window in seconds
+         voltage.extract_spikes.k_means.avg_window.name                        = 'averaging window';
+         voltage.extract_spikes.k_means.avg_window.descript                    = 'length of moving average window for estimating std dev to use in thresholding';
+         voltage.extract_spikes.k_means.avg_window.type                        = 'positive float';
+         voltage.extract_spikes.k_means.avg_window.units                       = 'seconds';
          
-         voltage.extract_spikes.k_means.skip_window.value                = 5; % skip ahead window in seconds
-         voltage.extract_spikes.k_means.skip_window.name                 = 'skip ahead window';
-         voltage.extract_spikes.k_means.skip_window.descript             = 'amount to skip ahead to next avg when estimating std dev to use in thresholding';
-         voltage.extract_spikes.k_means.skip_window.type                 = 'positive float';
-         voltage.extract_spikes.k_means.skip_window.units                = 'seconds';
+         voltage.extract_spikes.k_means.skip_window.value                      = 5; % skip ahead window in seconds
+         voltage.extract_spikes.k_means.skip_window.name                       = 'skip ahead window';
+         voltage.extract_spikes.k_means.skip_window.descript                   = 'amount to skip ahead to next avg when estimating std dev to use in thresholding';
+         voltage.extract_spikes.k_means.skip_window.type                       = 'positive float';
+         voltage.extract_spikes.k_means.skip_window.units                      = 'seconds';
 
-         voltage.extract_spikes.k_means.min_positive_duration.value      = 1;
-         voltage.extract_spikes.k_means.min_positive_duration.name       = 'min positive duration';
-         voltage.extract_spikes.k_means.min_positive_duration.descript   = 'min duration of positive component of spike';
-         voltage.extract_spikes.k_means.min_positive_duration.type       = 'positive float';
-         voltage.extract_spikes.k_means.min_positive_duration.units      = 'ms';
+         voltage.extract_spikes.k_means.min_positive_duration.value            = 1;
+         voltage.extract_spikes.k_means.min_positive_duration.name             = 'min positive duration';
+         voltage.extract_spikes.k_means.min_positive_duration.descript         = 'min duration of positive component of spike';
+         voltage.extract_spikes.k_means.min_positive_duration.type             = 'positive float';
+         voltage.extract_spikes.k_means.min_positive_duration.units            = 'ms';
          
-         voltage.extract_spikes.k_means.min_negative_duration.value      = 0.1;
-         voltage.extract_spikes.k_means.min_negative_duration.name       = 'min negative duration';
-         voltage.extract_spikes.k_means.min_negative_duration.descript   = 'min duration of negative component of spike';
-         voltage.extract_spikes.k_means.min_negative_duration.type       = 'positive float';
-         voltage.extract_spikes.k_means.min_negative_duration.units      = 'ms';
+         voltage.extract_spikes.k_means.min_negative_duration.value            = 0.1;
+         voltage.extract_spikes.k_means.min_negative_duration.name             = 'min negative duration';
+         voltage.extract_spikes.k_means.min_negative_duration.descript         = 'min duration of negative component of spike';
+         voltage.extract_spikes.k_means.min_negative_duration.type             = 'positive float';
+         voltage.extract_spikes.k_means.min_negative_duration.units            = 'ms';
          
-         voltage.extract_spikes.k_means.allow_new_aps.value              = true;
-         voltage.extract_spikes.k_means.allow_new_aps.name               = 'allow new aps';
-         voltage.extract_spikes.k_means.allow_new_aps.descript           = 'allow finding new AP templates';
-         voltage.extract_spikes.k_means.allow_new_aps.type               = 'boolean';
-         voltage.extract_spikes.k_means.allow_new_aps.units              = 'true or false';
+         voltage.extract_spikes.k_means.allow_new_aps.value                    = true;
+         voltage.extract_spikes.k_means.allow_new_aps.name                     = 'allow new aps';
+         voltage.extract_spikes.k_means.allow_new_aps.descript                 = 'allow finding new AP templates';
+         voltage.extract_spikes.k_means.allow_new_aps.type                     = 'boolean';
+         voltage.extract_spikes.k_means.allow_new_aps.units                    = 'true or false';
          
-         voltage.extract_spikes.k_means.remove_small_templates.value     = 100;
-         voltage.extract_spikes.k_means.remove_small_templates.name      = 'remove small templates';
-         voltage.extract_spikes.k_means.remove_small_templates.descript  = 'remove AP template estimates from this many or less spikes (0 to ignore)';
-         voltage.extract_spikes.k_means.remove_small_templates.type      = 'positive integer';
-         voltage.extract_spikes.k_means.remove_small_templates.units     = 'integer';
+         voltage.extract_spikes.k_means.remove_small_templates.value           = 100;
+         voltage.extract_spikes.k_means.remove_small_templates.name            = 'remove small templates';
+         voltage.extract_spikes.k_means.remove_small_templates.descript        = 'remove AP template estimates from this many or less spikes (0 to ignore)';
+         voltage.extract_spikes.k_means.remove_small_templates.type            = 'positive integer';
+         voltage.extract_spikes.k_means.remove_small_templates.units           = 'integer';
    
-         voltage.extract_spikes.k_means.normalise_aps.value              = true;
-         voltage.extract_spikes.k_means.normalise_aps.name               = 'normalise APs';
-         voltage.extract_spikes.k_means.normalise_aps.descript           = 'normalise APs so constituent spikes have the same weight when calculating avg';
-         voltage.extract_spikes.k_means.normalise_aps.type               = 'boolean';
-         voltage.extract_spikes.k_means.normalise_aps.units              = 'true or false';
+         voltage.extract_spikes.k_means.normalise_aps.value                    = true;
+         voltage.extract_spikes.k_means.normalise_aps.name                     = 'normalise APs';
+         voltage.extract_spikes.k_means.normalise_aps.descript                 = 'normalise APs so constituent spikes have the same weight when calculating avg';
+         voltage.extract_spikes.k_means.normalise_aps.type                     = 'boolean';
+         voltage.extract_spikes.k_means.normalise_aps.units                    = 'true or false';
 
-         voltage.extract_spikes.k_means.plot_spikes_consecutively.value  = false;
-         voltage.extract_spikes.k_means.plot_spikes_consecutively.name   = 'plot spikes consecutively';
-         voltage.extract_spikes.k_means.plot_spikes_consecutively.descript= 'plot resulting spikes without inactive time between them';
-         voltage.extract_spikes.k_means.plot_spikes_consecutively.type   = 'boolean';
-         voltage.extract_spikes.k_means.plot_spikes_consecutively.units  = 'true or false';
+         voltage.extract_spikes.k_means.plot_spikes_consecutively.value        = false;
+         voltage.extract_spikes.k_means.plot_spikes_consecutively.name         = 'plot spikes consecutively';
+         voltage.extract_spikes.k_means.plot_spikes_consecutively.descript     = 'plot resulting spikes without inactive time between them';
+         voltage.extract_spikes.k_means.plot_spikes_consecutively.type         = 'boolean';
+         voltage.extract_spikes.k_means.plot_spikes_consecutively.units        = 'true or false';
    %% AP template data
    	% Get spikes - using matched filtering
          ap.extract_spikes.matched_filter.match_type.value                      = 'corr';

@@ -76,8 +76,6 @@ function handles = toggleSETGUIstate(handles,state)
          error('Couldn''t recognize the type of User Interface (gui or app)');
    end
 
-
-
    logic_state = strcmpi(state, 'on'); % logic is true if state is on, false otherwise
 
  % Select dataset
@@ -96,7 +94,7 @@ function handles = toggleSETGUIstate(handles,state)
    set(handles.tool_list,      'Visible', state);
    set(handles.select_method,  'Visible', state);
    set(handles.method_list,    'Visible', state);
-   set(handles.run_tool_button,       'Visible', state);
+   set(handles.run_tool_button,'Visible', state);
    set(handles.set_tool_params,'Visible', state);
    set(handles.tool_panel,     'Visible', state);
 
@@ -206,7 +204,7 @@ function handles = toggleSETGUIstate(handles,state)
                set(handles.method_list,'Value',   1);
             else
                set(handles.tool_list,  'Value',  handles.tool_list.Items(1));
-               set(handles.method_list,  'Value',  handles.method_list.Items(1));
+               set(handles.method_list,'Value',  handles.method_list.Items(1));
             end
          end
 

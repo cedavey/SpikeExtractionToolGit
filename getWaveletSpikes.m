@@ -120,7 +120,7 @@ function [tseries, err] = filterWithWavelet(tseries, params)
       end
    end
    % if we're here & err is still true, we weren't successful but rather
-   % quite trying because number of octaves & voices got too small
+   % quit trying because number of octaves & voices got too small
    if err
       displayErrorMsg('Memory error, had to give it up sorry');
       return;

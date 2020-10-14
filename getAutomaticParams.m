@@ -97,7 +97,7 @@ function params = calculateAutomaticParamsRescale(tseries, noisestd, params)
    % Chose automatic parameters based on spike rate and SNR. The factors
    % are arbitrary, but they can be updated.
    params.voltage_magnitude.value = sqrt(SNR); % Spike threshold is the sqrt of the signal to noise ratio
-   params.glitch_magnitude.value = 2 * SNR; % Glitch threshold is twice the signal to noise ratio
+   params.glitch_magnitude.value  = 2 * SNR; % Glitch threshold is twice the signal to noise ratio
    params.forgetting_factor.value = 0.99; % This has proved to be the best value
    JA = 10/(sp_rate * median(spike_amp/max(spike_amp))); % max(0.5/(sp_rate * var(spike_amp)), 0.5);
    params.jump_ahead.value = max(JA, tseries.time(end)/2000);
@@ -106,9 +106,13 @@ end
 %% Calculates the parameters for identify AP templates
 function params = calculateAutomaticParamsAPtemplates(tseries, params, tool)
    if strcmpi('identifyap', tool)
-      params.remove_small_templates.value = floor(tseries.time(end)/20); % if any template contains a number of spikes less than 1 twentieth of the time, remove it
-   else
-      params.min_spiking_threshold.value = floor(tseries.time(end)/20); % if any template contains a number of spikes less than 1 twentieth of the time, remove it
+      % remove templates with spikes less than 0.02 Hz 
+      spFreq = 0.02; 
+      minSp  = tseries.time(end) * spFreq;
+      % if any template contains a number of spikes less than 1 twentieth of the time, remove it
+      params.remove_small_templates.value = floor( minSp ); 
+%    else
+%       params.min_spiking_threshold.value = floor(tseries.time(end)/20); 
    end
 end
 

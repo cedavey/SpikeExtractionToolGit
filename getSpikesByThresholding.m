@@ -6,13 +6,21 @@
 % each spike, if you're going to match them to a template, and the index
 % number of the peak. This is so all spikes are aligned else the covariance
 % might be low even though they're visually very similar, but out by a tstep
+%
 % Inputs:
-%  tseries   - time series vector
-%  params    - params entered via gui
-%  templateN - number of samples in the template spike (optional)
-%  peakN     - the peak index of the template spike to allow alignment (optional)
-function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, templateN, peakN)
-   spikes = []; stimes = [];
+%  tseries     - time series vector
+%  params      - params entered via gui
+%  templateN   - number of samples in the template spike (optional)
+%  peakN       - the peak index of the template spike to allow alignment (optional)
+%
+% Outputs:
+%  spikes      - matrix of voltage x spikes, where we've used the mean spike
+%                spike length to extract spikes of all the same length
+%  stimes      - cell array of spike times
+%  spikesFull  - cell array of spike voltages, with full spike size rather
+%                than forcing all spikes to be the same length
+function [spikes, stimes, spikesFull, stimesFull] = getSpikesByThresholding(tseries, params, templateN, peakN)
+   spikes = []; stimes = []; spikesFull =  []; stimesFull = [];
    dt         = double( tseries.dt );
    voltage    = double( tseries.data(:) );
    time       = double( tseries.time(:) );
@@ -24,10 +32,19 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
    % small, and positive values that remain positive for a short period
    posthresh  = params.positive_threshold.value;   % min pos voltage (std dev)
    negthresh  = params.negative_threshold.value;   % min neg voltage (std dev)
-   try
+   if posthresh > 10
+      str = sprintf( '\tWarning: positive threshold for spike extraction is very large (%2.2f)\n', posthresh );
+      cprint( 'Keywords*', str );
+   end
+   if negthresh > 10
+      str = sprintf( '\tWarning: negative threshold for spike extraction is very large (%2.2f)\n', negthresh );
+      cprint( 'Keywords*', str );
+   end
+   if isfield( params, 'glitch_threshold') && params.glitch_threshold.value > 0
       glitchthresh = params.glitch_threshold.value;   % glitch threshold
-   catch
-      glitchthresh = 100;%params.glitch_magnitude.value;   % glitch threshold
+      doglitch= true;
+   else
+      doglitch= false;
    end
    minpostime = params.min_positive_duration.value;% min duration (ms)
    minnegtime = params.min_negative_duration.value;% min duration (ms)
@@ -35,7 +52,7 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
    avg_window = round(avg_window) / dt;            % window in seconds, convert to samples
    skip_window= params.skip_window.value;          % how much to skip ahead for next calc (seconds)
    skip_window= round(skip_window) / dt;           % skip window in seconds, convert to samples
-   avg_window = ternaryOp(iseven(avg_window), avg_window, avg_window+1); % make window even
+   avg_window = ternaryOp(iseven( avg_window),  avg_window,  avg_window+1); % make window even
    skip_window= ternaryOp(iseven(skip_window), skip_window, skip_window+1); % make window even
 
    minpostime = round((minpostime*1e-3)/dt);       % min duration given in ms
@@ -45,7 +62,7 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
    posv       = voltage>0;
    changePos  = find(diff([0; posv; 0])==1);    % location of change from 0 to 1
    % find where voltage goes from +ve to -ve
-   changeNeg  = find(diff([0; posv; 0])==-1);   % location of change from 0 to 1
+   changeNeg  = find(diff([0; posv; 0])==-1);   % location of change from 0 to -1
    if voltage(1)<0
       timepos = changeNeg - changePos;          % duration of +ve
       timeneg = [changePos(1)-1; changePos(2:end) - changeNeg(1:end-1)];
@@ -59,8 +76,12 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
    end        
    pass       = timepos>minpostime & timeneg>minnegtime; 
    if sum(pass)==0
-      displayErrorMsg('No spikes have suffic positive and negative duration, abandoning ship...');
-      spikes = []; stimes = []; sindices = []; % This line to prevent run time error "not assigned during getSpikesByThresholding"
+      if sum( timepos > minpostime ) == 0
+         displayErrorMsg('No spikes have sufficient positive duration, abandoning ship...');
+      end
+      if sum( timeneg>minnegtime ) == 0
+         displayErrorMsg('No spikes have sufficient negative duration, abandoning ship...');
+      end   
       return;
    end
    changePos  = changePos(pass);
@@ -129,24 +150,74 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
      negthresh= negthresh(startind);
    end
    keep       = (pos_max >= posthresh) & (neg_min <= -negthresh);
+   if sum( pos_max >= posthresh ) == 0
+      displayErrorMsg('No spikes have sufficient positive amplitude (%2.2f stddev), sadly giving up but plotting a helpful figure...', ...
+                       params.positive_threshold.value );
+      figure; hold on; 
+         plot( ntime, noise, 'k', 'linewidth', 1 );
+         plot( time(startind), pos_max ); 
+         plot( time(startind), posthresh, '--' )
+         legend( 'noise', 'spike maxima', 'pos thresh' );
+         xlabel( 'Time (s)' );
+         ylabel( 'Voltage' );
+      return;
+   end
+   if sum( neg_min <= -negthresh ) == 0
+      displayErrorMsg('No spikes have sufficient negative amplitude (%2.2f stddev), sadly giving up but plotting a helpful figure...', ...
+                       params.negative_threshold.value );
+      figure; hold on; 
+         plot( ntime, noise, 'k', 'linewidth', 1 );
+         plot( time(startind), neg_min ); 
+         plot( time(startind), -negthresh, '--' )
+         legend( 'noise', 'spike minima', 'neg thresh' );
+         xlabel( 'Time (s)' );
+         ylabel( 'Voltage' );
+      return;
+   end   
+   spikes = spikes(keep);
+   stimes = stimes(keep);
+   sinds  = sinds(keep);
    
    % Glitch threshold
-   [glitchpos, glitchneg] = getGlitchThreshold(glitchthresh, stddev(keep), pos_max(keep), neg_min(keep));
-   keep_glitch = (pos_max(keep) <= glitchpos) & (neg_min(keep) >= glitchneg);
-   if sum(keep_glitch)==0
-      displayErrorMsg('No spikes have suffic positive and negative amplitude, sadly giving up...');
-      return;
-   elseif sum(keep_glitch)<100
-      str = sprintf('Warning: not many spikes (%d) to sort by AP template', sum(keep));
-      displayErrorMsg(str);
-   end
-   spikes     = spikes(keep);
-   stimes     = stimes(keep);
-   sinds      = sinds(keep);
+   if doglitch
+      [ glitch_pos, glitch_neg, tindex ] = getGlitchThreshold( glitchthresh, stddev(keep), pos_max(keep), neg_min(keep) );
+      keep_glitch = (pos_max(keep) <= glitch_pos) & (neg_min(keep) >= glitch_neg);
+      if sum( keep_glitch ) == 0
+         gtime = cellfun( @(t) t(1), stimes ); % get start index of each spike
+         if sum( pos_max(keep) <= glitch_pos ) == 0
+            displayErrorMsg('No spikes survived the positive glitch threshold, sadly giving up but plotting a helpful figure...');
+            figure; hold on; 
+               plot( ntime, noise, 'k', 'linewidth', 1 );
+               plot( time(startind), pos_max ); 
+               plot( gtime, glitch_pos, '--' )
+               legend( 'noise', 'spike maxima', 'pos glitch thresh' );
+               xlabel( 'Time (s)' );
+               ylabel( 'Voltage' );
+            return;
+         end
+         if sum( neg_min(keep) >= glitch_neg ) == 0
+            displayErrorMsg('No spikes have sufficient negative amplitude, sadly giving up but plotting a helpful figure...');
+            figure; hold on; 
+               plot( ntime, noise, 'k', 'linewidth', 1 );
+               plot( time(startind), neg_min ); 
+               plot( gtime, glitch_neg, '--' )
+               legend( 'noise', 'spike minima', 'neg glitch thresh' );
+               xlabel( 'Time (s)' );
+               ylabel( 'Voltage' );
+            return;
+         end   
+         displayErrorMsg('No spikes have sufficient positive and negative amplitude, sadly giving up...');
+         return;
+      elseif sum(keep_glitch) < 100
+         str = sprintf('Warning: not many spikes (%d) to sort by AP template', sum(keep));
+         displayErrorMsg(str);
+      end
    
-   spikes     = spikes(keep_glitch);
-   stimes     = stimes(keep_glitch);
-   sinds      = sinds(keep_glitch);
+      spikes = spikes(keep_glitch);
+      stimes = stimes(keep_glitch);
+      sinds  = sinds( keep_glitch);
+   end
+   
    % now make sure spike peaks are aligned else they might be the same but
    % have just slightly different befores/afters - exclude beginning & end
    % part so max isn't at first or last samples rather than middle peak
@@ -159,10 +230,10 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
       
    % determine best template spike length from avg time before/after peaks
    else
-      tbefore = ceil(mean(peakind));
-      splength= cellfun(@length, spikes);
-      splength= ceil(mean(splength));
-      tafter  = ceil(mean(splength) - tbefore);
+      tbefore = ceil( median(peakind) );
+      splength= cellfun( @length, spikes );
+      splength= ceil( median(splength) );
+      tafter  = ceil( median(splength) - tbefore );
    end
    % get mean time before & after spike peak - extend voltage so don't go over the edge
    voltage    = [voltage; zeros(tafter,1)];
@@ -175,13 +246,16 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
    else
       shift   = 0;
    end
+   
+   spikesFull = spikes;
+   stimesFull = stimes;
    sp         = arrayfun( @(i) voltage( sinds{i}(peakind(i))+shift-tbefore+1 : sinds{i}(peakind(i))+shift+tafter ), ...
                               1:length(spikes),'uniformoutput', false );
    spikes     = cell2mat( sp );
-   stimes     = arrayfun( @(i) time( sinds{i}(peakind(i))+shift-tbefore+1 : sinds{i}(peakind(i))+shift+tafter ), ...
+   stimes     = arrayfun( @(i) time(    sinds{i}(peakind(i))+shift-tbefore+1 : sinds{i}(peakind(i))+shift+tafter ), ...
                               1:length(sp),'uniformoutput', false );
-   sindices   = arrayfun( @(i) voltage( sinds{i}(peakind(i))+shift-tbefore+1 : sinds{i}(peakind(i))+shift+tafter ), ...
-                              1:length(spikes),'uniformoutput', false );
+%    svoltage   = arrayfun( @(i) voltage( sinds{i}(peakind(i))+shift-tbefore+1 : sinds{i}(peakind(i))+shift+tafter ), ...
+%                               1:length(spikes),'uniformoutput', false );
                           
                           
    str = sprintf( '\tDone.\n' );
@@ -189,19 +263,20 @@ function [spikes, stimes, sindices] = getSpikesByThresholding(tseries, params, t
 end
 
 
-function [newglitchth_pos, newglitchth_neg] = getGlitchThreshold(glitchthresh, stdev, pos_max, neg_min)
-   newglitchth_pos = zeros(size(pos_max));
-   newglitchth_neg = zeros(size(neg_min));
-   
-   for i = 1:length(pos_max)
-      if i <= 30
-         newglitchth_pos(i) = glitchthresh * stdev(i);
-         newglitchth_neg(i) = glitchthresh * -stdev(i);
-      else
-         newglitchth_pos(i) = 2 * mean(pos_max(i-30:i));
-         newglitchth_neg(i) = 2 * mean(neg_min(i-30:i));
-      end
+function [pos_thresh, neg_thresh, tindex] = getGlitchThreshold(glitchthresh, stdev, pos_max, neg_min)
+   window = 300;
+   skip   = 1;
+   if length( pos_max ) > window
+      [pos_avg, ~, tindex] = movingAverageVariance( pos_max, window, skip, @mean, true);
+      neg_avg = movingAverageVariance( neg_min, window, skip, @mean, true);
+      std_avg = movingAverageVariance( stdev,   window, skip, @mean, true);
+   else
+      pos_avg = pos_max; 
+      neg_avg = neg_min;
    end
+   pos_thresh = pos_avg * glitchthresh; 
+   neg_thresh = neg_avg * glitchthresh;
+   
 end
 
 
