@@ -1,9 +1,9 @@
-% [APs, time] = identifyAPs(tseries, method, method_params, <options>)
+% [APs, time] = identifyTemplates(tseries, method, method_params, <options>)
 % Extract AP families from voltage timeseries using thresholding for
 % positive and negative peaks, as well as minimum duration positive and
 % negative components. Require APs to have user specified similarity to be
 % considered part of the same family.
-function [APtemplates, componentAPs] = identifyAPs(tseries, method, params, varargin)
+function [APtemplates, componentAPs] = identifyTemplates(tseries, method, params, varargin)
    if nargin > 3
       opts = varargin{1};
    else

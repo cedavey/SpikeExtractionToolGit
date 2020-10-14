@@ -197,7 +197,17 @@ function handles = plotDataFromMatrix(handles, tseries)
 
    type  = tseries.type;
    data  = tseries.data;   % format: time x dimension
-   Np    = size(data, 2);  % num axes to include
+   
+   % extended code to allow templates to have diff lengths 
+   if iscell( data )
+      uniqueAPLength = true;
+      Np = length(data);  % num axes to include
+      nT = cellfun( @(d) size( d, 1 ), data );
+   else
+      uniqueAPLength = false;
+      [nT, Np] = size( data );  % num axes to include
+   end
+      
    if Np > max_ax % if too many axes to view add a scroll bar
       set(handles.scroll_axes_slider, 'Visible', 'on'); % no scrolling required
       scroll    = get(handles.scroll_axes_slider, 'Value');
@@ -215,9 +225,8 @@ function handles = plotDataFromMatrix(handles, tseries)
    nc = ceil(sqrt(Np));
    nr = ceil(Np/nc);
    if strcmp('gui', handles.f.uiType)
-      set(handles.scroll_axes_slider,'SliderStep',[min(1,(1+max_ax)/size(data,2)) min(1,(1+Np*max_ax)/size(data, 2))]);
+      set(handles.scroll_axes_slider,'SliderStep',[min(1,(1+max_ax)/Np) min(1,(1+Np*max_ax)/Np)]);
    end
-   N  = length(data);
    dt = tseries.dt;
    if tlim(2)<(tlim(1)+dt)
       tlim(2) = tlim(1) + dt;
@@ -227,22 +236,27 @@ function handles = plotDataFromMatrix(handles, tseries)
    end
 
    % i keep having float related problems so calc indices first
-   sind = max(round(double(tlim(1)/dt)), 1);
-   eind = round(double(tlim(2)/dt));
-   time = toVec((sind:eind)*dt);
+   sind = max( round( double( tlim(1) / dt ) ), 1);
+   eind = round ( double( tlim(2) / dt) );
+   time = toVec( (sind:eind) * dt );
    % time & data keep being out by 1 samples, so just cheat...bad you!
-   if eind > size(data,1)
-      time = time( 1:end - (eind-size(data,1)) );
-      eind = eind - (eind-size(data,1));
+   if eind > max( nT )
+      time = time( 1:end - ( eind-size(data,1) ) );
+      eind = eind - ( eind - size(data,1 ));
    end
-   data = data(sind:eind, :);
+   if uniqueAPLength
+%       data = cellfun( @(d) d(sind:eind, :), data );
+      [ vscale, vlabel ] = getUnitScale( max( cellfun( @max, data ) )*10, 'V' );
+   else
+      data = data(sind:eind, :);
+      [ vscale, vlabel ] = getUnitScale( max(data(:))*10, 'V' );
+   end
    if length(time) < size(data,1)
       time = [time; time(end)+dt];
       eind = eind + 1;
    end
    [ tscale, tlabel ] = getUnitScale( tlim(2)*10, 's' );
 tscale=1; tlabel='s';
-   [ vscale, vlabel ] = getUnitScale( max(data(:))*10, 'V' );
 
    fopts= {'fontsize', fontsize, 'fontweight', 'bold'};
    figure(handles.figure1); % Change focus to main window
@@ -263,10 +277,20 @@ tscale=1; tlabel='s';
       end % In app, there's a new Figure window opening for some reason.
       % try plotting data at chosen scale
       try
-         lh = plot(ax1, time/tscale, data(:, plot_ax(i))/vscale);
+         if uniqueAPLength
+            lh = plot( ax1, time(1:nT(plot_ax(i)))/tscale, data{plot_ax(i)}/vscale );
+            numT = nT(plot_ax(i));
+         else
+            lh = plot( ax1, time/tscale, data(:, plot_ax(i))/vscale );
+            numT = nT;
+         end
       catch ME
          % keep having trouble with floats making time vector the wrong size
-         lh = plot(ax1, (1:size(data(:, plot_ax(i))))*dt/tscale, data(:, plot_ax(i))/vscale);
+         if uniqueAPLength
+            lh = plot( ax1, (1:size(data{plot_ax(i)}))*dt/tscale, data{plot_ax(i)}/vscale );
+         else
+            lh = plot( ax1, (1:size(data(:, plot_ax(i))))*dt/tscale, data(:, plot_ax(i))/vscale );
+         end
          if ~warn % don't print over and over
             str = sprintf('Warning: size of time and data didn''t match, reconstructing time vector\n');
             printMessage('off','Comments*', str);
@@ -286,17 +310,17 @@ tscale=1; tlabel='s';
 
       case 'ap'
          fontsize  = 10; % make font smaller cuz looks silly!
-         set(lh, 'color', 'k', 'linewidth', 3);
+         set(lh, 'color', 'k', 'linewidth', 4);
          try
             hold on;
             % nlines = min( max_lines, size( tseries.APfamily{plot_ax(i)}, 2) );
-            size_lines = size( tseries.APfamily{plot_ax(i)}, 2);
-            nlines = min( max_lines, size_lines );
+            size_lines = size( tseries.APfamily{ plot_ax(i)}, 2 );
+            nlines     = min( max_lines, size_lines );
             % Show the last max_lines lines, instead of the first ones
-            lind = max(1,(size_lines - max_lines)) : size_lines;
+            lind       = max( 1, (size_lines - max_lines) ) : size_lines;
 
-            plot(ax1, time/tscale, tseries.APfamily{plot_ax(i)}(sind:eind,lind)/vscale);
-            vlim(2) = max( toVec(tseries.APfamily{plot_ax(i)}(sind:eind,lind)) );
+            plot( ax1, time(sind:min(eind,numT))/tscale, tseries.APfamily{plot_ax(i)}(sind:min(eind,numT),lind)/vscale, 'linewidth', 1 );
+            vlim(2)    = max( toVec( tseries.APfamily{plot_ax(i)}(sind:min(eind,numT),lind) ) );
             % if APs normalised we know they'll be btwn -3/3 so make lims the same
             if tseries.params.normalise_aps.value
                ylim( [-3 3] );
@@ -307,12 +331,12 @@ tscale=1; tlabel='s';
             uistack(lh, 'top'); % put mean on top
 %                chH = get(ax1,'Children');
 %                set(gca,'Children',[chH(end);chH(1:end-1)]);
-            N = size(tseries.APfamily{plot_ax(i)}, 2);
-            set( get(ax1,'Title'), 'String', sprintf('AP %d (N=%d)', plot_ax(i), N), 'fontweight','bold','fontsize',10);
+            N = size( tseries.APfamily{plot_ax(i)}, 2 );
+            set( get(ax1,'Title'), 'String',  sprintf('AP %d (N=%d)', plot_ax(i), N), 'fontweight','bold','fontsize',10 );
             set( get(ax1,'Ylabel'), 'String', sprintf('Voltage (%s)', vlabel), 'fontweight','normal','fontsize',10 );
 
             if tseries.params.normalise_aps.value
-               set( get(ax1,'Ylabel'), 'String', sprintf('Normalised'), 'fontweight','normal','fontsize',10);
+               set( get(ax1,'Ylabel'), 'String', sprintf('Normalised'), 'fontweight','normal','fontsize',10 );
             end
 
          catch ME
@@ -328,6 +352,6 @@ tscale=1; tlabel='s';
                runtimeErrorHandler(ME,'message');
             end
          end
-   end
+      end
    end
 end

@@ -28,7 +28,16 @@ function [tlim, vlim] = getTimeAndVoltageLimits(tseries, type)
       end
       if gettlim
          if ~isempty(tseries.time)
-            tlim = [ tseries.time(1) tseries.time(end) ];
+            if iscell( tseries.time )
+               tlim  = [Inf -Inf];
+               for ti=1:length( tseries.time )
+                  tmp     = [ tseries.time{ti}(1) tseries.time{ti}(end) ];
+                  tlim(1) = ternaryOp( tmp(1) < tlim(1), tmp(1), tlim(1) );
+                  tlim(2) = ternaryOp( tmp(2) > tlim(2), tmp(2), tlim(2) );
+               end
+            else
+               tlim = [ tseries.time(1) tseries.time(end) ];
+            end
          else
             tlim = [tseries.dt tseries.dt*2];
          end

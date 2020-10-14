@@ -5,6 +5,7 @@ function generateRateStatistics(tseries, method, method_params)
    maxlag  = method_params.max_lag.value;
    dt      = tseries.dt;
    numlags = ceil(maxlag/dt); % lags given in ms
+   numlags = ternaryOp( numlags<=1, maxlag, numlags );
    maxcols = 10; 
    
    if numlags > 100 % if lots of lags check there wasn't a mistake

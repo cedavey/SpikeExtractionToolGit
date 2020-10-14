@@ -82,10 +82,10 @@ methods (Static)
    function h = automatic_params(h, hObject)
       if hObject.Value
          h.set_tool_params.Enable = 'off';
-         h.options.auto_params = true;
+         h.options.auto_params    = true;
       else
          h.set_tool_params.Enable = 'on';
-         h.options.auto_params = false;
+         h.options.auto_params    = false;
       end
       if strcmp('gui', h.f.uiType), guidata(hObject,h); end% saves changes to handles
    end
@@ -189,8 +189,8 @@ methods (Static)
             end
             % Automatic parameters will always be true for batch processing
             handles.options.auto_params = true;
-            handles.options.isBatch = true;
-            handles.options.batchPath = opts.saveFolder;
+            handles.options.isBatch     = true;
+            handles.options.batchPath   = opts.saveFolder;
             handles.options.debugOption = 'none';
 
             try
@@ -760,6 +760,7 @@ methods (Static)
    end
 
    function varargout = run_tool(h)
+   printcol = 'comments*'; % message category dictates printing colour in cprintf
      tic;
      varargout = {};
       % Implement the tool using the method & params requested
@@ -802,6 +803,8 @@ methods (Static)
             end
             switch lower(tool)
                case 'rescale'
+                  str = sprintf( 'Rescaling voltage\n' );
+                  cprintf( printcol, str );
                   if ~strcmp('separate',method_params.select_peaks.value)
                      [voltage, Rest] = rescaleVoltage(tseries, method, method_params, h.options);
                   else
@@ -830,6 +833,8 @@ methods (Static)
 
 
                case 'denoise'
+                  str = sprintf( 'Denoising voltage\n' );
+                  cprintf( printcol, str );
                   voltage = denoiseVoltage(tseries, method, method_params);
                   if isempty(voltage)
                      return;
@@ -845,8 +850,10 @@ methods (Static)
                   instruct            = ['Creating ' tool_str ': rename?'];
 
                case 'identify ap templates'
+                  str = sprintf( 'Identifying action potential templates from timeseries\n' );
+                  cprintf( printcol, str );
                   % get time series to apply AP templates to
-                  [APtemplates, APfamily] = identifyAPs(tseries, method, method_params,  h.options);
+                  [APtemplates, APfamily] = identifyTemplates(tseries, method, method_params,  h.options);
                   if isempty(APtemplates)
                      str = sprintf('\tNo templates could be identified.\n');
                      printMessage('off', 'Error', str);
@@ -854,7 +861,14 @@ methods (Static)
                   end
                   new_tseries.type    = 'ap';
                   new_tseries.data    = APtemplates;
-                  new_tseries.time    = (1:size(APtemplates,1))'*tseries.dt;
+                  % coded to allows different length spiking templates
+                  if iscell( APtemplates )
+                     for ti=1:length(APtemplates)
+                        new_tseries.time{ti} = (1:size(APtemplates{ti},1))'*tseries.dt;
+                     end
+                  else
+                     new_tseries.time    = (1:size(APtemplates,1))'*tseries.dt;
+                  end
                   new_tseries.dt      = tseries.dt;
                   new_tseries.params  = method_params;
                   new_tseries.params.tool   = tool;
@@ -867,6 +881,8 @@ methods (Static)
                   % allows user to generate spikes directly from voltage
                   % timeseries, by generating AP templates enroute
                   if strcmpi(method,'k means')
+                     str = sprintf( 'Extracting spikes from timeseries using k-means\n' );
+                     cprintf( printcol, str );
                      % Extracting spikes directly from voltage through K-means
                      % clustering. Not using APs
                      [APspikes, APtimes, APfamily] = extractSpikesUsingKmeans(tseries, method_params, h.options.debugOption);
@@ -886,13 +902,15 @@ methods (Static)
                      instruct            = ['Creating ' tool_str ': rename?'];
 
                   else
-                     [APtemplates, APfamily]= identifyAPs(tseries, 'threshold', method_params);
+                     str = sprintf( 'Extracting spikes from timeseries by identifying action potential templates\n' );
+                     cprintf( printcol, str );
+                     [APtemplates, APfamily]= identifyTemplates(tseries, 'threshold', method_params);
                      if isempty(APtemplates)
                         return;
                      end
                      APnumsamples        = cellfun(@(f) size(f,2), APfamily);
                      normAPs             = method_params.normalise_aps.value; % separate for when gen APs separately
-                     [APspikes,APtimes]  = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, method_params, normAPs );
+                     [APspikes,APtimes]  = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, method_params, normAPs, h.options );
                      new_tseries.type    = 'spike';
                      new_tseries.data    = APspikes;
                      new_tseries.time    = tseries.time;
@@ -907,6 +925,8 @@ methods (Static)
                   end
 
                case 'utilities'
+                  str = sprintf( 'Applying utilities\n' );
+                  cprintf( printcol, str );
                   new_tseries = voltageUtilities(tseries, method, method_params);
                   if isempty(tseries)
                      return;
@@ -929,22 +949,46 @@ methods (Static)
             switch lower(tool)
                case 'extract spikes'
                   % if user hasn't set parameters explicitly they wouldn't
-                  % have chosen a voltage timeseries to apply the AP templates to
+                  % have chosen a voltage timeseries to apply the AP templates to                  
                   if ~isfield(method_params, 'voltage_timeseries')
-                     % Only do this if Batch is not selected
-                     if ~isfield(h.options, 'isBatch') || ~h.options.isBatch
-                       str = 'Set parameters to choose a voltage timeseries to match the AP templates to';
-                       displayErrorMsg(str);
-                       return;
+                     if ~isfield(h.options, 'isBatch') || ~h.options.isBatch 
+                        % if user hasn't selected which voltage timeseries to
+                        % extract spikes from, if there's only 1 timeseries
+                        % there assume it's that one, else ask them to choose
+                        % Only do this if Batch is not selected
+                        data_types = getStructFieldFromCell( h.data.tseries, 'type' );
+                        if length( data_types ) == 2 && any( strcmpi( 'voltage', data_types ) )
+                           vind = find( strcmpi( 'voltage', data_types ) );
+                           method_params.voltage_timeseries = struct;
+                           method_params.voltage_timeseries.value = h.data.tseries{vind}.name;
+                           method_params.voltage_timeseries.name = 'voltage timeseries';
+                           method_params.voltage_timeseries.type = 'string';
+                           
+                        else
+                           % if only 1 voltage data type use it for extracting spikes
+                           dtypes = getStructFieldFromCell( h.data.tseries, 'type' );
+                           vdata = strcmpi( 'voltage', dtypes );
+                           if ( sum( vdata) == 1 )
+                              vind = find( vdata );
+                              method_params.voltage_timeseries = struct;
+                              method_params.voltage_timeseries.value = h.data.tseries{vind}.name;
+                              method_params.voltage_timeseries.name = 'voltage timeseries';
+                              method_params.voltage_timeseries.type = 'string';
+                           else
+                              str = 'Set parameters to choose a voltage timeseries to match the AP templates to';
+                              displayErrorMsg(str);
+                              return;
+                           end
+                        end
                      else
                        method_params.voltage_timeseries = struct;
                        method_params.voltage_timeseries.value = h.data.tseries{end-1}.name;
-                       method_params.voltage_timeseries.name = 'voltage timeseries';
-                       method_params.voltage_timeseries.type = 'string';
+                       method_params.voltage_timeseries.name  = 'voltage timeseries';
+                       method_params.voltage_timeseries.type  = 'string';
                      end
                   end
-                  voltage_name        = method_params.voltage_timeseries;
-                  voltage_index       = strcmpi(voltage_name.value, h.data.tseries_str);
+                  voltage_name  = method_params.voltage_timeseries;
+                  voltage_index = strcmpi(voltage_name.value, h.data.tseries_str);
                   if ~any(voltage_index)
                      str = 'Voltage timeseries not found, select a different timeseries';
                      displayErrorMsg(str);
@@ -955,10 +999,13 @@ methods (Static)
                   if isempty(APtemplates)
                      return;
                   end
-                  normAPs             = tseries.params.normalise_aps.value; % get from AP generation
+                  str = sprintf( 'Extracting spikes using action potential templates\n' );
+                  cprintf( printcol, str );
+                  
+                  normAPs  = tseries.params.normalise_aps.value; % get from AP generation
                   % get number of samples that each AP template is estimated from
-                  APnumsamples        = cellfun(@(f) size(f,2), tseries.APfamily);
-                  [APspikes, APstimes]= ...
+                  APnumsamples = cellfun(@(f) size(f,2), tseries.APfamily);
+                  [APspikes, APstimes] = ...
                      extractSpikesUsingTemplates(APtemplates, APnumsamples, voltage_tseries, method, method_params, normAPs, h.options);
                   if isempty(APspikes)
                      return;
@@ -990,6 +1037,8 @@ methods (Static)
                   instruct            = ['Creating ' tool_str ': rename?'];
 
                case 'merge templates'
+                  str = sprintf( 'Merging action potential templates\n' );
+                  cprintf( printcol, str );
                   % get time series to apply AP templates to
                   new_tseries = mergeAPtemplates( tseries, method, method_params );
                   if isempty(new_tseries)
@@ -1000,6 +1049,8 @@ methods (Static)
                   instruct            = ['Creating ' tool_str ': rename?'];
 
                case 'delete templates'
+                  str = sprintf( 'Deleting action potential templates\n' );
+                  cprintf( printcol, str );
                   % get time series to apply AP templates to
                   new_tseries = deleteAPtemplates( tseries, method, method_params );
                   if isempty(new_tseries)
@@ -1015,6 +1066,8 @@ methods (Static)
          case 'spike'
             switch lower(tool)
                case 'firing rate'
+                  str = sprintf( 'Calculating spiking rates\n' );
+                  cprintf( printcol, str );
                   [rates, time, dt] = getRateFromSpikes(tseries, method, method_params);
                   if isempty(rates), return; end
                   new_tseries.type = 'rate';
@@ -1029,10 +1082,14 @@ methods (Static)
                   instruct         = ['Creating ' tool_str ': rename?'];
 
                case 'statistics'
+                  str = sprintf( 'Calculating statistics\n' );
+                  cprintf( printcol, str );
                   generateSpikeStatistics(tseries, method, method_params);
                   return;
 
                case 'spike operations'
+                  str = sprintf( 'Applying spike operations\n' );
+                  cprintf( printcol, str );
                   [spikes,stimes] = runSpikeOperations(tseries, method, method_params);
 
                   new_tseries.type    = 'spike';
@@ -1048,6 +1105,8 @@ methods (Static)
                   instruct            = ['Creating ' tool_str ': rename?'];
 
               case 'export to excel'
+                  str = sprintf( 'Exporting to excel\n' );
+                  cprintf( printcol, str );
                   try
                      exportToExcel(tseries);
                   catch E
@@ -1060,6 +1119,8 @@ methods (Static)
             end
 
          case 'rate'
+            str = sprintf( 'Generating rate statistics\n' );
+            cprintf( printcol, str );
             % currently the only tool for 'rate' timeseries is generating
             % statistics, & the only statistic is autocorrelation
             generateRateStatistics(tseries, method, method_params);
