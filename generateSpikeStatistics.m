@@ -107,8 +107,8 @@ function generateSpikeStatistics(tseries, method, method_params)
             max_isi  = method_params.max_isi.value;
 
             for ii=1:nap
-               % start new APs axes at beginning of new row
-               fi      = ternaryOp( ii==1, 1, sum( AProws(1:ii-1) ) * maxcols + 1 );            
+               % start new APs axes at beginning of new row          
+               fi      = ternaryOp( ii==1, 1, sum( AProws(1:ii-1) ) * ncols + 1 ); % ncols instead of maxcols
                max_cnt = 0; ah = zeros( nfam(ii), 1 );
                cols    = getColourMatrix( nfam(ii) );
                for jj=1:nfam(ii)
@@ -129,6 +129,7 @@ function generateSpikeStatistics(tseries, method, method_params)
                         xlabel('Time (s)');
                         ylabel('Probability');
                         title( sprintf('ISI: AP %d axon %d', ii,jj) ) ;
+                        xlim([0 max_isi]); % To show the bins from 0 to the user chosen upper limit.
                end
                set( ah, 'ylim', [0 max_cnt] ); 
             end
