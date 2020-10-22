@@ -16,6 +16,7 @@
 %            causal so if averaging over a window, time is the endpoint of
 %            the window)
 function [mavdata, mavtime] = movingAverageUnevenSamples( time, data, avtime, skiptime, avfn )
+   % TO DO: use matrix operations, take out the loop, to improve efficiency
    if nargin<4 || isempty( skiptime ), skiptime = avtime; end
    if nargin<5 || isempty( avfn ), avfn = @mean; end
    mavdata  = zeros( round( (time(end) - time(1)) / skiptime ) - 1, 1 ); % -1 cuz start at avtime, not skiptime

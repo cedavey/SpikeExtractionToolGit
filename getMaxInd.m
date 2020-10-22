@@ -1,6 +1,9 @@
 % ind = getMaxInd( x, dim, offset )
 % 
-% Return the index of the maximum value in x - allows inline equations
+% Return the index of the maximum value in x - allows inline equations &
+% cell inputs. 
+% If multiple instances of max value the index of the first instance is
+% returned. 
 % 
 % Inputs:
 %      x - data to find max for, can be numeric or cell
@@ -16,6 +19,12 @@ function ind = getMaxInd( x, dim, offset )
       dimsz = isDim( x{1} );
    else
       dimsz = isDim( x );
+   end
+   if isvector( x )
+      isrowvec = size( x, 1 ) < size( x, 2 );
+      if isrowvec
+         x = x';
+      end
    end
    if isnumeric( x )
       switch dimsz
@@ -38,6 +47,11 @@ function ind = getMaxInd( x, dim, offset )
       
    end
    ind = ind + offset;
+   if isvector( x )
+      if isrowvec
+         ind = ind';
+      end
+   end
 end
 
 function ind = getInd( x, dim )
