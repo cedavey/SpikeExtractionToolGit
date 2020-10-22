@@ -222,7 +222,12 @@ removeToolBarButtons(handles);
 handles.options.loadingWindowOn = true;
 handles.options.mouseWaitingOn = true;
 handles.options.debugOption = 'none';
-handles.options.rescaleOption = 'at_end';
+handles.options.rescaleOption = 'at_end'; % Within one jump ahead, what
+	% segment of the timeseries is rescaled, 'at_end' (default) = rescles
+    % after processing whole time series, and the rescaling periods are 
+    % the "jump ahead" segments, 'peaks' = rescales in real time, from one
+    % spike peak to the next one,'JA' = rescales in real time within each 
+    % "jump ahead" segment.
 handles.options.auto_params = 'false';
 
 % Initialize tooltips
@@ -986,60 +991,60 @@ function debugFull_Callback(hObject, eventdata, handles)
    % Update handles structure
    guidata(hObject, handles);
 end
-
-% --------------------------------------------------------------------
-function rescaleAtTheEnd_Callback(hObject, eventdata, handles)
-% hObject    handle to rescaleAtTheEnd (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-   if strcmp('off', hObject.Checked)
-      hObject.Checked = 'on';
-      handles.rescalePeaks.Checked = 'off';
-      handles.rescalePeaks.Enable = true;
-      handles.rescaleJumpAhead.Checked = 'off';
-      handles.rescaleJumpAhead.Enable = true;
-      handles.options.rescaleOption = 'at_end';
-      hObject.Enable = false;
-   end
-   % Update handles structure
-   guidata(hObject, handles);
-end
-
-% --------------------------------------------------------------------
-function rescalePeaks_Callback(hObject, eventdata, handles)
-% hObject    handle to rescalePeaks (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-   if strcmp('off', hObject.Checked)
-      hObject.Checked = 'on';
-      handles.rescaleAtTheEnd.Checked = 'off';
-      handles.rescaleAtTheEnd.Enable = true;
-      handles.rescaleJumpAhead.Checked = 'off';
-      handles.rescaleJumpAhead.Enable = true;
-      handles.options.rescaleOption = 'peaks';
-      hObject.Enable = false;
-   end
-   % Update handles structure
-   guidata(hObject, handles);
-end
-
-% --------------------------------------------------------------------
-function rescaleJumpAhead_Callback(hObject, eventdata, handles)
-% hObject    handle to rescaleJumpAhead (see GCBO)
-% eventdata  reserved - to be defined in a future version of MATLAB
-% handles    structure with handles and user data (see GUIDATA)
-   if strcmp('off', hObject.Checked)
-      hObject.Checked = 'on';
-      handles.rescaleAtTheEnd.Checked = 'off';
-      handles.rescaleAtTheEnd.Enable = true;
-      handles.rescalePeaks.Checked = 'off';
-      handles.rescalePeaks.Enable = true;
-      handles.options.rescaleOption = 'JA';
-      hObject.Enable = false;
-   end
-   % Update handles structure
-   guidata(hObject, handles);
-end
+% 
+% % --------------------------------------------------------------------
+% function rescaleAtTheEnd_Callback(hObject, eventdata, handles)
+% % hObject    handle to rescaleAtTheEnd (see GCBO)
+% % eventdata  reserved - to be defined in a future version of MATLAB
+% % handles    structure with handles and user data (see GUIDATA)
+%    if strcmp('off', hObject.Checked)
+%       hObject.Checked = 'on';
+%       handles.rescalePeaks.Checked = 'off';
+%       handles.rescalePeaks.Enable = true;
+%       handles.rescaleJumpAhead.Checked = 'off';
+%       handles.rescaleJumpAhead.Enable = true;
+%       handles.options.rescaleOption = 'at_end';
+%       hObject.Enable = false;
+%    end
+%    % Update handles structure
+%    guidata(hObject, handles);
+% end
+% 
+% % --------------------------------------------------------------------
+% function rescalePeaks_Callback(hObject, eventdata, handles)
+% % hObject    handle to rescalePeaks (see GCBO)
+% % eventdata  reserved - to be defined in a future version of MATLAB
+% % handles    structure with handles and user data (see GUIDATA)
+%    if strcmp('off', hObject.Checked)
+%       hObject.Checked = 'on';
+%       handles.rescaleAtTheEnd.Checked = 'off';
+%       handles.rescaleAtTheEnd.Enable = true;
+%       handles.rescaleJumpAhead.Checked = 'off';
+%       handles.rescaleJumpAhead.Enable = true;
+%       handles.options.rescaleOption = 'peaks';
+%       hObject.Enable = false;
+%    end
+%    % Update handles structure
+%    guidata(hObject, handles);
+% end
+% 
+% % --------------------------------------------------------------------
+% function rescaleJumpAhead_Callback(hObject, eventdata, handles)
+% % hObject    handle to rescaleJumpAhead (see GCBO)
+% % eventdata  reserved - to be defined in a future version of MATLAB
+% % handles    structure with handles and user data (see GUIDATA)
+%    if strcmp('off', hObject.Checked)
+%       hObject.Checked = 'on';
+%       handles.rescaleAtTheEnd.Checked = 'off';
+%       handles.rescaleAtTheEnd.Enable = true;
+%       handles.rescalePeaks.Checked = 'off';
+%       handles.rescalePeaks.Enable = true;
+%       handles.options.rescaleOption = 'JA';
+%       hObject.Enable = false;
+%    end
+%    % Update handles structure
+%    guidata(hObject, handles);
+% end
 
 
 % --------------------------------------------------------------------
