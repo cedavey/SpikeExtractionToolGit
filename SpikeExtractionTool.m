@@ -541,7 +541,8 @@ catch ME
    str = getCatchMEstring( ME, 'Error setting parameters', false );
    displayErrorMsg( 'Error setting parameters, reverting to old values' );
    userids = [];
-   runtimeErrorHandler(ME,'ignore');
+   caught_error = runtimeErrorHandler(ME,'ignore');
+   if ~isempty(caught_error), rethrow(caught_error); end
    return;
 end
 if cancel
@@ -640,11 +641,11 @@ function voltage_slider_Callback(hObject, eventdata, handles)
       return;
    end
 
-    if handles.options.mouseWaitingOn
-        mouseWaitingFunction(handles.figure1, @voltage_slider_updated, handles, hObject);
-    else
-        voltage_slider_updated(hObject,eventdata,handles);
-    end
+   if handles.options.mouseWaitingOn
+       mouseWaitingFunction(handles.figure1, @voltage_slider_updated, handles, hObject);
+   else
+       voltage_slider_updated(handles, hObject);
+   end
 end
 
 function voltage_slider_updated(handles, hObject)
@@ -1184,7 +1185,8 @@ function batchProcessingMenu_Callback(hObject, eventdata, handles)
       handles.options.isBatch = false;
       guidata(hObject,handles);
       str = sprintf('\tUnexpected error during batch processing\n');
-      runtimeErrorHandler(E, 'message', str);
+      caught_error = runtimeErrorHandler(E, 'message', str);
+      if ~isempty(caught_error), rethrow(caught_error); end
    end
 end
 

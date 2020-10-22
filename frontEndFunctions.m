@@ -98,7 +98,8 @@ methods (Static)
             h = h.f.removeVoltage(h, vtc(i));
          end
       catch E
-         runtimeErrorHandler(E);
+         caught_error = runtimeErrorHandler(E);
+         if ~isempty(caught_error), rethrow(caught_error); end
       end
    end
    
@@ -116,7 +117,8 @@ methods (Static)
             printMessage('off', 'Error', str);
             return;
          else
-            runtimeErrorHandler(E, 'rethrow');
+            caught_error = runtimeErrorHandler(E, 'rethrow');
+            if ~isempty(caught_error), rethrow(caught_error); end
          end
       end
 
@@ -201,7 +203,8 @@ methods (Static)
                handles.options.isBatch = false;
             catch E
                str = sprintf('\tBatch processing failed at i = %s, j = %s\n\tError: %s\n',opts.files{i}, opts.tool{j}, E.message);
-               runtimeErrorHandler(E, 'message', str);
+               caught_error = runtimeErrorHandler(E, 'message', str);
+               if ~isempty(caught_error), rethrow(caught_error); end
                handles.options.isBatch = false;
                if strcmp('gui', handles.f.uiType), guidata(hObject,handles); end% saves changes to handles
                break;
@@ -398,7 +401,8 @@ methods (Static)
          str = getCatchMEstring( ME, 'Error setting parameters', false );
          displayErrorMsg( 'Error setting parameters, reverting to old values' );
          userids = [];
-         runtimeErrorHandler(ME,'ignore');
+         caught_error = runtimeErrorHandler(ME,'ignore');
+         if ~isempty(caught_error), rethrow(caught_error); end
          return;
       end
       if cancel
@@ -471,7 +475,8 @@ methods (Static)
          str = getCatchMEstring( ME, 'Error setting parameters', false );
          displayErrorMsg( 'Error setting parameters, reverting to old values' );
          userids = [];
-         runtimeErrorHandler(ME,'ignore');
+         caught_error = runtimeErrorHandler(ME,'ignore');
+         if ~isempty(caught_error), rethrow(caught_error); end
          return;
       end
       if cancel
@@ -1052,7 +1057,8 @@ methods (Static)
                      exportToExcel(tseries);
                   catch E
                      str = sprintf('\tAn unexpected error occurred while creating the excel file.\n');
-                     runtimeErrorHandler(E, 'message', str);
+                     caught_error = runtimeErrorHandler(E, 'message', str);
+                     if ~isempty(caught_error), rethrow(caught_error); end
                   end
                   varargout = {h};
                   return;
@@ -1079,7 +1085,8 @@ methods (Static)
          end
       catch E
          if strcmp('MATLAB:inputdlg:InvalidInput',E.identifier)
-            runtimeErrorHandler(E,'ignore');
+            caught_error = runtimeErrorHandler(E,'ignore');
+            if ~isempty(caught_error), rethrow(caught_error); end
             name = 'voltage';
          end
       end
@@ -1362,7 +1369,8 @@ methods (Static)
         if strcmp('MATLAB:unassignedOutputs', ME.identifier)
           cancel = 1;
         else
-          runtimeErrorHandler(ME,'message', 'Something went wrong setting the parameters.');
+          caught_error = runtimeErrorHandler(ME,'message', 'Something went wrong setting the parameters.');
+          if ~isempty(caught_error), rethrow(caught_error); end
         end
       end
 
@@ -1677,11 +1685,11 @@ methods (Static)
 
       % Update time (horizontal) text boxes
       if strcmp('gui',h.f.uiType)
-         h.time_min.String = h.data.tlim(1);
-         h.time_max.String = h.data.tlim(2);
+         h.time_min.String = sprintf('%0.2f',h.data.tlim(1));
+         h.time_max.String = sprintf('%0.2f',h.data.tlim(2));
       else
-         h.time_min.Value = num2str(h.data.tlim(1));
-         h.time_max.Value = num2str(h.data.tlim(2));
+         h.time_min.Value = sprintf('%0.2f',h.data.tlim(1));
+         h.time_max.Value = sprintf('%0.2f',h.data.tlim(2));
       end
 
       tseries = h.f.getCurrentVoltage(h);
@@ -1976,10 +1984,27 @@ methods (Static)
          tseries = h.f.getCurrentVoltage(h);
          disp_min = h.data.vlim(1) + displacement;
          disp_max = h.data.vlim(2) + displacement;
-
+         if ~exist('vrange','var')
+             vrange = disp_max - disp_min;
+         end
+            
          try
             h.data.vlim(1) = max( disp_min, min(tseries.data));
             h.data.vlim(2) = min( disp_max, max(tseries.data));
+            if (h.data.vlim(2) < h.data.vlim(1))
+                % If vlim(2) is smaller, it means vlim(1) was lower than
+                % the limit, hence it was forced to be larger. 
+                if h.data.vlim(1) == min(tseries.data)
+                    % This line will leave vlim(1) as the bottom limit, and
+                    % set vlim(2) to vlim(1) + vrange
+                    h.data.vlim(2) = h.data.vlim(1) + vrange;
+                else
+                    % This line will leave vlim(2) as the top limit, and
+                    % set vlim(1) to vlim(2) - vrange
+                    h.data.vlim(2) = max(tseries.data);
+                    h.data.vlim(1) = h.data.vlim(2) - vrange; 
+                end
+            end
          catch E
             if strcmp('MATLAB:min:wrongInput', E.identifier) || strcmp('MATLAB:max:wrongInput', E.identifier)
                h.data.vlim(1) = max( disp_min, min(tseries.data{:},[],[1 2]));
@@ -1992,16 +2017,16 @@ methods (Static)
 
       if strcmp('gui', h.f.uiType)
          % Update voltage (vertical) text boxes
-         h.voltage_min.String = h.data.vlim(1);
-         h.voltage_max.String = h.data.vlim(2);
+         h.voltage_min.String = sprintf('%0.2f',h.data.vlim(1));
+         h.voltage_max.String = sprintf('%0.2f',h.data.vlim(2));
 
          tseries = h.f.getCurrentVoltage(h);
          h = updateSETFigure(h, tseries);
          guidata(hObject, h);
       else
          % Update voltage (vertical) text boxes
-         h.voltage_min.Value = num2str(h.data.vlim(1));
-         h.voltage_max.Value = num2str(h.data.vlim(2));
+         h.voltage_min.Value = sprintf('%0.2f',h.data.vlim(1));
+         h.voltage_max.Value = sprintf('%0.2f',h.data.vlim(2));
 
          tseries = h.f.getCurrentVoltage(h);
          h = updateSETFigure(h, tseries);
@@ -2074,9 +2099,10 @@ methods (Static)
 
       % Update voltage sliders
       h.f.updateVoltageSlider(h);
-
+      
       h = updateSETFigure(h, tseries);
       if strcmp('gui', h.f.uiType), guidata(hObject, h); end
+      
    end
 
    function voltage_min(h,hObject)

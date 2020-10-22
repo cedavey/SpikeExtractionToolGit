@@ -16,12 +16,14 @@
 % See also: try, catch, rethrow, error
 %
 % Created by Artemio - 19/June/2019
-function runtimeErrorHandler(varargin)
+function out = runtimeErrorHandler(varargin)
 % Will deal with the catched errors and log them to a file (different to
 % the diary 'log_all.log', which saves everything that's displayed on the
 % command window).
    if nargin > 0, ME = varargin{1}; else, error('Not enough input arguments.');end
    if nargin > 1, action = varargin{2}; else, action = 'rethrow';end
+   
+   out = [];
    
    % Get location of log files
    path = getFilePath('log');
@@ -44,7 +46,8 @@ function runtimeErrorHandler(varargin)
    % Deal with the error
    switch action
       case 'rethrow'
-         rethrow(ME);
+         out = ME;% rethrow(ME);
+         return
          
       case 'ignore'
          return

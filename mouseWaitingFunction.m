@@ -38,7 +38,10 @@ function mouseWaitingFunction(fig1,fun,varargin)
       % Mouse pointer back to normal.
       if ~isApp, set(fig1, 'pointer', 'arrow'); end
       % Propagate the error
-      runtimeErrorHandler(E);
+      caught_error = runtimeErrorHandler(E);
+      if ~isempty(caught_error)
+          rethrow(caught_error);
+      end
    end
    
    % Mouse pointer back to normal.
