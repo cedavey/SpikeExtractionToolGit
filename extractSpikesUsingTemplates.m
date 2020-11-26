@@ -187,7 +187,11 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
             % if no spike families yet, create one
             if isempty(APfamilies{k})
                % Distribution of peaks (mean and var)
-               [fam_mu, fam_var] = initialize_mu( spikes, si, matchthresh, peakfn, peakdiff ); 
+               % Get noise samples prior to the current spike to initialize
+               % the variance from the noise.
+               noise_samples = getNoise(stimes, si, tseries);
+               % Initialize mean and var
+               [fam_mu, fam_var] = initialize_mu( spikes, si, matchthresh, peakfn, peakdiff ,noise_samples); 
                APfamilies{k}{1}  = newAxonFamily( curr_spike, peakfn, curr_stime, timefn, fam_mu, fam_var, opts );
 
             % if we have spike families see if we're at the right
@@ -263,7 +267,8 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                   APfamilies{k}{fi} = fam;
                else
                   % Creating new axon family
-                  [fam_mu, fam_var]     = initialize_mu( spikes, si, matchthresh, peakfn, peakdiff ); 
+                  noise_samples = getNoise(stimes, si, tseries);
+                  [fam_mu, fam_var]     = initialize_mu( spikes, si, matchthresh, peakfn, peakdiff , noise_samples); 
                   APfamilies{k}{end+1}  = newAxonFamily( curr_spike, peakfn, curr_stime, timefn, fam_mu, fam_var, opts );
                end
             end
@@ -298,7 +303,10 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                end
                APnumsamples(end+1)   = 1;
                % Creating new axon family
-               [fam_mu, fam_var]     = initialize_mu( spikes, si, matchthresh, peakfn, peakdiff ); 
+               % Get noise samples prior to the current spike to initialize
+               % the variance from the noise.
+               noise_samples = getNoise(stimes, si, tseries);
+               [fam_mu, fam_var]     = initialize_mu( spikes, si, matchthresh, peakfn, peakdiff, noise_samples ); 
                APfamilies{end+1}{1}  = newAxonFamily( curr_spike, peakfn, curr_stime, timefn, fam_mu, fam_var, opts );
                nAP = nAP + 1;
             end
@@ -456,7 +464,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
    end
 end
 
-function [mu, sig] = initialize_mu( spikes, si, matchthresh, peakfn, diffpeakfn )
+function [mu, sig] = initialize_mu( spikes, si, matchthresh, peakfn, diffpeakfn ,noise_samples)
    maxlag = 2; % number of lags in cross-corr
    % Initialize the mean peak for a new family, triggered by spike at index 
    % si not having a family of similar size. Goes through the first N
@@ -511,13 +519,47 @@ function [mu, sig] = initialize_mu( spikes, si, matchthresh, peakfn, diffpeakfn 
    
    % If at least 2 spikes matched the template (hopefully 5+ did!)
    if cnt > 2
-      mu  = mean(pk, 1);
-      sig = var(pk, [], 1 );
+       mu  = mean(pk, 1);
+       
+       if noise_samples == 0
+           % We are setting sig from the noise now. This line only works if no
+           % noise samples could be found
+             sig = var(pk, [], 1 ); 
+       else
+           sig = var(noise_samples) * ones(1,2);
+       end
    else
-      fsp = spikes(:,si);
-      mu  = peakfn( fsp );
-      sig = sqrt( max( fsp ) - min( fsp ) ) * ones(1,2);
+       fsp = spikes(:,si);
+       mu  = peakfn( fsp );
+       if noise_samples == 0
+           % We are setting sig from the noise now. This line only works if no
+           % noise samples could be found
+           sig = sqrt( max( fsp ) - min( fsp ) ) * ones(1,2);
+       else
+           sig = var(noise_samples) * ones(1,2);
+       end
    end
+end
+
+% Extract some noise samples from a few samples before the current spike's
+% onset.
+function noise_samples = getNoise(stimes, si, tseries)
+    no_samples = 50; % 50 samples to check for noise
+    current_sample = ceil(stimes{si}(1) / tseries.dt);
+    idx = [max(current_sample - no_samples, 1):current_sample];
+    noise_samples = tseries.data(idx);
+    while idx(1) > 1
+        if iswhite(noise_samples)
+            % If white, return the noise
+            return
+        else
+            % If not white, take previous samples
+            idx = idx - no_samples;
+            noise_samples = tseries.data(idx);
+        end
+    end
+    % If it reaches this point, it didn't find any noisy period
+    noise_samples = 0;
 end
 
 % Spawn a new axon family with all the necessary struct fields
