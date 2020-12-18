@@ -55,6 +55,32 @@ function params = getDefaultToolParams
          voltage.rescale.variance.distribution.type                             = 'list';
          voltage.rescale.variance.distribution.list                             = {'gaussian','student''s-t'};
          voltage.rescale.variance.distribution.units                            = 'distribution';
+         
+         voltage.rescale.variance.initial.value                                 = 0;
+         voltage.rescale.variance.initial.name                                  = 'Start rescaling at';
+         voltage.rescale.variance.initial.descript                              = 'Starting rescale point';
+         voltage.rescale.variance.initial.type                                  = 'positive float';
+         voltage.rescale.variance.initial.units                                 = 'seconds or samples';
+         
+         voltage.rescale.variance.initial_type.value                            = 'seconds';
+         voltage.rescale.variance.initial_type.name                             = 'type';
+         voltage.rescale.variance.initial_type.descript                         = 'Starting rescale point in seconds or samples';
+         voltage.rescale.variance.initial_type.type                             = 'list';
+         voltage.rescale.variance.initial_type.list                             = {'seconds', 'samples'};
+         voltage.rescale.variance.initial_type.units                            = '';
+         
+         voltage.rescale.variance.final.value                                   = 0;
+         voltage.rescale.variance.final.name                                    = 'Stop rescaling at';
+         voltage.rescale.variance.final.descript                                = 'Final rescale point';
+         voltage.rescale.variance.final.type                                    = 'positive float';
+         voltage.rescale.variance.final.units                                   = 'seconds or samples';
+         
+         voltage.rescale.variance.final_type.value                              = 'seconds';
+         voltage.rescale.variance.final_type.name                               = 'type';
+         voltage.rescale.variance.final_type.descript                           = 'Final rescale point in seconds or samples';
+         voltage.rescale.variance.final_type.type                               = 'list';
+         voltage.rescale.variance.final_type.list                               = {'seconds', 'samples'};
+         voltage.rescale.variance.final_type.units                              = '';
 
       % Rescale - based on a particle filter 
          voltage.rescale.particle_filter.voltage_magnitude.value                = 5; 
@@ -88,6 +114,32 @@ function params = getDefaultToolParams
          voltage.rescale.particle_filter.jump_ahead.type                        = 'positive float';
          voltage.rescale.particle_filter.jump_ahead.units                       = 'seconds';
          
+         voltage.rescale.particle_filter.initial.value                          = 0;
+         voltage.rescale.particle_filter.initial.name                           = 'Start rescaling at';
+         voltage.rescale.particle_filter.initial.descript                       = 'Starting rescale point';
+         voltage.rescale.particle_filter.initial.type                           = 'positive float';
+         voltage.rescale.particle_filter.initial.units                          = 'seconds or samples';
+         
+         voltage.rescale.particle_filter.initial_type.value                     = 'seconds';
+         voltage.rescale.particle_filter.initial_type.name                      = 'type';
+         voltage.rescale.particle_filter.initial_type.descript                  = 'Starting rescale point in seconds or samples';
+         voltage.rescale.particle_filter.initial_type.type                      = 'list';
+         voltage.rescale.particle_filter.initial_type.list                      = {'seconds', 'samples'};
+         voltage.rescale.particle_filter.initial_type.units                     = '';
+         
+         voltage.rescale.particle_filter.final.value                            = 0;
+         voltage.rescale.particle_filter.final.name                             = 'Stop rescaling at';
+         voltage.rescale.particle_filter.final.descript                         = 'Final rescale point';
+         voltage.rescale.particle_filter.final.type                             = 'positive float';
+         voltage.rescale.particle_filter.final.units                            = 'seconds or samples';
+         
+         voltage.rescale.particle_filter.final_type.value                       = 'seconds';
+         voltage.rescale.particle_filter.final_type.name                        = 'type';
+         voltage.rescale.particle_filter.final_type.descript                    = 'Final rescale point in seconds or samples';
+         voltage.rescale.particle_filter.final_type.type                        = 'list';
+         voltage.rescale.particle_filter.final_type.list                        = {'seconds', 'samples'};
+         voltage.rescale.particle_filter.final_type.units                       = '';
+         
       % Rescale voltage - least squares
          voltage.rescale.recursive_least_squares.voltage_magnitude.value        = 5; 
          voltage.rescale.recursive_least_squares.voltage_magnitude.name         = 'voltage magnitude';
@@ -119,6 +171,32 @@ function params = getDefaultToolParams
          voltage.rescale.recursive_least_squares.jump_ahead.descript            = 'Jump ahead to get largest spike in this amount of time';
          voltage.rescale.recursive_least_squares.jump_ahead.type                = 'positive float';
          voltage.rescale.recursive_least_squares.jump_ahead.units               = 'seconds';
+         
+         voltage.rescale.recursive_least_squares.initial.value                  = 0;
+         voltage.rescale.recursive_least_squares.initial.name                   = 'Start rescaling at';
+         voltage.rescale.recursive_least_squares.initial.descript               = 'Starting rescale point';
+         voltage.rescale.recursive_least_squares.initial.type                   = 'positive float';
+         voltage.rescale.recursive_least_squares.initial.units                  = 'seconds or samples';
+         
+         voltage.rescale.recursive_least_squares.initial_type.value             = 'seconds';
+         voltage.rescale.recursive_least_squares.initial_type.name              = 'type';
+         voltage.rescale.recursive_least_squares.initial_type.descript          = 'Starting rescale point in seconds or samples';
+         voltage.rescale.recursive_least_squares.initial_type.type              = 'list';
+         voltage.rescale.recursive_least_squares.initial_type.list              = {'seconds', 'samples'};
+         voltage.rescale.recursive_least_squares.initial_type.units             = '';
+         
+         voltage.rescale.recursive_least_squares.final.value                    = 0;
+         voltage.rescale.recursive_least_squares.final.name                     = 'Stop rescaling at';
+         voltage.rescale.recursive_least_squares.final.descript                 = 'Final rescale point';
+         voltage.rescale.recursive_least_squares.final.type                     = 'positive float';
+         voltage.rescale.recursive_least_squares.final.units                    = 'seconds or samples';
+         
+         voltage.rescale.recursive_least_squares.final_type.value               = 'seconds';
+         voltage.rescale.recursive_least_squares.final_type.name                = 'type';
+         voltage.rescale.recursive_least_squares.final_type.descript            = 'Final rescale point in seconds or samples';
+         voltage.rescale.recursive_least_squares.final_type.type                = 'list';
+         voltage.rescale.recursive_least_squares.final_type.list                = {'seconds', 'samples'};
+         voltage.rescale.recursive_least_squares.final_type.units               = '';
 
       % Rescale voltage - recursive mean
          voltage.rescale.recursive_mean.voltage_magnitude.value                 = 5; 
@@ -145,6 +223,32 @@ function params = getDefaultToolParams
          voltage.rescale.recursive_mean.select_peaks.type                       = 'list';
          voltage.rescale.recursive_mean.select_peaks.list                       = {'positive', 'negative', 'all','separate'};
          voltage.rescale.recursive_mean.select_peaks.units                      = 'voltage';
+         
+         voltage.rescale.recursive_mean.initial.value                           = 0;
+         voltage.rescale.recursive_mean.initial.name                            = 'Start rescaling at';
+         voltage.rescale.recursive_mean.initial.descript                        = 'Starting rescale point';
+         voltage.rescale.recursive_mean.initial.type                            = 'positive float';
+         voltage.rescale.recursive_mean.initial.units                           = 'seconds or samples';
+         
+         voltage.rescale.recursive_mean.initial_type.value                      = 'seconds';
+         voltage.rescale.recursive_mean.initial_type.name                       = 'type';
+         voltage.rescale.recursive_mean.initial_type.descript                   = 'Starting rescale point in seconds or samples';
+         voltage.rescale.recursive_mean.initial_type.type                       = 'list';
+         voltage.rescale.recursive_mean.initial_type.list                       = {'seconds', 'samples'};
+         voltage.rescale.recursive_mean.initial_type.units                      = '';
+         
+         voltage.rescale.recursive_mean.final.value                             = 0;
+         voltage.rescale.recursive_mean.final.name                              = 'Stop rescaling at';
+         voltage.rescale.recursive_mean.final.descript                          = 'Final rescale point';
+         voltage.rescale.recursive_mean.final.type                              = 'positive float';
+         voltage.rescale.recursive_mean.final.units                             = 'seconds or samples';
+         
+         voltage.rescale.recursive_mean.final_type.value                        = 'seconds';
+         voltage.rescale.recursive_mean.final_type.name                         = 'type';
+         voltage.rescale.recursive_mean.final_type.descript                     = 'Final rescale point in seconds or samples';
+         voltage.rescale.recursive_mean.final_type.type                         = 'list';
+         voltage.rescale.recursive_mean.final_type.list                         = {'seconds', 'samples'};
+         voltage.rescale.recursive_mean.final_type.units                        = '';
 
       % Voltage utilities - downsample
          voltage.utilities.downsample.method.value                              = 'ditch';

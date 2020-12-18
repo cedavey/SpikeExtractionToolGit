@@ -9,9 +9,9 @@ function printMessage( logMessage, varargin )
 % logging it to the log file.
 %
 % Inputs:
-%   logMessage - if 'off', it doesn't save the printed message in the 
-%                           log file. Anything else will save this
-%                           message in the, log file.
+%   logMessage - if 'off', it doesn't save the printed message in the log
+%                   file. Anything else will save this message in the log 
+%                   file.
 %   all other inputs are passed to cprintf;  cprintf( format, str )
 % 
 % See also: cprintf

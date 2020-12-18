@@ -61,16 +61,48 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    if isfield(opts,'loadingWindowOn'), progress_window = opts.loadingWindowOn; else, progress_window = false; end
    if isfield(opts,'rescaleOption'), rescaling_method = opts.rescaleOption; else, rescaling_method = 'at_end';end
    if isfield(opts,'auto_params'), auto_params = opts.auto_params; else, auto_params = false; end
-
-   % extract time details - lambda is a forgetting factor; 1 --> normal
-   % mean calculation, 0 --> last sample is the estimate, & somewhere in
-   % between gives a recursive update, usually it should be set to ~0.9.
-   time   = double( tseries.time ); % valid indexing of time was failing when single
+    
+   
    dt     = double( tseries.dt );
-   v      = double( tseries.data );
-   nT     = min( length(v), length(time) );
-   time   = toVec( time(1:nT) );
-   v      = toVec( v(1:nT) );    % for some reason time & v can be 1 sample out
+   % Rescaling can be done to the whole recording or to a chosen segment.
+   % Check if the user chose a valid segment or the whole recording.
+   if params.final.value <= 0
+        % extract time details - lambda is a forgetting factor; 1 --> normal
+        % mean calculation, 0 --> last sample is the estimate, & somewhere in
+        % between gives a recursive update, usually it should be set to ~0.9.
+        time   = double( tseries.time ); % valid indexing of time was failing when single
+        v      = double( tseries.data );
+        nT     = min( length(v), length(time) );
+        time   = toVec( time(1:nT) );
+        v      = toVec( v(1:nT) );    % for some reason time & v can be 1 sample out
+        rescale_segment = false;
+        printMessage('on','Keywords','Final rescale time is set to 0. The rescaling will be performed on the whole recording.\n');
+   else
+        % Get start and end from the user input
+        idxend = params.final.value;
+        idxstart = params.initial.value;
+        if strcmp('seconds', params.final_type.value), idxend = round(idxend / dt); end % Convert to samples
+        if strcmp('seconds', params.final_type.value), idxstart = round(idxstart / dt); end % Convert to samples
+        % Validate
+        if idxstart >= idxend
+            str = 'Invalid rescaling period. The start time is higher than the end time.';
+            displayErrorMsg(str);
+            vrescale = [];
+            Rest_vec = [];
+            tpeak_vec = [];
+            return
+        end
+                
+        time   = double( tseries.time(idxstart : idxend) ); % valid indexing of time was failing when single
+        v      = double( tseries.data(idxstart : idxend) );
+        v_original = double( tseries.data ); % To merge the original timeseries with the rescaled segment
+        nT     = min( length(v), length(time) );
+        time   = toVec( time(1:nT) );
+        v      = toVec( v(1:nT) );    % for some reason time & v can be 1 sample out
+        rescale_segment = true;
+   end
+
+   
    % Initialize noise and define automatic parameters
    [noisemu, noisesig, initialNoiseSamples]   = initNoiseStdDev(v, debug);      % init noise std to identify spikes
    if auto_params
@@ -637,6 +669,12 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
           Rest_vec  = [Rest_vec(:); Rest_vec(end)];
       end
       Rest_vec  = interp1( tpeak_vec, Rest_vec, time );
+   end
+   
+   if rescale_segment
+       v_original(idxstart:idxend) = vrescale;
+       tpeak_vec = tpeak_vec + idxstart;
+       vrescale = v_original;
    end
 
    tnow = datetime('now');
