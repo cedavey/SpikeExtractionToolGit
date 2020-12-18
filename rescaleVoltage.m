@@ -18,26 +18,36 @@ function [rescaled_voltage, Rest, params] = rescaleVoltage(tseries, method, para
 
    % Check if options input variable exist
    if nargin > 3, opts = varargin{1}; else, opts = []; end
-
-   switch lower(method)
-      case 'variance'
-         rescaled_voltage = rescaleVoltageVariance(tseries, params, opts);
-         Rest = [];
-
-      case {'particle filter', 'recursive least squares', 'recursive mean'}
-         str = sprintf( '\tRescaling voltage, this may take a whiles...\n' );
-         printMessage('off', 'Keywords', str);
-         [rescaled_voltage, Rest, ~, params] = rescaleVoltageRecursive(tseries, params, method, opts);
-
-      case 'plot sigma'
-         plotVoltageSigma(tseries, params);
-         rescaled_voltage = [];
-         Rest = [];
-
-      otherwise
-         str = 'Nah man, no such rescaling technique';
-         displayErrorMsg(str);
-         rescaled_voltage = [];
+   try
+       switch lower(method)
+           case 'variance'
+               rescaled_voltage = rescaleVoltageVariance(tseries, params, opts);
+               Rest = [];
+               
+           case {'particle filter', 'recursive least squares', 'recursive mean'}
+               str = sprintf( '\tRescaling voltage, this may take a whiles...\n' );
+               printMessage('off', 'Keywords', str);
+               [rescaled_voltage, Rest, ~, params] = rescaleVoltageRecursive(tseries, params, method, opts);
+               
+           case 'plot sigma'
+               plotVoltageSigma(tseries, params);
+               rescaled_voltage = [];
+               Rest = [];
+               
+           otherwise
+               str = 'Nah man, no such rescaling technique';
+               displayErrorMsg(str);
+               rescaled_voltage = [];
+       end
+   catch E
+       if strcmp('Could not find any spikes during the time you chose.', E.message)
+           rescaled_voltage = [];
+           Rest = [];
+           str = 'It looks like there were no spikes found at the chosen times. If you are rescaling a segment, try chosing a longer segment.\n';
+           caught_error = runtimeErrorHandler(E, 'message', str);
+       else
+           runtimeErrorHandler(E);
+       end
    end
 end
 
@@ -78,11 +88,13 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
         rescale_segment = false;
         printMessage('on','Keywords','Final rescale time is set to 0. The rescaling will be performed on the whole recording.\n');
    else
-        % Get start and end from the user input
+        % Get start and end from the user input        
+        v_original = double( tseries.data ); % To merge the original timeseries with the rescaled segment
+        len = length(v_original);
         idxend = params.final.value;
         idxstart = params.initial.value;
-        if strcmp('seconds', params.final_type.value), idxend = round(idxend / dt); end % Convert to samples
-        if strcmp('seconds', params.final_type.value), idxstart = round(idxstart / dt); end % Convert to samples
+        if strcmp('seconds', params.final_type.value), idxend = min(len, round(idxend / dt)); end % Convert to samples
+        if strcmp('seconds', params.final_type.value), idxstart = max(1, round(idxstart / dt)); end % Convert to samples
         % Validate
         if idxstart >= idxend
             str = 'Invalid rescaling period. The start time is higher than the end time.';
@@ -95,7 +107,6 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
                 
         time   = double( tseries.time(idxstart : idxend) ); % valid indexing of time was failing when single
         v      = double( tseries.data(idxstart : idxend) );
-        v_original = double( tseries.data ); % To merge the original timeseries with the rescaled segment
         nT     = min( length(v), length(time) );
         time   = toVec( time(1:nT) );
         v      = toVec( v(1:nT) );    % for some reason time & v can be 1 sample out
@@ -657,7 +668,16 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    % interp doesn't like going outside the input timebounds, so pad Rest
    % with end results & pad time to avoid getting NaNs (changes slowly so ok)
    if strcmp('at_end',rescaling_method)
-      [vrescale, Rest_vec, tpeak_vec] = doRescale(v, tpeak_vec, Rest_vec, time);
+       % Check that tpeak_vec is not empty
+       try
+           [vrescale, Rest_vec, tpeak_vec] = doRescale(v, tpeak_vec, Rest_vec, time);
+       catch ME
+           if isempty(tpeak_vec)
+               error('Could not find any spikes during the time you chose.');
+           else
+               rethrow(ME);
+           end
+       end
    else
       %Need to restore Rest to return it properly.
       if tpeak_vec(1) > time(1)
@@ -672,6 +692,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    end
    
    if rescale_segment
+       % v_original = v_original ./ min(Rest_vec); % TODO: Decide how to deal with the not rescaled part
        v_original(idxstart:idxend) = vrescale;
        tpeak_vec = tpeak_vec + idxstart;
        vrescale = v_original;
@@ -1010,8 +1031,8 @@ function [vspike, tspike] = initSpikes(time, dt, v, noiseoutlier, peakfn, glitch
    initp = 1e2;  % number of peaks we require (will drop when remove multiple peaks per spike)
 
    rate  = 30;
-   nS    = round( initp / rate / dt );
    maxS  = round( length(time) * 0.4 ); % don't wanna use too much of v to get spikes!
+   nS    = min(maxS, round( initp / rate / dt )); % Number of samples to skip per jumpahead, make it smaller than maxS
    fail  = true;
    % for noiseoutlier threshold, find 'initp' voltage peaks that are
    % greater than the threshold, & use these to initialise spikes
