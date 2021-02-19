@@ -518,7 +518,7 @@ function params = getDefaultToolParams
          
          voltage.identify_ap_templates.k_means.match_similarity.value           = 0.8;
          voltage.identify_ap_templates.k_means.match_similarity.name            = 'match similarity';
-         voltage.identify_ap_templates.k_means.match_similarity.descript        = 'similarity required for spike shapes to be considered from the same family';
+         voltage.identify_ap_templates.k_means.match_similarity.descript        = 'similarity required for spike shapes to be considered from the same template';
          voltage.identify_ap_templates.k_means.match_similarity.type            = 'normalised float';
          voltage.identify_ap_templates.k_means.match_similarity.units           = '\in [0, 1]';
 
