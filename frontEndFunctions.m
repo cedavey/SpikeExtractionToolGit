@@ -533,7 +533,16 @@ methods (Static)
       data    = h.data;    % get user data from gui handle
 
       % open smr, txt, or mat file
-      [data, success] = openVoltageFile(data);
+      str = sprintf('\tWarning! The path to open a faile is hardcoded (It won''t crash, this is informative. Check ''frontEndFunctions.load_voltage'').\n');
+      printMessage('off', 'SystemCommands', str);
+      try
+        temp_dir = data.last_dir;
+        data.last_dir = 'C:\Users\artemios\OneDrive - The University of Melbourne\PostDoc\Code\SpikeSimulationTool\simulations\2021';
+        [data, success] = openVoltageFile(data);  
+      catch 
+        data.last_dir = temp_dir;
+        [data, success] = openVoltageFile(data);  
+      end
       data.last_tseries = 1;
       data.curr_tseries = 1;
       data.last_tool    = 1;

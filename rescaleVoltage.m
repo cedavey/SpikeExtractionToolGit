@@ -25,7 +25,7 @@ function [rescaled_voltage, Rest, params] = rescaleVoltage(tseries, method, para
                Rest = [];
                
            case {'particle filter', 'recursive least squares', 'recursive mean'}
-               str = sprintf( '\tRescaling voltage, this may take a whiles...\n' );
+               str = sprintf( '\tRescaling voltage, this may take a while...\n' );
                printMessage('off', 'Keywords', str);
                [rescaled_voltage, Rest, ~, params] = rescaleVoltageRecursive(tseries, params, method, opts);
                
@@ -1130,7 +1130,7 @@ function [noisemu, noisesig, nS, noiseVector] = initNoiseStdDev(v, varargin)
    % get initial noise estimate by finding a white time series at the
    % beginning of the voltage timeseries
    if numel(varargin) > 0, debug = varargin{1}; else, debug = 'semi'; end
-   if numel(varargin) > 1, minimumSamples = varargin{2}; else, minimumSamples = 100; end
+   if numel(varargin) > 1, minimumSamples = varargin{2}; else, minimumSamples = 30; end
    if numel(varargin) > 2, alpha = varargin{3}; else, alpha = 0.05; end
 
    nS = min(minimumSamples, (length(v) - 1)); % Initial num of samples

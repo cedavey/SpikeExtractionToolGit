@@ -560,7 +560,7 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.match_type.units                 = 'statistic';
          voltage.extract_spikes.matched_filter.match_type.list                  = {'corr','cov'};
          
-         voltage.extract_spikes.matched_filter.match_similarity.value           = 0.9;
+         voltage.extract_spikes.matched_filter.match_similarity.value           = 0.7;
          voltage.extract_spikes.matched_filter.match_similarity.name            = 'match similarity';
          voltage.extract_spikes.matched_filter.match_similarity.descript        = 'similarity required for spike shapes to be considered from the same family';
          voltage.extract_spikes.matched_filter.match_similarity.type            = 'normalised float';
@@ -768,55 +768,55 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.match_type.units                      = 'statistic';
          ap.extract_spikes.matched_filter.match_type.list                       = {'corr','cov'};
          
-         ap.extract_spikes.matched_filter.match_similarity.value                = 0.92;
+         ap.extract_spikes.matched_filter.match_similarity.value                = 0.7;
          ap.extract_spikes.matched_filter.match_similarity.name                 = 'match similarity';
          ap.extract_spikes.matched_filter.match_similarity.descript             = 'similarity required for spike shapes to be considered from the same family';
          ap.extract_spikes.matched_filter.match_similarity.type                 = 'normalised float';
          ap.extract_spikes.matched_filter.match_similarity.units                = '\in [0, 1]';
 
-         ap.extract_spikes.matched_filter.forgetting_factor.value               = 0.9;
+         ap.extract_spikes.matched_filter.forgetting_factor.value               = 0.98;
          ap.extract_spikes.matched_filter.forgetting_factor.name                = 'forgetting factor';
          ap.extract_spikes.matched_filter.forgetting_factor.descript            = 'Controls how quickly we forget past samples (0 - forget fastest, 1 - forget slowest)';
          ap.extract_spikes.matched_filter.forgetting_factor.type                = 'normalised float';
          ap.extract_spikes.matched_filter.forgetting_factor.units               = '\in [0, 1]';
          
-         ap.extract_spikes.matched_filter.kappa_pos.value                       = 3;
+         ap.extract_spikes.matched_filter.kappa_pos.value                       = 4;
          ap.extract_spikes.matched_filter.kappa_pos.name                        = 'AP peak change';
          ap.extract_spikes.matched_filter.kappa_pos.descript                    = 'how much can a positive peak differ from the mean peak value';
          ap.extract_spikes.matched_filter.kappa_pos.type                        = 'positive float';
          ap.extract_spikes.matched_filter.kappa_pos.units                       = 'standard deviations';
 
-         ap.extract_spikes.matched_filter.kappa_neg.value                       = 3;
+         ap.extract_spikes.matched_filter.kappa_neg.value                       = 4;
          ap.extract_spikes.matched_filter.kappa_neg.name                        = 'AP peak change';
          ap.extract_spikes.matched_filter.kappa_neg.descript                    = 'how much can a negative peak differ from the mean negative peak value';
          ap.extract_spikes.matched_filter.kappa_neg.type                        = 'positive float';
          ap.extract_spikes.matched_filter.kappa_neg.units                       = 'standard deviations';
 
-         ap.extract_spikes.matched_filter.positive_threshold.value              = 3;
+         ap.extract_spikes.matched_filter.positive_threshold.value              = 5;
          ap.extract_spikes.matched_filter.positive_threshold.name               = 'positive threshold';
          ap.extract_spikes.matched_filter.positive_threshold.descript           = 'only spikes with peak voltage larger than this many std devs considered';
          ap.extract_spikes.matched_filter.positive_threshold.type               = 'positive float';
          ap.extract_spikes.matched_filter.positive_threshold.units              = 'std dev';
          
-         ap.extract_spikes.matched_filter.negative_threshold.value              = 3;
+         ap.extract_spikes.matched_filter.negative_threshold.value              = 4;
          ap.extract_spikes.matched_filter.negative_threshold.name               = 'negative threshold magnitude';
          ap.extract_spikes.matched_filter.negative_threshold.descript           = 'only spikes with a negative voltage of magnitude larger than this considered (0 to ignore)';
          ap.extract_spikes.matched_filter.negative_threshold.type               = 'positive float';
          ap.extract_spikes.matched_filter.negative_threshold.units              = 'std dev';
          
-         ap.extract_spikes.matched_filter.glitch_threshold.value                = 10;
+         ap.extract_spikes.matched_filter.glitch_threshold.value                = 15;
          ap.extract_spikes.matched_filter.glitch_threshold.name                 = 'glitch threshold';
          ap.extract_spikes.matched_filter.glitch_threshold.descript             = 'spikes larger than this are considered a giltch';
          ap.extract_spikes.matched_filter.glitch_threshold.type                 = 'positive float';
          ap.extract_spikes.matched_filter.glitch_threshold.units                = 'avg spike amplitude';
          
-         ap.extract_spikes.matched_filter.avg_window.value                      = 10; % MA window in seconds
+         ap.extract_spikes.matched_filter.avg_window.value                      = 6; % MA window in seconds
          ap.extract_spikes.matched_filter.avg_window.name                       = 'averaging window';
          ap.extract_spikes.matched_filter.avg_window.descript                   = 'length of moving average window for estimating std dev to use in thresholding';
          ap.extract_spikes.matched_filter.avg_window.type                       = 'positive float';
          ap.extract_spikes.matched_filter.avg_window.units                      = 'seconds';
          
-         ap.extract_spikes.matched_filter.skip_window.value                     = 5; % skip ahead window in seconds
+         ap.extract_spikes.matched_filter.skip_window.value                     = 3; % skip ahead window in seconds
          ap.extract_spikes.matched_filter.skip_window.name                      = 'skip ahead window';
          ap.extract_spikes.matched_filter.skip_window.descript                  = 'amount to skip ahead to next avg when estimating std dev to use in thresholding';
          ap.extract_spikes.matched_filter.skip_window.type                      = 'positive float';
@@ -840,7 +840,7 @@ function params = getDefaultToolParams
          ap.extract_spikes.matched_filter.allow_new_aps.type                    = 'boolean';
          ap.extract_spikes.matched_filter.allow_new_aps.units                   = 'true or false';
          
-         ap.extract_spikes.matched_filter.min_spiking_threshold.value           = 200;
+         ap.extract_spikes.matched_filter.min_spiking_threshold.value           = 100;
          ap.extract_spikes.matched_filter.min_spiking_threshold.name            = 'min spiking threshold';
          ap.extract_spikes.matched_filter.min_spiking_threshold.descript        = 'remove a family with number of spikes less than this threshold';
          ap.extract_spikes.matched_filter.min_spiking_threshold.type            = 'positive integer';

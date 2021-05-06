@@ -46,8 +46,8 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
       peakN     = round( median( peakind ) ); % mean index of template peaks
       % peak function calculates the peak of the spike - e.g. using total diff
       % btwn min & max, or just max
-      peakfn    = @(sp) max(sp) - min(sp); 
-      peakfn    = @(sp) max(sp); 
+%       peakfn    = @(sp) max(sp) - min(sp); 
+%       peakfn    = @(sp) max(sp); 
       peakfn    = @(sp) [ min(sp) max(sp) ]; 
    else
       uniqueAPLength = false; 
@@ -56,8 +56,8 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
       peakN     = round( median( peakind ) ); % mean index of template peaks
       % peak function calculates the peak of the spike - e.g. using total diff
       % btwn min & max, or just max
-      peakfn    = @(sp) sp(peakN) - min(sp); 
-      peakfn    = @(sp) sp(peakN); 
+%       peakfn    = @(sp) sp(peakN) - min(sp); 
+%       peakfn    = @(sp) sp(peakN); 
       peakfn    = @(sp) [ min(sp) sp(peakN) ]; 
    end
 
@@ -313,8 +313,9 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
          end
       end
    catch ME
-      str = getCatchMEstring( ME, 'main: ' );
-      cprintf( 'Keywords*', str );
+%       str = getCatchMEstring( ME, 'main: ' );
+%       cprintf( 'Keywords*', str );
+        runtimeErrorHandler(ME);
    end
 
    % Close progress window
@@ -529,7 +530,7 @@ function [mu, sig] = initialize_mu( spikes, si, matchthresh, peakfn, diffpeakfn 
            sig = var(noise_samples) * ones(1,2);
        end
    else
-       fsp = spikes(:,si);
+       fsp = spikes{:,si};
        mu  = peakfn( fsp );
        if noise_samples == 0
            % We are setting sig from the noise now. This line only works if no
@@ -555,7 +556,7 @@ function noise_samples = getNoise(stimes, si, tseries)
         else
             % If not white, take previous samples
             idx = idx - no_samples;
-            noise_samples = tseries.data(idx);
+            noise_samples = tseries.data(idx(idx>0));
         end
     end
     % If it reaches this point, it didn't find any noisy period
