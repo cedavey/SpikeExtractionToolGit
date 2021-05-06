@@ -96,7 +96,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
 %          return;
 %          
       otherwise
-         str = sprintf('What''s this now? Don''t know what you''re talking about...');
+         str = sprintf('Error getting spikes by thresholding. Method %s is not implemented. Check ''extractSpikesUsingTemplates.m''.', method);
          displayErrorMsg(str);
          return;
    end
@@ -228,7 +228,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                valid2 = zeros(size(mun));
                for ti = 1:numel(mup)
                   valid1(ti) = (curr_peak(1) >= mun(ti) - kappa_neg * stdn_(ti)) && (curr_peak(1) <= mun(ti) + kappa_neg * stdn_(ti));
-                  valid2(ti) = (curr_peak(2) >= mup(ti) - kappa_pos * stdp_(ti)) && (curr_peak(2) <= mup(ti) + kappa_pos * stdp_(ti));
+                  valid2(ti) = (curr_peak(2) >= mup(ti) - kappa_pos * stdp_(ti)) && (curr_peak(2) <= mup(ti) + kappa_pos * stdp_(ti)); % max(stdp_(ti), stdn_(ti)));
                end
                valid = valid1 & valid2;
 
@@ -313,7 +313,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
          end
       end
    catch ME
-%       str = getCatchMEstring( ME, 'main: ' );
+      str = getCatchMEstring( ME, 'main: ' );
 %       cprintf( 'Keywords*', str );
         runtimeErrorHandler(ME);
    end

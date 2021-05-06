@@ -105,7 +105,7 @@ end
 
 %% Calculates the parameters for identify AP templates
 function params = calculateAutomaticParamsAPtemplates(tseries, params, tool)
-   if strcmpi('identifyap', tool)
+%    if strcmpi('identifyap', tool)
       % remove templates with spikes less than 0.02 Hz 
       spFreq = 0.02; 
       minSp  = tseries.time(end) * spFreq;
@@ -113,7 +113,7 @@ function params = calculateAutomaticParamsAPtemplates(tseries, params, tool)
       params.remove_small_templates.value = floor( minSp ); 
 %    else
 %       params.min_spiking_threshold.value = floor(tseries.time(end)/20); 
-   end
+%    end
 end
 
 %% we're identifying peaks by thresholding, so if we want only positive,
