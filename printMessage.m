@@ -12,7 +12,8 @@ function printMessage( logMessage, varargin )
 %   logMessage - if 'off', it doesn't save the printed message in the log
 %                   file. Anything else will save this message in the log 
 %                   file.
-%   all other inputs are passed to cprintf;  cprintf( format, str )
+%   all other inputs are passed to cprintf;  cprintf( format, str ). Check
+%   the formatting (color, style, etc) in cprintf.m
 % 
 % See also: cprintf
 %

@@ -180,7 +180,7 @@ function [spikes, stimes, spikesFull, stimesFull] = getSpikesByThresholding(tser
    
    % Glitch threshold
    if doglitch
-      [ glitch_pos, glitch_neg, tindex ] = getGlitchThreshold( glitchthresh, stddev(keep), pos_max(keep), neg_min(keep) );
+      [ glitch_pos, glitch_neg, ~ ] = getGlitchThreshold( glitchthresh, stddev(keep), pos_max(keep), neg_min(keep) );
       keep_glitch = (pos_max(keep) <= glitch_pos) & (neg_min(keep) >= glitch_neg);
       if sum( keep_glitch ) == 0
          gtime = cellfun( @(t) t(1), stimes ); % get start index of each spike
@@ -271,6 +271,7 @@ function [pos_thresh, neg_thresh, tindex] = getGlitchThreshold(glitchthresh, std
       neg_avg = movingAverageVariance( neg_min, window, skip, @mean, true);
       std_avg = movingAverageVariance( stdev,   window, skip, @mean, true);
    else
+      tindex = [];
       pos_avg = pos_max; 
       neg_avg = neg_min;
    end

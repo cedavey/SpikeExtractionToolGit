@@ -147,7 +147,7 @@ function varargout = SpikeExtractionTool(varargin)
 
 % Edit the above text to modify the response to help SpikeExtractionTool
 
-% Last Modified by GUIDE v2.5 07-Nov-2019 11:08:08
+% Last Modified by GUIDE v2.5 30-Apr-2021 16:43:30
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -1238,3 +1238,47 @@ function reset_button_CreateFcn(hObject, eventdata, handles)
    hObject.BackgroundColor = [1 0.6 0.6]; % Change color to match other buttons
    hObject.String = ''; % Remove string
 end
+
+
+% --- Executes on button press in new_figure_workspace.
+% Loads the voltage to a workspace variable and plots it, then clears
+% the variable
+function new_figure_workspace_Callback(hObject, eventdata, handles)
+    % Load the voltage to the workspace
+    try
+        [tseries, ~, ~, ts_name] = handles.f.getCurrentVoltage(handles);
+        assignin('base', title2Str(ts_name,1,1,'_'), tseries);
+        % Plot the figure:
+        switch tseries.type
+            case 'voltage'
+                h = figure('Name', ts_name);
+                plot(tseries.time, tseries.data);
+                xlabel('Time (s)');
+                ylabel('Vm (mV)');
+                box off;
+            case 'spike'
+                h = figure('Name', ts_name);
+                plot(tseries.time, tseries.data{1});
+                if numel(tseries.data) > 1
+                    hold on;
+                    for i = 2:numel(tseries.data)
+                        plot(tseries.time, tseries.data{i});
+                    end
+                end                        
+                xlabel('Time (s)');
+                ylabel('Vm (mV)');
+                box off;
+            otherwise
+                error('Not implemented');
+        end
+    catch ME
+        if exist('h', 'var')
+            close(h);
+            clear h
+        end
+       str = getCatchMEstring( ME, 'Error trying to plot the voltage.', false );
+       displayErrorMsg( 'Sorry! I don''t know how to plot that kind of data yet. :(');
+    end
+end
+
+

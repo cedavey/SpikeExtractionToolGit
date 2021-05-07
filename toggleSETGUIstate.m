@@ -108,6 +108,7 @@ function handles = toggleSETGUIstate(handles,state)
    set(handles.time_min,       'Visible', state);
    set(handles.save_voltage,   'Visible', state);
    set(handles.new_figure,     'Visible', state);
+   set(handles.new_figure_workspace, 'Visible', state);
    set(handles.toggleZoomButton,'Visible', state);
    set(handles.reset_button,   'Visible', state);   
    % if gui is deployed as stand alone then can't access variables

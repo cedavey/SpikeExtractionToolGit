@@ -46,8 +46,8 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
       peakN     = round( median( peakind ) ); % mean index of template peaks
       % peak function calculates the peak of the spike - e.g. using total diff
       % btwn min & max, or just max
-      peakfn    = @(sp) max(sp) - min(sp); 
-      peakfn    = @(sp) max(sp); 
+%       peakfn    = @(sp) max(sp) - min(sp); 
+%       peakfn    = @(sp) max(sp); 
       peakfn    = @(sp) [ min(sp) max(sp) ]; 
    else
       uniqueAPLength = false; 
@@ -56,8 +56,8 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
       peakN     = round( median( peakind ) ); % mean index of template peaks
       % peak function calculates the peak of the spike - e.g. using total diff
       % btwn min & max, or just max
-      peakfn    = @(sp) sp(peakN) - min(sp); 
-      peakfn    = @(sp) sp(peakN); 
+%       peakfn    = @(sp) sp(peakN) - min(sp); 
+%       peakfn    = @(sp) sp(peakN); 
       peakfn    = @(sp) [ min(sp) sp(peakN) ]; 
    end
 
@@ -96,7 +96,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
 %          return;
 %          
       otherwise
-         str = sprintf('What''s this now? Don''t know what you''re talking about...');
+         str = sprintf('Error getting spikes by thresholding. Method %s is not implemented. Check ''extractSpikesUsingTemplates.m''.', method);
          displayErrorMsg(str);
          return;
    end
@@ -228,7 +228,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                valid2 = zeros(size(mun));
                for ti = 1:numel(mup)
                   valid1(ti) = (curr_peak(1) >= mun(ti) - kappa_neg * stdn_(ti)) && (curr_peak(1) <= mun(ti) + kappa_neg * stdn_(ti));
-                  valid2(ti) = (curr_peak(2) >= mup(ti) - kappa_pos * stdp_(ti)) && (curr_peak(2) <= mup(ti) + kappa_pos * stdp_(ti));
+                  valid2(ti) = (curr_peak(2) >= mup(ti) - kappa_pos * stdp_(ti)) && (curr_peak(2) <= mup(ti) + kappa_pos * stdp_(ti)); % max(stdp_(ti), stdn_(ti)));
                end
                valid = valid1 & valid2;
 
@@ -314,7 +314,8 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
       end
    catch ME
       str = getCatchMEstring( ME, 'main: ' );
-      cprintf( 'Keywords*', str );
+%       cprintf( 'Keywords*', str );
+        runtimeErrorHandler(ME);
    end
 
    % Close progress window
@@ -456,9 +457,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
             APspikes{ti} = fam_tseries;
             APtimes{ti}  = fam_stimes;
          end
-
       end
-
    catch ME
       str = getCatchMEstring( ME, 'end: ' );
    end
@@ -529,7 +528,7 @@ function [mu, sig] = initialize_mu( spikes, si, matchthresh, peakfn, diffpeakfn 
            sig = var(noise_samples) * ones(1,2);
        end
    else
-       fsp = spikes(:,si);
+       fsp = spikes{:,si};
        mu  = peakfn( fsp );
        if noise_samples == 0
            % We are setting sig from the noise now. This line only works if no
@@ -555,7 +554,7 @@ function noise_samples = getNoise(stimes, si, tseries)
         else
             % If not white, take previous samples
             idx = idx - no_samples;
-            noise_samples = tseries.data(idx);
+            noise_samples = tseries.data(idx(idx>0));
         end
     end
     % If it reaches this point, it didn't find any noisy period
