@@ -164,8 +164,13 @@ tscale=1; tlabel='s';
          end
          xlim( tlim/tscale );
          ylim( vlim/vscale );
-         set( get(ax1,'title'), 'String', sprintf('AP template %d (%d families)', ...
-                                                   plot_ax(i), size(x,2)), fopts{:} );
+         % Count total found spikes to display the value on the title
+         total_found_spikes = 0;
+         for j = 1:size(x,2)
+             total_found_spikes = total_found_spikes + size(tseries.APstimes{1,:}{j},2);
+         end
+         set( get(ax1,'title'), 'String', sprintf('AP %d (%d fams, N = %d)', ...
+                                                   plot_ax(i), size(x,2), total_found_spikes), fopts{:});
          if i==1
             set( get(ax1,'Xlabel'), 'String', sprintf('Time (%s)', tlabel), fopts{:});
             switch tseries.type

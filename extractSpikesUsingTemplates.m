@@ -457,9 +457,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
             APspikes{ti} = fam_tseries;
             APtimes{ti}  = fam_stimes;
          end
-
       end
-
    catch ME
       str = getCatchMEstring( ME, 'end: ' );
    end
