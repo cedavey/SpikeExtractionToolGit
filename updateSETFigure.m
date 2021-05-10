@@ -167,8 +167,10 @@ tscale=1; tlabel='s';
          % Count total found spikes to display the value on the title
          total_found_spikes = 0;
          try
-             for j = 1:size(x,2)
-                 total_found_spikes = total_found_spikes + size(tseries.APstimes{1,:}{j},2);
+             for j = 1:numel(tseries.APstimes)
+                 for k = 1:numel(tseries.APstimes{1,j})
+                    total_found_spikes = total_found_spikes + size(tseries.APstimes{1,j}{k},2);
+                 end
              end
              set( get(ax1,'title'), 'String', sprintf('AP %d (%d fams, N = %d)', ...
                                                    plot_ax(i), size(x,2), total_found_spikes), fopts{:});
