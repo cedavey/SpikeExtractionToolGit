@@ -46,7 +46,7 @@ function out = runtimeErrorHandler(varargin)
    % Deal with the error
    switch action
       case 'rethrow'
-         out = ME;% rethrow(ME);
+         rethrow(ME);%out = ME;% rethrow(ME);
          return
          
       case 'ignore'
