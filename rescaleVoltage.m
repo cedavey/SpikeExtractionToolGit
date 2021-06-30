@@ -46,7 +46,11 @@ function [rescaled_voltage, Rest, params] = rescaleVoltage(tseries, method, para
            str = 'It looks like there were no spikes found at the chosen times. If you are rescaling a segment, try chosing a longer segment.\n';
            caught_error = runtimeErrorHandler(E, 'message', str);
        else
-           runtimeErrorHandler(E);
+           try
+                runtimeErrorHandler(E);
+           catch
+                rethrow(E);
+           end
        end
    end
 end
@@ -145,7 +149,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    printMessage('off', 'Keywords', str);
 
    % Initialise the rest of the values
-   [vspike,  tspike]     = initSpikes(time, dt, peakfn(v), noisesig*voltoutlier, peakfn, glitchthresh * noisesig, jumpahead); % identify initial spikes
+   [vspike,  tspike]     = initSpikes(time, dt, peakfn(v), noisesig*voltoutlier, peakfn, glitchthresh * noisesig, jumpahead, debug); % identify initial spikes
    [Rest, Rcoeff, Rmu, Rstd, Rcov] = initRegress(tspike-tspike(1), vspike, lambda, npoles, nzeros, debug); % est init resistance
    a = Rcoeff(2:npoles+1); b = [Rcoeff(1) Rcoeff(npoles+2:end)];
    Rinit    = Rest(end); % The initial estimate is what might be causing the initial change in rescalings %TODO
@@ -1023,7 +1027,7 @@ end
 
 % get initial spikes to kickstart regression with - gets the smallest subset
 % of voltage samples that is required to extract a specified number of spikes
-function [vspike, tspike] = initSpikes(time, dt, v, noiseoutlier, peakfn, glitchthresh, jumpahead)
+function [vspike, tspike] = initSpikes(time, dt, v, noiseoutlier, peakfn, glitchthresh, jumpahead, debug)
    % num samples to start with - double until we have enough spikes
    % - if we assume 30 spikes/s to start with, then calc num samples
    %   (we expand time if the actual spiking rate isn't high enough, and
@@ -1051,13 +1055,22 @@ function [vspike, tspike] = initSpikes(time, dt, v, noiseoutlier, peakfn, glitch
          noiseoutlier = noiseoutlier * 0.9;
       end
    end
-   vtmp    = v(1:nS); ttmp = time(1:nS);
-   isglitch= peakfn( vtmp ) > glitchthresh;
-   vtmp    = vtmp( ~isglitch );
-   ttmp    = ttmp( ~isglitch );
-   isspike = peakfn(vtmp) > noiseoutlier;
-   vtmp    = vtmp(isspike);
-   ttmp    = ttmp(isspike);
+   vtmp_1    = v(1:nS); ttmp_1 = time(1:nS);
+   isglitch= peakfn( vtmp_1 ) > glitchthresh;
+   vtmp_2    = vtmp_1( ~isglitch );
+   ttmp_2    = ttmp_1( ~isglitch );
+   isspike = peakfn(vtmp_2) > noiseoutlier;
+   vtmp    = vtmp_2(isspike);
+   ttmp    = ttmp_2(isspike);
+   
+   if strcmp('full',debug)
+       figure;
+       plot(ttmp_1,vtmp_1);
+       hold;
+       plot(ttmp_1(isglitch),vtmp_1(isglitch), 'x');
+       plot(ttmp_2(isspike),vtmp_2(isspike), 'x');
+       legend({'v (segment)', 'Glitches', 'Below Th'})
+   end
 
    % extract just the spike peaks - for each run of voltages that are
    % pretty close in time, get just the largest in the run so that we're
@@ -1320,7 +1333,7 @@ function plotVoltageSigma(tseries, params)
 
    % Initialise
    [noisemu, noisesig]   = initNoiseStdDev(v);      % init noise std to identify spikes
-   [vspike,  tspike]     = initSpikes(time, dt, peakfn(v), noisesig*voltoutlier, peakfn, glitchthresh * noisesig); % identify initial spikes
+   [vspike,  tspike]     = initSpikes(time, dt, peakfn(v), noisesig*voltoutlier, peakfn, glitchthresh * noisesig, [], debug); % identify initial spikes
 
 
    debug       = 'semi'; % 'none', 'semi', 'full'

@@ -313,9 +313,8 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
          end
       end
    catch ME
-      str = getCatchMEstring( ME, 'main: ' );
-%       cprintf( 'Keywords*', str );
-        runtimeErrorHandler(ME);
+       str = getCatchMEstring( ME, 'main: ' );
+       runtimeErrorHandler(ME);
    end
 
    % Close progress window
