@@ -165,15 +165,23 @@ tscale=1; tlabel='s';
          xlim( tlim/tscale );
          ylim( vlim/vscale );
          % Count total found spikes to display the value on the title
-         total_found_spikes = 0;
+         method_idx = ternaryOp(length(data) == size(tseries.APstimes,2), 2, 1); % 2 for moving average, 1 for k-means
+         num_templates = length(data);% size(tseries.APstimes,method_idx);
+         total_found_spikes = zeros(num_templates,1);
          try
-             for j = 1:numel(tseries.APstimes)
-                 for k = 1:numel(tseries.APstimes{1,j})
-                    total_found_spikes = total_found_spikes + size(tseries.APstimes{1,j}{k},2);
+             for j = 1:num_templates % debugging, not sure if num_templates is correct under every possibility
+                 if method_idx > 1
+                     for k = 1:numel(tseries.APstimes{1,j})
+                        total_found_spikes(j) = total_found_spikes(j) + size(tseries.APstimes{1,j}{k},method_idx);
+                     end
+                 else
+                     for k = 1:numel(tseries.APstimes{j})
+                        total_found_spikes(j) = total_found_spikes(j) + size(tseries.APstimes{j}{k},method_idx);
+                     end
                  end
              end
-             set( get(ax1,'title'), 'String', sprintf('AP %d (%d fams, N = %d)', ...
-                                                   plot_ax(i), size(x,2), total_found_spikes), fopts{:});
+             set( get(ax1,'title'), 'String', sprintf('AP %d (%d fams, N = %d, Total = %d)', ...
+                                                   plot_ax(i), size(x,2), total_found_spikes(plot_ax(i)), sum(total_found_spikes)), fopts{:});
          catch E
                str = 'Couldn''t display the spike count here. Check in the workspace.\n';
                runtimeErrorHandler(E,'message',str);           
@@ -316,55 +324,55 @@ tscale=1; tlabel='s';
       set( get(ax1,'Xlabel'), 'String', sprintf('Time (%s)',    tlabel), fopts{:} );
       set( get(ax1,'Ylabel'), 'String', sprintf('Voltage (%s)', vlabel), fopts{:} );
 
-   switch tseries.type
-      case 'voltage'
-         set( get(ax1,'Xlabel'), 'String', sprintf('Time (%s)',    tlabel), fopts{:});
-         set( get(ax1,'Ylabel'), 'String', sprintf('Voltage (%s)', vlabel), fopts{:});
+       switch tseries.type
+          case 'voltage'
+             set( get(ax1,'Xlabel'), 'String', sprintf('Time (%s)',    tlabel), fopts{:});
+             set( get(ax1,'Ylabel'), 'String', sprintf('Voltage (%s)', vlabel), fopts{:});
 
-      case 'ap'
-         fontsize  = 10; % make font smaller cuz looks silly!
-         set(lh, 'color', 'k', 'linewidth', 4);
-         try
-            hold on;
-            % nlines = min( max_lines, size( tseries.APfamily{plot_ax(i)}, 2) );
-            size_lines = size( tseries.APfamily{ plot_ax(i)}, 2 );
-            nlines     = min( max_lines, size_lines );
-            % Show the last max_lines lines, instead of the first ones
-            lind       = max( 1, (size_lines - max_lines) ) : size_lines;
+          case 'ap'
+             fontsize  = 10; % make font smaller cuz looks silly!
+             set(lh, 'color', 'k', 'linewidth', 4);
+             try
+                hold on;
+                % nlines = min( max_lines, size( tseries.APfamily{plot_ax(i)}, 2) );
+                size_lines = size( tseries.APfamily{ plot_ax(i)}, 2 );
+                nlines     = min( max_lines, size_lines );
+                % Show the last max_lines lines, instead of the first ones
+                lind       = max( 1, (size_lines - max_lines) ) : size_lines;
 
-            plot( ax1, time(sind:min(eind,numT))/tscale, tseries.APfamily{plot_ax(i)}(sind:min(eind,numT),lind)/vscale, 'linewidth', 1 );
-            vlim(2)    = max( toVec( tseries.APfamily{plot_ax(i)}(sind:min(eind,numT),lind) ) );
-            % if APs normalised we know they'll be btwn -3/3 so make lims the same
-            if tseries.params.normalise_aps.value
-               ylim( [-3 3] );
-            else
-               ylim( vlim/vscale );
-            end
-            hold off;
-            uistack(lh, 'top'); % put mean on top
-%                chH = get(ax1,'Children');
-%                set(gca,'Children',[chH(end);chH(1:end-1)]);
-            N = size( tseries.APfamily{plot_ax(i)}, 2 );
-            set( get(ax1,'Title'), 'String',  sprintf('AP %d (N=%d)', plot_ax(i), N), 'fontweight','bold','fontsize',10 );
-            set( get(ax1,'Ylabel'), 'String', sprintf('Voltage (%s)', vlabel), 'fontweight','normal','fontsize',10 );
+                plot( ax1, time(sind:min(eind,numT))/tscale, tseries.APfamily{plot_ax(i)}(sind:min(eind,numT),lind)/vscale, 'linewidth', 1 );
+                vlim(2)    = max( toVec( tseries.APfamily{plot_ax(i)}(sind:min(eind,numT),lind) ) );
+                % if APs normalised we know they'll be btwn -3/3 so make lims the same
+                if tseries.params.normalise_aps.value
+                   ylim( [-3 3] );
+                else
+                   ylim( vlim/vscale );
+                end
+                hold off;
+                uistack(lh, 'top'); % put mean on top
+    %                chH = get(ax1,'Children');
+    %                set(gca,'Children',[chH(end);chH(1:end-1)]);
+                N = size( tseries.APfamily{plot_ax(i)}, 2 );
+                set( get(ax1,'Title'), 'String',  sprintf('AP %d (N=%d)', plot_ax(i), N), 'fontweight','bold','fontsize',10 );
+                set( get(ax1,'Ylabel'), 'String', sprintf('Voltage (%s)', vlabel), 'fontweight','normal','fontsize',10 );
 
-            if tseries.params.normalise_aps.value
-               set( get(ax1,'Ylabel'), 'String', sprintf('Normalised'), 'fontweight','normal','fontsize',10 );
-            end
+                if tseries.params.normalise_aps.value
+                   set( get(ax1,'Ylabel'), 'String', sprintf('Normalised'), 'fontweight','normal','fontsize',10 );
+                end
 
-         catch ME
-            if strcmp('Invalid or deleted object.', ME.message)
-               set(handles.figure1,'CurrentAxes',ax1)
-               if ~ishold
-                  hold(ax1,'on');
-               end
-               plot((1:size(data(:,...
-                  plot_ax(i))))*dt/tscale, data(:, plot_ax(i))/vscale,...
-                  'k','LineWidth',3);
-            else
-               runtimeErrorHandler(ME,'message');
-            end
-         end
-      end
-   end
-end
+             catch ME
+                if strcmp('Invalid or deleted object.', ME.message)
+                   set(handles.figure1,'CurrentAxes',ax1)
+                   if ~ishold
+                      hold(ax1,'on');
+                   end
+                   plot((1:size(data(:,...
+                      plot_ax(i))))*dt/tscale, data(:, plot_ax(i))/vscale,...
+                      'k','LineWidth',3);
+                else
+                   runtimeErrorHandler(ME,'message');
+                end
+            end %try
+        end %switch
+   end %for
+end %function
