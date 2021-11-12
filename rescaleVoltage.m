@@ -467,12 +467,6 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
          Rest_vec(nP,1) = Rcurr;
          
       else % still getting init samples of Rest to enable modelling
-          % ToDo: Retrieve the X*m function from initRegres to calculate this
-          % Rest instead of just using the fixed Rest(end).
-          % Ask Katie
-          %         error('TO DO');
-          %          Rest_vec(nP,1) = Rest(end);
-          %          [Rest, Rcoeff, Rmu, Rstd, Rcov] = initRegress(tspike-tspike(1), vspike, lambda, npoles, nzeros, debug); % est init resistance
           tspike(1:end-1) = tspike(2:end);
           tspike(end) = tpeak;
           vspike(1:end-1) = vspike(2:end);
