@@ -139,7 +139,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    jumpahead    = params.jump_ahead.value;
    peakfn       = getPeakFn( select_peaks ); % select just positive peaks, just negative, both or separate
    npoles = 0;     % number of poles in AR model of resistance coeff
-   nzeros = 2;     % includes the dc component
+   nzeros = 5;     % includes the dc component
    nlags  = max(nzeros, npoles+1);
    jumpahead = round( jumpahead / dt ); % convert jump ahead from time into samples
 
@@ -151,7 +151,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    % Initialise the rest of the values
    [vspike,  tspike]     = initSpikes(time, dt, peakfn(v), noisesig*voltoutlier, peakfn, glitchthresh * noisesig, jumpahead, debug); % identify initial spikes
    [Rest, Rcoeff, Rmu, Rstd, Rcov] = initRegress(tspike-tspike(1), vspike, lambda, npoles, nzeros, debug); % est init resistance
-   a = Rcoeff(2:npoles+1); b = [Rcoeff(1) Rcoeff(npoles+2:end)];
+   a = Rcoeff(2:npoles+1); b = [Rcoeff(1); Rcoeff(npoles+2:end)];
    Rinit    = Rest(end); % The initial estimate is what might be causing the initial change in rescalings %TODO
    Rcovprev = Rcov;
    vmu      = mean( vspike );
@@ -390,7 +390,8 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
                end
                % Predict Rest from prev timestep: x(t-1) -> x(t)
 
-               [a, b, Rcov, Rtmp] = recursiveLeastSquares( (tpeak_vec(end-nlags:end) - tstartpiece), ...
+               [a, b, Rcov, Rtmp] = recursiveLeastSquares( ...
+                 (tpeak_vec(end-nlags:end) - tstartpiece), ...
                   vpeak_vec(end-nlags:end), ... % Rest, ... %
                   npoles, nzeros, Rcovprev, ...
                   a, b, lambda );
@@ -420,7 +421,8 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
 
             case 'recursive least squares'
                % Update regression that predicts mean of spike peak
-               [a, b, Rcov, Rest] = recursiveLeastSquares( ( tpeak_vec(end-nlags:end) - tstartpiece ), ...
+               [a, b, Rcov, Rest] = recursiveLeastSquares( ...
+                ( tpeak_vec(end-nlags:end) - tstartpiece ), ...
                   vpeak_vec(end-nlags:end), ...
                   npoles, nzeros, Rcovprev, ...
                   a, b, lambda );
@@ -463,9 +465,26 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
          [Rmu, Rvar] = recursiveUpdate( Rmu, Rvar, Rcurr, lambda );
          Rstd = sqrt(Rvar);
          Rest_vec(nP,1) = Rcurr;
-
+         
       else % still getting init samples of Rest to enable modelling
-         Rest_vec(nP,1) = Rest(end);
+          % ToDo: Retrieve the X*m function from initRegres to calculate this
+          % Rest instead of just using the fixed Rest(end).
+          % Ask Katie
+          %         error('TO DO');
+          %          Rest_vec(nP,1) = Rest(end);
+          %          [Rest, Rcoeff, Rmu, Rstd, Rcov] = initRegress(tspike-tspike(1), vspike, lambda, npoles, nzeros, debug); % est init resistance
+          tspike(1:end-1) = tspike(2:end);
+          tspike(end) = tpeak;
+          vspike(1:end-1) = vspike(2:end);
+          vspike(end) = vpeak;
+
+          if length(tpeak_vec) <= 1
+              [Rest, ~, ~, ~, ~] = initRegress(tspike-tspike(1), vspike, lambda, npoles, nzeros, debug); % est init resistance
+              Rest_vec(nP,1) = max(Rest);
+          else
+              [Rest, ~, ~, ~, ~] = initRegress(tspike-tspike(1), vspike, lambda, npoles, nzeros, debug); % est init resistance
+              Rest_vec(nP,1) = Rest(end);
+          end
       end
 
       % update vectors
@@ -928,15 +947,20 @@ end
 %  initialise with regression on first few samples - else we might miss
 %  the first few spikes while the recursive algorithm is converging
 function [Rest, Rcoeff, Rmu, Rsig, Rcov] = initRegress(tspike, vspike, lambda, npoles, nzeros, debug, Rcov)
+   % Rcoeff contains [dc a(npoles:1) b(nzeros:1)]
    dorecursive = true; % can assume stationary for init section, or do recursively
-
+   nu     = npoles + nzeros;
+   dcinit = 1;
+   poleinit = 0;
    % hopefully this will never happen, but just in case!
-   if length(vspike)==1
-      Rcoeff(2) = 0;
-      Rcoeff(1) = vspike;
+   if length(vspike)<nzeros
+      Rcoeff(1) = dcinit;
+      Rcoeff(2:npoles+1,1) = poleinit; 
+      Rest = vspike./tspike;
+      Rcoeff(npoles+2:end) = Rest(end);
       Rsig = vspike;
       Rmu  = vspike;
-      Rcov = eye(2,2) / Rsig;
+      Rcov = eye(nu,nu) / Rsig;
       Rest = vspike;
       str  = sprintf( '\tInit regression for R estimate only has 1 sample!\n' );
       printMessage('off', 'Errors', str );
@@ -948,13 +972,48 @@ function [Rest, Rcoeff, Rmu, Rsig, Rcov] = initRegress(tspike, vspike, lambda, n
    if numel(tspike) > 4*p+2
       % Validate length of the time series (even if it was larger than 1)
       [Rcoeff, ~, vest] = getARcoeff_2vars( vspike, tspike, p );
-   else
-      Rcoeff(2) = 0;
-      Rcoeff(1) = vspike(end);
+      % if the estimate is shit (e.g. negative) then redo as univar AR &
+      % regression (i.e. separate out from VAR into separate equations)
+      X = makeRecursiveLeastSquaresMatrix( tspike, vspike, length(vspike), npoles, nzeros );
+      Rest = [b(1) a, b(2:end)'] * X;
+      if Rest <= 0 || Rest < mean(vspike) - 2*std(vspike) ||  Rest > mean(vspike) + 2*std(vspike)
+        a = getARcoeff( vspike, npoles );
+        b = a(1); a = a(2:end)'; % get rid of dc
+
+        % regress time onto spikes
+        if nzeros>1
+           clear X;
+           for ti=1:(nzeros-1)
+              X(:,ti) = tspike((nzeros-ti+1):end-ti+1);
+           end
+           c = regress( vspike(nzeros:end), X );
+           b = [b c];
+        end
+      end
+      
+   elseif numel(tspike) > nzeros
+      % fit a linear regression to vspike, predicted from tspike (using
+      % mean is not working)
+      x    = [ones(size(tspike)) tspike]; % independent variable matrix
+      nT   = numel( tspike ) - nzeros; % need first nu samples to initialise
+      X    = zeros(nT, npoles);
+      Y    = zeros(nT, nzeros-1);
+      for ii=1:nzeros-1
+          Y(:,ii) = tspike(nzeros-ii+1:end-ii);
+      end
+      for ii=1:npoles
+          X(:,ii) = vspike(nzeros-ii+1:end-ii);
+      end
+      X = [ ones(nT,1) X Y ];
+      m = regress( vspike(nzeros+1:end), X );
+      b = [m(1); m(npoles+2:end)];
+      a = m(2:npoles+1);
+      Rcoeff = m;
+      Rest = X*m; % vector of estimates that is nT long
+      
       Rsig = vspike(end);
       Rmu  = vspike(end);
-      Rcov = eye(2,2) / Rsig;
-      Rest = vspike(end);
+      Rcov = eye(nu,nu) / Rsig;
       str  = sprintf( '\tInit regression for R estimate has too few samples!\n' );
       printMessage('off', 'Errors', str );
       return;
@@ -963,24 +1022,7 @@ function [Rest, Rcoeff, Rmu, Rsig, Rcov] = initRegress(tspike, vspike, lambda, n
    a      =  Rcoeff(2:npoles+1)'; % autoregression coeffs
    b      = [Rcoeff(1) Rcoeff(p+2:(p+nzeros))']; % DC + input coeffs
 
-   % if the estimate is shit (e.g. negative) then redo as univar AR &
-   % regression (i.e. separate out from VAR into separate equations)
-   X = makeRecursiveLeastSquaresMatrix( tspike, vspike, length(vspike), npoles, nzeros );
-   Rest = [b(1) a, b(2:end)'] * X;
-   if Rest <= 0 || Rest < mean(vspike) - 2*std(vspike) ||  Rest > mean(vspike) + 2*std(vspike)
-      a = getARcoeff( vspike, npoles );
-      b = a(1); a = a(2:end)'; % get rid of dc
 
-      % regress time onto spikes
-      if nzeros>1
-         clear X;
-         for ti=1:(nzeros-1)
-            X(:,ti) = tspike((nzeros-ti+1):end-ti+1);
-         end
-         c = regress( vspike(nzeros:end), X );
-         b = [b c];
-      end
-   end
    if nargin<7 || isempty(Rcov)
       Rcov = eye( ndim ) / std(vspike); % inverse cov of predictor matrix
       Rcov = eye( ndim ); % inverse cov of predictor matrix
@@ -1004,7 +1046,8 @@ function [Rest, Rcoeff, Rmu, Rsig, Rcov] = initRegress(tspike, vspike, lambda, n
          [Rmu, Rvar] = recursiveUpdate( Rmu, Rvar, vspike(ti), lambda );
 
          % linear regression for spike std
-         [a, b, Rcov, Rest] = recursiveLeastSquares( ( tspike(ti-p:ti) - tspike(1) ), ...
+         [a, b, Rcov, Rest] = recursiveLeastSquares( ...
+          ( tspike(ti-p:ti) - tspike(1) ), ...
             vspike(ti-p:ti), ...
             npoles, nzeros, Rcov, ...
             a, b, 1 );
@@ -1073,7 +1116,7 @@ function [vspike, tspike] = initSpikes(time, dt, v, noiseoutlier, peakfn, glitch
    end
 
    % extract just the spike peaks - for each run of voltages that are
-   % pretty close in time, get just the largest in the run so that we're
+   % pretty close in time, get just the largest in the Rtmprun so that we're
    % only getting one sample per spike
    sptime = dt*200; % peaks within this period are assumed part of same spike
    vspike = []; tspike = [];

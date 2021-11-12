@@ -12,7 +12,7 @@
 %     y   - output vector (observations)
 %     na  - number of poles in the transfer function (all lagged, so that
 %           obs vector must be at least na+1 samples long)
-%     nb  - number of zeros in the transfer function
+%     nb  - number of zeros in the transfer function (including DC)
 %     P   - weighted inverse covariance matrix
 %     a   - autoregression coeffs that minimise the least squares cost fn
 %     b   - DC + input coeffs that minimise the least squares cost function
@@ -34,7 +34,7 @@
 %           output & our estimate of the output, then the new coefficient
 %           estimate is w <- w + alpha*g
 %     X   - updated matrix created from input & output vectors, for regression
-% a and b are vectors of the system estimated parameters.
+%           a and b are vectors of the system estimated parameters.
 %
 function [a, b, P, y_est, g] = recursiveLeastSquares(x, y, na, nb, P_prev, a_prev, b_prev, varargin)
    optargs = {1, [], 0, 1}; % lambda, n, delay
@@ -81,7 +81,7 @@ function [a, b, P, y_est, g] = recursiveLeastSquares(x, y, na, nb, P_prev, a_pre
    a =  w(2:na+1); % w(1:na);
    b = [w(1); w(na+2:end)]; % w(na+1:end)
    
-   y_est = X'*w;
+   y_est = X'*w; 
 end
 
 
