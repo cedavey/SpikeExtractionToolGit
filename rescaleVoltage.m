@@ -398,7 +398,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
                % Update regression that estimates next resistance
                Rcoeff = [b(1) a(:)' toVec(b(2:end))'];
 
-               predict( pf, Rcoeff, Rest, ( tpeak_vec(nP-nlags:end) - tstartpiece ), npoles, nzeros );
+               predict( pf, Rcoeff', Rest, ( tpeak_vec(nP-nlags:end) - tstartpiece ), npoles, nzeros );
 
                % Correct Rest from current obs: x(t) -> y(t)
                correct( pf, vpeak, Rstd );
