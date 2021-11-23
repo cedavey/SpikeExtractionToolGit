@@ -151,7 +151,15 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    % Initialise the rest of the values
    [vspike,  tspike]     = initSpikes(time, dt, peakfn(v), noisesig*voltoutlier, peakfn, glitchthresh * noisesig, jumpahead, debug); % identify initial spikes
    [Rest, Rcoeff, Rmu, Rstd, Rcov] = initRegress(tspike-tspike(1), vspike, lambda, npoles, nzeros, debug); % est init resistance
-   a = Rcoeff(2:npoles+1); b = [Rcoeff(1); Rcoeff(npoles+2:end)'];
+   a = Rcoeff(2:npoles+1); 
+   % Make sure b ends up a column vector and no concatenation errors due to
+   % shape misatch
+   size_Rcoeff = size(Rcoeff);
+   if size_Rcoeff(2) == 1
+       b = [Rcoeff(1); Rcoeff(npoles+2:end)];
+   else
+       b = [Rcoeff(1); Rcoeff(npoles+2:end)'];
+   end
    Rinit    = Rest(end); % The initial estimate is what might be causing the initial change in rescalings %TODO
    Rcovprev = Rcov;
    vmu      = mean( vspike );
