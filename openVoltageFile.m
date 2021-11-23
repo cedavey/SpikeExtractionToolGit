@@ -94,19 +94,20 @@ function [data, success] = openVoltageFile(data, varargin)
          SETdata.dt      = time(2) - time(1);
          SETdata.params  = [];
       end
-         
-      if strcmpi(SETdata.type, 'voltage') && length(time)>1e4
-         if ~isBatch
-            response = userConfirmation('Truncate voltage timeseries?','Voltage length');
-            switch lower(response)
-              case 'yes'
-                 [newdata, time] = truncateVoltage(newdata, time);
-              case 'no'
-            end
-         end
-         SETdata.data = newdata; 
-         SETdata.time = time;
-      end
+      
+      %% Next few lines show a popup to truncate the time series. Commented because it is not in use.
+%       if strcmpi(SETdata.type, 'voltage') && length(time)>1e4
+%          if ~isBatch
+%             response = userConfirmation('Truncate voltage timeseries?','Voltage length');
+%             switch lower(response)
+%               case 'yes'
+%                  [newdata, time] = truncateVoltage(newdata, time);
+%               case 'no'
+%             end
+%          end
+%          SETdata.data = newdata; 
+%          SETdata.time = time;
+%       end
 
       %% TO DO: allow saving & loading of voltage from gui with extra info
       try

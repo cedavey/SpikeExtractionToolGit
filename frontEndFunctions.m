@@ -533,7 +533,7 @@ methods (Static)
       data    = h.data;    % get user data from gui handle
 
       % open smr, txt, or mat file
-      str = sprintf('\tWarning! The path to open a faile is hardcoded (It won''t crash, this is informative. Check ''frontEndFunctions.load_voltage'').\n');
+      str = sprintf('\tWarning! The path to open a file is hardcoded (It won''t crash, this is informative. Check ''frontEndFunctions.load_voltage'').\n');
       printMessage('off', 'SystemCommands', str);
       try
         temp_dir = data.last_dir;
