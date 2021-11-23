@@ -151,7 +151,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    % Initialise the rest of the values
    [vspike,  tspike]     = initSpikes(time, dt, peakfn(v), noisesig*voltoutlier, peakfn, glitchthresh * noisesig, jumpahead, debug); % identify initial spikes
    [Rest, Rcoeff, Rmu, Rstd, Rcov] = initRegress(tspike-tspike(1), vspike, lambda, npoles, nzeros, debug); % est init resistance
-   a = Rcoeff(2:npoles+1); b = [Rcoeff(1); Rcoeff(npoles+2:end)];
+   a = Rcoeff(2:npoles+1); b = [Rcoeff(1); Rcoeff(npoles+2:end)'];
    Rinit    = Rest(end); % The initial estimate is what might be causing the initial change in rescalings %TODO
    Rcovprev = Rcov;
    vmu      = mean( vspike );
@@ -966,10 +966,16 @@ function [Rest, Rcoeff, Rmu, Rsig, Rcov] = initRegress(tspike, vspike, lambda, n
    if numel(tspike) > 4*p+2
       % Validate length of the time series (even if it was larger than 1)
       [Rcoeff, ~, vest] = getARcoeff_2vars( vspike, tspike, p );
+      
+      
+      a      =  Rcoeff(2:npoles+1)'; % autoregression coeffs
+      b      = [Rcoeff(1); Rcoeff(p+2:(p+nzeros))]; % DC + input coeffs
+      
       % if the estimate is shit (e.g. negative) then redo as univar AR &
       % regression (i.e. separate out from VAR into separate equations)
       X = makeRecursiveLeastSquaresMatrix( tspike, vspike, length(vspike), npoles, nzeros );
-      Rest = [b(1) a, b(2:end)'] * X;
+%       Rest = [b(1) a, b(2:end)'] * X;
+      Rest = [b(1) a, b(2:end)'] * X;     
       if Rest <= 0 || Rest < mean(vspike) - 2*std(vspike) ||  Rest > mean(vspike) + 2*std(vspike)
         a = getARcoeff( vspike, npoles );
         b = a(1); a = a(2:end)'; % get rid of dc
@@ -981,7 +987,7 @@ function [Rest, Rcoeff, Rmu, Rsig, Rcov] = initRegress(tspike, vspike, lambda, n
               X(:,ti) = tspike((nzeros-ti+1):end-ti+1);
            end
            c = regress( vspike(nzeros:end), X );
-           b = [b c];
+           b = [b; c];
         end
       end
       
