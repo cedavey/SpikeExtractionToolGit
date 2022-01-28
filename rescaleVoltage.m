@@ -97,7 +97,7 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    jumpahead = round( jumpahead / dt ); % convert jump ahead from time into samples
 
    tnow = datetime('now');
-   str = sprintf("\tStarted rescaling, method %s, spikethresh %i, glitchthresh %i, jump ahead %g s, at %s\n", ...
+   str  = sprintf("\nStarted rescaling:\n\t method %s, spikethresh %.2g, glitchthresh %.2g, jump ahead %.2g s, at %s\n\n", ...
       method, voltoutlier, glitchthresh, jumpahead*dt, datestr(tnow));
    printMessage('off', 'Keywords', str);
 
@@ -145,9 +145,12 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
       waitbar_handles = waitbar(0,[method ' is 0% done'],...
          'Name','rescaleVoltage - close me to stop');
    end
-   prevProg = 1; % Previous progress, start with 1 because it's the first loop. It will be updated every 10 percent
-   firstRun = 1;
+   prevProg  = 1;  % previous progress, start with 1 because it's the first loop. It will be updated every 10 percent
+   firstRun  = 1;
    secondRun = 0;
+   progstr   = [];   % progress string to update user on progress
+   fprintf('\n\t');  % reset current standard output line
+   paramwarn = true; % warn about parameter choice, but only once
    while currt < nT
       % Update Progress window
       if progress_window
@@ -164,8 +167,10 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
 
       % Print current percentage
       if 10*floor(currt/nT*10) ~= prevProg
-         str = sprintf( '\t%s is approx %d%% done\n', method, 10*floor(currt/nT*10) );
-         printMessage('off','Text', str);
+         str     = sprintf( '\t%s is approx %d percent complete\n', method, 10*floor(currt/nT*10) );
+         refreshdisp( str, progstr, isempty(progstr) );
+         progstr = str; 
+%          printMessage('off','Text', str);
          prevProg = 10*floor(currt/nT*10);
       end
 
@@ -261,9 +266,11 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
                   printMessage('off', 'Text', str);
                end
             else
-               if(countLoops > 29)
+               if(countLoops > 29) && paramwarn
                   str = sprintf('\tIt looks like you haven''t chosen the best parameters.\n\tThere were at least %d consecutive spikes that were not\n\tunder the glitch threshold.\n',countLoops);
                   printMessage('off', 'Errors', str);
+                  paramwarn = false;
+                  progstr   = []; % reset display (can't write over progress cuz last message wasn't progress related
                   break
                end
             end

@@ -1,6 +1,4 @@
-deleteAPtemplates.m:% tseries = deleteAPtemplates( tseries, method, method_params )
 extractSpikesUsingKmeans.m:            % try allocating a full tseries for each family in template
-generateRateStatistics.m:   % for each AP templates, plot the autocorrelation for each family 
 generateSpikeStatistics.m:      % columns, when plotting each stat across templates & families
 getKmeansClusters.m:   APtemplates = zeros(size(spikes,1),elbow);
 getRateFromSpikes.m:   % for each AP template we have a group of families of various scales, in

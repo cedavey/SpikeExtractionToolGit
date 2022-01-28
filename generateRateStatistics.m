@@ -47,7 +47,7 @@ function generateRateStatistics(tseries, method, method_params)
             title( str );
             ylabel( 'Correlation' );
             xlabel( 'Time (s)' );
-            xlim([-1 numlags]);
+            xlim([-1 numlags*dt]);
       end
       
       set( gcf, 'name', sprintf( 'Rate autocorrelation (max %d families per template shown)', maxcols ) );

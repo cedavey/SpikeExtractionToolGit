@@ -146,6 +146,12 @@ function params = getDefaultToolParams
          voltage.rescale.recursive_mean.select_peaks.list                       = {'positive', 'negative', 'all','separate'};
          voltage.rescale.recursive_mean.select_peaks.units                      = 'voltage';
 
+         voltage.rescale.recursive_mean.jump_ahead.value                        = 10;
+         voltage.rescale.recursive_mean.jump_ahead.name                         = 'jump ahead';
+         voltage.rescale.recursive_mean.jump_ahead.descript                     = 'Get largest spike in this amount of time';
+         voltage.rescale.recursive_mean.jump_ahead.type                         = 'positive float';
+         voltage.rescale.recursive_mean.jump_ahead.units                        = 'seconds';
+         
       % Voltage utilities - downsample
          voltage.utilities.downsample.method.value                              = 'ditch';
          voltage.utilities.downsample.method.name                               = 'method';
