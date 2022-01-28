@@ -220,9 +220,10 @@ removeToolBarButtons(handles);
 
 % Initialize options for debug and loading window
 handles.options.loadingWindowOn = true;
-handles.options.debugOption     = 'none';
-handles.options.rescaleOption   = 'at_end';
-handles.options.auto_params     = false;
+handles.options.mouseWaitingOn = true;
+handles.options.debugOption = 'none';
+handles.options.rescaleOption = 'at_end';
+handles.options.auto_params = 'false';
 
 % Initialize tooltips
 handles = setTooltips(handles);
@@ -392,7 +393,12 @@ if ~okToClear
    end
 end
 
-mouseWaitingFunction(handles.figure1,@load_voltage,hObject,eventdata,handles);
+
+if handles.options.mouseWaitingOn
+    mouseWaitingFunction(handles.figure1,@load_voltage,hObject,eventdata,handles);
+else
+    load_voltage(hObject,eventdata,handles);
+end
 end
 
 function load_voltage(hObject, eventdata, handles)
@@ -401,7 +407,11 @@ end
 
 % --- Executes on selection change in curr_signal.
 function curr_signal_Callback(hObject, eventdata, handles)
-   mouseWaitingFunction(handles.figure1,@different_signal_selected,hObject,eventdata,handles);
+    if handles.options.mouseWaitingOn
+        mouseWaitingFunction(handles.figure1,@different_signal_selected,hObject,eventdata,handles);
+    else
+        different_signal_selected(hObject,eventdata,handles);
+    end
 end
 
 function different_signal_selected(hObject, eventdata, handles)
@@ -416,7 +426,11 @@ end
 
 % --- Executes on button press in add_voltage_button.
 function add_voltage_button_Callback(hObject, eventdata, handles)
-   mouseWaitingFunction(handles.figure1,@add_voltage,hObject,eventdata,handles);
+    if handles.options.mouseWaitingOn
+        mouseWaitingFunction(handles.figure1,@add_voltage,hObject,eventdata,handles);
+    else
+        add_voltage(hObject,eventdata,handles);
+    end
 end
 
 function add_voltage(hObject,eventdata,handles)
@@ -431,8 +445,12 @@ function clear_voltage_button_Callback(hObject, eventdata, handles)
    if strcmp(response,'No')
       return
    end
-
-   mouseWaitingFunction(handles.figure1,@removeVoltage,handles); % Instead of removeVoltage(handles);
+   
+   if handles.options.mouseWaitingOn
+        mouseWaitingFunction(handles.figure1,@removeVoltage,handles); % Instead of removeVoltage(handles);
+    else
+        removeVoltage(handles);
+    end
 end
 
 % --- Executes on selection change in tool_list.
@@ -551,7 +569,11 @@ end
 
 % --- Executes on button press in run_tool_button.
 function run_tool_button_Callback(hObject, eventdata, handles)
-   mouseWaitingFunction(handles.figure1,@run_tool,hObject,eventdata,handles);
+    if handles.options.mouseWaitingOn
+        mouseWaitingFunction(handles.figure1,@run_tool,hObject,eventdata,handles);
+    else
+        run_tool(hObject,eventdata,handles);
+    end
 end
 
 function run_tool(hObject, eventdata, handles)
@@ -565,10 +587,15 @@ end
 
 % --- Executes on slider movement.
 function time_slider_Callback(hObject, eventdata, handles)
-   if ~handles.f.haveUserData(handles)
-      return;
-   end
-   mouseWaitingFunction(handles.figure1,@time_slider_updated,hObject,eventdata,handles);
+    if ~handles.f.haveUserData(handles)
+    	return;
+    end
+   
+    if handles.options.mouseWaitingOn
+        mouseWaitingFunction(handles.figure1,@time_slider_updated,hObject,eventdata,handles);
+    else
+        time_slider_updated(hObject,eventdata,handles);
+    end
 end
 
 function time_slider_updated(hObject,eventdata,handles)
@@ -611,7 +638,11 @@ function voltage_slider_Callback(hObject, eventdata, handles)
       return;
    end
 
-   mouseWaitingFunction(handles.figure1, @voltage_slider_updated, handles, hObject);
+    if handles.options.mouseWaitingOn
+        mouseWaitingFunction(handles.figure1, @voltage_slider_updated, handles, hObject);
+    else
+        voltage_slider_updated(hObject,eventdata,handles);
+    end
 end
 
 function voltage_slider_updated(handles, hObject)
@@ -735,7 +766,11 @@ end
 
 % --- Executes on slider movement.
 function scroll_axes_slider_Callback(hObject, eventdata, handles)
-mouseWaitingFunction(handles.figure1, @scroll_axes, hObject, eventdata, handles);
+if handles.options.mouseWaitingOn
+    mouseWaitingFunction(handles.figure1, @scroll_axes, hObject, eventdata, handles);
+else
+    scroll_axes(hObject,eventdata,handles);
+end
 end
 
 function scroll_axes(hObject, eventdata, handles)
@@ -879,6 +914,19 @@ function loadingWindow_Callback(hObject, eventdata, handles)
    else
       hObject.Checked = 'on';
       handles.options.loadingWindowOn = true;
+   end
+   % Update handles structure
+   guidata(hObject, handles);
+end
+
+% --------------------------------------------------------------------
+function mouseWaiting_Callback(hObject, eventdata, handles)
+   if strcmp('on', hObject.Checked)
+      hObject.Checked = 'off';
+      handles.options.mouseWaitingOn = false;
+   else
+      hObject.Checked = 'on';
+      handles.options.mouseWaitingOn = true;
    end
    % Update handles structure
    guidata(hObject, handles);
@@ -1128,7 +1176,11 @@ end
 % --------------------------------------------------------------------
 function batchProcessingMenu_Callback(hObject, eventdata, handles)
    try
-      mouseWaitingFunction(handles.figure1,@runBatchProcessing,hObject,eventdata,handles);
+      if handles.options.mouseWaitingOn
+        mouseWaitingFunction(handles.figure1,@runBatchProcessing,hObject,eventdata,handles);
+      else
+        runBatchProcessing(hObject,eventdata,handles);
+      end
    catch E
       handles.options.isBatch = false;
       guidata(hObject,handles);
@@ -1151,7 +1203,11 @@ end
 
 % --- Executes on button press in reset_button.
 function reset_button_Callback(hObject, eventdata, handles)
-   mouseWaitingFunction(handles.figure1, @reset_button_clicked, handles, hObject);
+    if handles.options.mouseWaitingOn
+        mouseWaitingFunction(handles.figure1, @reset_button_clicked, handles, hObject);
+    else
+        reset_button_clicked(handles, hObject);
+    end
 end
 
 function reset_button_clicked(handles, hObject)

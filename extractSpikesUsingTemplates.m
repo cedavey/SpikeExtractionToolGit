@@ -471,6 +471,7 @@ function [mu, sig] = initialize_mu( spikes, si, matchthresh, peakfn, diffpeakfn 
    end
    fam_peaks = [ min(fsp) max(fsp) ];
    si  = si + 1; % start matching with spikes after current spike
+   allowed_diff = 0.5; % Allowed difference between spikes to initialize mu
    % if we've run outta spikes in the spike train, return
    if si >= nSp
       mu = peakfn( fsp ); sig = 0; 
@@ -493,6 +494,7 @@ function [mu, sig] = initialize_mu( spikes, si, matchthresh, peakfn, diffpeakfn 
       d1  = diffpeakfn( sp_peaks, fam_peaks ); % diff in peaks btwn family spike & sp
       d2  = diffpeakfn( fam_peaks, sp_peaks ); % diff in peaks in reverse order
       d   = min( d1, d2 ); % get largest diff btwn pos & neg peak changes
+%       d   = max( d1, d2 ); % get largest diff btwn pos & neg peak changes
 
       % If spike is closeley correlated to the template
       if rho > matchthresh && d < max(fsp)*0.3 % TO DO: DON'T HARD-CODE ALLOWABLE DIFFERENCE !! 
