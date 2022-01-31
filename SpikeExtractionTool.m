@@ -1294,7 +1294,7 @@ function simulator_button_Callback(hObject, eventdata, handles)
         printMessage('off','Text',str);
         d = dir(['..' filesep]);
         for i = 1:size(d)
-            if strcmp('SpikeSimulationTool1',d(i).name)
+            if strcmp('SpikeSimulationTool',d(i).name)
                 str = 'Attempting to run SST.m\n';
                 printMessage('off','Text',str);
                 addpath(['..' filesep 'SpikeSimulationTool']);
