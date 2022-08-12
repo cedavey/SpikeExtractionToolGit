@@ -537,7 +537,7 @@ methods (Static)
       printMessage('off', 'SystemCommands', str);
       try
         temp_dir = data.last_dir;
-        data.last_dir = 'C:\Users\artemios\OneDrive - The University of Melbourne\PostDoc\Code\SpikeSimulationTool\simulations\2021';
+        data.last_dir = '/Users/cedavey/Library/CloudStorage/OneDrive-TheUniversityofMelbourne/unimelb/research/darpa/paper2/Matlab Simulations and Extractions/Axon 3 data (Highest layer)';
         [data, success] = openVoltageFile(data);  
       catch 
         data.last_dir = temp_dir;
