@@ -24,6 +24,8 @@
 % TO DO: if spike peaks aren't white then it suggests an unmodelled change,
 % such as what I'm seeing which is sudden jumps in amplitude that are then
 % constant for a while, then another jump down in amplitude
+%
+% 
 function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, params, normAPs ,opts)
    
    if exist('opts', 'var') && isfield(opts,'loadingWindowOn'), progress_window = opts.loadingWindowOn; 
@@ -527,7 +529,12 @@ function [mu, sig] = initialize_mu( spikes, si, matchthresh, peakfn, diffpeakfn 
            sig = var(noise_samples) * ones(1,2);
        end
    else
-       fsp = spikes{:,si};
+       if uniqueAPLength
+           fsp = spikes{:,si};
+       else
+           fsp = spikes(:,si);
+       end
+           
        mu  = peakfn( fsp );
        if noise_samples == 0
            % We are setting sig from the noise now. This line only works if no

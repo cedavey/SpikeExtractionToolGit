@@ -147,7 +147,7 @@ function varargout = SpikeExtractionTool(varargin)
 
 % Edit the above text to modify the response to help SpikeExtractionTool
 
-% Last Modified by GUIDE v2.5 30-Apr-2021 16:43:30
+% Last Modified by GUIDE v2.5 31-Jan-2022 12:09:02
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 0;
@@ -1282,3 +1282,36 @@ function new_figure_workspace_Callback(hObject, eventdata, handles)
 end
 
 
+
+
+% --------------------------------------------------------------------
+function simulator_button_Callback(hObject, eventdata, handles)
+% hObject    handle to simulator_button (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+    try
+        str = 'Looking for SpikeSimulationTool in the current parent folder.\n';
+        printMessage('off','Text',str);
+        d = dir(['..' filesep]);
+        for i = 1:size(d)
+            if strcmp('SpikeSimulationTool',d(i).name)
+                str = 'Attempting to run SST.m\n';
+                printMessage('off','Text',str);
+                addpath(['..' filesep 'SpikeSimulationTool']);
+                run('SST');
+                str = 'Done.\n';
+                printMessage('off','Keyword',str);
+                return
+            end
+        end
+        % If reaches this point, it didn't find the Simulator folder with
+        % that name. Allow user to find it manually.
+        str = 'Folder ''SpikeSimulationTool'' not found. Manual entry to find the path.\n';
+        printMessage('off','Text',str);
+        d = uigetdir(['..' filesep]);
+        addpath(d);
+        run('SST');
+    catch E
+        error(E);
+    end
+end
