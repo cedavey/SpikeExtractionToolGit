@@ -79,7 +79,7 @@ function [APtemplates, componentAPs] = identifyAPs(tseries, method, params, vara
 
          end
       catch
-         fprintf( 'what is this mother fucking error...\n' );
+         fprintf( 'Unknown error!!!...\n' );
       end
    end
    
