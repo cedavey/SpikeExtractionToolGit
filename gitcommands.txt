@@ -1,6 +1,0 @@
-# Github commands now that Errol's were wiped clean by my mac - thanks Apple
-
-git checkout darpak						# checks out your personal local branch  
-git pull								# updates your local branch with commits from the remote
-git commit -a -m 'write message here'   # commit all changes with the given
-										message (takes snapshot of repository)
