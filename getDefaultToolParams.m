@@ -566,7 +566,7 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.match_type.units                 = 'statistic';
          voltage.extract_spikes.matched_filter.match_type.list                  = {'corr','cov'};
          
-         voltage.extract_spikes.matched_filter.match_similarity.value           = 0.7;
+         voltage.extract_spikes.matched_filter.match_similarity.value           = 0.95;
          voltage.extract_spikes.matched_filter.match_similarity.name            = 'match similarity';
          voltage.extract_spikes.matched_filter.match_similarity.descript        = 'similarity required for spike shapes to be considered from the same family';
          voltage.extract_spikes.matched_filter.match_similarity.type            = 'normalised float';
@@ -596,13 +596,13 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.kappa_neg.type                   = 'positive float';
          voltage.extract_spikes.matched_filter.kappa_neg.units                  = 'standard deviations';
 
-         voltage.extract_spikes.matched_filter.positive_threshold.value         = 3;
+         voltage.extract_spikes.matched_filter.positive_threshold.value         = 5;
          voltage.extract_spikes.matched_filter.positive_threshold.name          = 'positive threshold';
          voltage.extract_spikes.matched_filter.positive_threshold.descript      = 'only spikes with peak voltage larger than this many std devs considered';
          voltage.extract_spikes.matched_filter.positive_threshold.type          = 'positive float';
          voltage.extract_spikes.matched_filter.positive_threshold.units         = 'std dev';
          
-         voltage.extract_spikes.matched_filter.negative_threshold.value         = 3;
+         voltage.extract_spikes.matched_filter.negative_threshold.value         = 5;
          voltage.extract_spikes.matched_filter.negative_threshold.name          = 'negative threshold magnitude';
          voltage.extract_spikes.matched_filter.negative_threshold.descript      = 'only spikes with a negative voltage of magnitude larger than this considered (0 to ignore)';
          voltage.extract_spikes.matched_filter.negative_threshold.type          = 'positive float';
@@ -644,7 +644,7 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.allow_new_aps.type               = 'boolean';
          voltage.extract_spikes.matched_filter.allow_new_aps.units              = 'true or false';
          
-         voltage.extract_spikes.matched_filter.min_spiking_threshold.value      = false;
+         voltage.extract_spikes.matched_filter.min_spiking_threshold.value      = 100;
          voltage.extract_spikes.matched_filter.min_spiking_threshold.name       = 'min spiking threshold';
          voltage.extract_spikes.matched_filter.min_spiking_threshold.descript   = 'remove a family with number of spikes less than this threshold';
          voltage.extract_spikes.matched_filter.min_spiking_threshold.type       = 'positive integer';
@@ -656,7 +656,7 @@ function params = getDefaultToolParams
          voltage.extract_spikes.matched_filter.allow_diff_lengths.type          = 'boolean';
          voltage.extract_spikes.matched_filter.allow_diff_lengths.units         = 'true or false';
          
-         voltage.extract_spikes.matched_filter.remove_small_templates.value     = 200;
+         voltage.extract_spikes.matched_filter.remove_small_templates.value     = 100;
          voltage.extract_spikes.matched_filter.remove_small_templates.name      = 'remove small templates';
          voltage.extract_spikes.matched_filter.remove_small_templates.descript  = 'remove AP template estimates from this many or less spikes (0 to ignore)';
          voltage.extract_spikes.matched_filter.remove_small_templates.type      = 'positive integer';
@@ -670,7 +670,7 @@ function params = getDefaultToolParams
 
          voltage.extract_spikes.matched_filter.plot_spikes_consecutively.value  = false;
          voltage.extract_spikes.matched_filter.plot_spikes_consecutively.name   = 'plot spikes consecutively';
-         voltage.extract_spikes.matched_filter.plot_spikes_consecutively.descript= 'plot resulting spikes without inactive time between them';
+         voltage.extract_spikes.matched_filter.plot_spikes_consecutively.descript= 'plot resulting spikes WITHOUT inactive time between them';
          voltage.extract_spikes.matched_filter.plot_spikes_consecutively.type   = 'boolean';
          voltage.extract_spikes.matched_filter.plot_spikes_consecutively.units  = 'true or false';
 

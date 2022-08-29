@@ -1,5 +1,6 @@
-
 % [ temp, tempAPs ] = addSpikeToTemplate( temp, sp, tempAPs ) 
+%
+% [ temp, tempAPs, sptime, tempTimes ] = addSpikeToTemplate( temp, sp, tempAPs, sptime, tempTimes )
 %
 % for spikes and templates that allow different lengths, when you add a new
 % spike to a template you need to align all the peaks, and then take an
@@ -11,6 +12,8 @@
 %  tempAPs  - matrix of spikes contributing to the template, aligned at the
 %             peak & with NaNs at beginning or end if a particular spike
 %             had no samples at this point
+%  sptimes  - vector of spike times
+%  tempTimes - time vector for spike templates
 function [ temp, tempAPs, sptime, tempTimes ] = addSpikeToTemplate( temp, sp, tempAPs, sptime, tempTimes )
    if nargin==5, doTime = true; else, doTime = false; end
    peakind  = getMaxInd( temp ); % find index of template peak 
@@ -58,7 +61,7 @@ function [ temp, tempAPs, sptime, tempTimes ] = addSpikeToTemplate( temp, sp, te
       cprintf( 'keywords*', str );
       return;
    end
-   % now add the new spike to the constiuent spikes for the template
+   % now add the new spike to the constituent spikes for the template
    try
       tempAPs   = [tempAPs sp];
       if doTime

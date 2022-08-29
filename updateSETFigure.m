@@ -181,7 +181,8 @@ tscale=1; tlabel='s';
                  end
              end
              set( get(ax1,'title'), 'String', sprintf('AP %d (%d fams, N = %d, Total = %d)', ...
-                                                   plot_ax(i), size(x,2), total_found_spikes(plot_ax(i)), sum(total_found_spikes)), fopts{:});
+                                                   plot_ax(i), size(x,2), total_found_spikes(plot_ax(i)), ...
+                                                   sum(total_found_spikes)), fopts{:});
          catch E
                str = 'Couldn''t display the spike count here. Check in the workspace.\n';
                runtimeErrorHandler(E,'message',str);           

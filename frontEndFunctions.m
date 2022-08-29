@@ -533,8 +533,8 @@ methods (Static)
       data    = h.data;    % get user data from gui handle
 
       % open smr, txt, or mat file
-      str = sprintf('\tWarning! The path to open a file is hardcoded (It won''t crash, this is informative. Check ''frontEndFunctions.load_voltage'').\n');
-      printMessage('off', 'SystemCommands', str);
+%       str = sprintf('\tWarning! The path to open a file is hardcoded (It won''t crash, this is informative. Check ''frontEndFunctions.load_voltage'').\n');
+%       printMessage('off', 'SystemCommands', str);
       try
         temp_dir = data.last_dir;
         data.last_dir = '/Users/cedavey/Library/CloudStorage/OneDrive-TheUniversityofMelbourne/unimelb/research/darpa/paper2/Matlab Simulations and Extractions/Axon 3 data (Highest layer)';
@@ -925,6 +925,11 @@ methods (Static)
                      APnumsamples        = cellfun(@(f) size(f,2), APfamily);
                      normAPs             = method_params.normalise_aps.value; % separate for when gen APs separately
                      [APspikes,APtimes]  = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, method_params, normAPs, h.options );
+                     if isempty(APspikes)
+                        str = sprintf('\tNo axon families could be identified.\n');
+                        printMessage('off', 'Error', str);
+                        return;
+                     end
                      new_tseries.type    = 'spike';
                      new_tseries.data    = APspikes;
                      new_tseries.time    = tseries.time;
