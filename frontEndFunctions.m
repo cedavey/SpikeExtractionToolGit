@@ -754,6 +754,8 @@ methods (Static)
         I2=imresize(x, [22 22]); % Resize icon
         h.toggleZoomButton.CData = I2; % Assign icon to the button
         h.toggleZoomButton.UserData = 'zoom'; % Change state to zoom
+        set(h.zoom_out_label,'Visible', 'on');
+        set(h.zoom_in_label,'Visible', 'on');
       else
         h.toggleZoomButton.Icon = [path 'fig' filesep 'magnifierIcon.png'];
       end
@@ -1827,6 +1829,9 @@ methods (Static)
          h.time_slider.Value = h.data.displacementPercentage(1); % Update the position of the slider to represent displacement.
          h.voltage_slider.Value = 0.5; % Update the position of the slider to represent displacement.
          h.data.displacementPercentage(2) = 0;
+         
+         set(h.zoom_out_label,'Visible', 'off');
+         set(h.zoom_in_label,'Visible', 'off');
       else
          if strcmp('gui', h.f.uiType)
             % Zoom function has been selected
@@ -1843,7 +1848,10 @@ methods (Static)
          hObject.UserData = 'zoom'; % Change state to zoom
          h.time_slider.Value = h.data.zoomPercentage(1); % Update the position of the slider to represent zoom.
          h.voltage_slider.Value = h.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
-
+         
+         set(h.zoom_out_label,'Visible', 'on');
+         set(h.zoom_in_label,'Visible', 'on');
+         
          if strcmp('gui', h.f.uiType)
            percent = 1 - zoom(1);
            if percent == 1
