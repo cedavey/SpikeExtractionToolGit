@@ -1,4 +1,4 @@
-%% Copyright 2019 Artemio Soto-Breceda
+%% Copyright 2018 Catherine Davey, 2019 Artemio Soto-Breceda
 % 
 % Licensed under the GNU GENERAL PUBLIC LICENSE, Version 3.0 ("the License");
 % you may not use this file except in compliance with the License.
@@ -266,6 +266,8 @@ diary off % Deactivates the log. Hence nothing else will be added after closing 
 
 % don't get user confirmation if there's no user data!
 handles = guidata(src);
+
+% if it's an empty gui with no user data simply close it immediately
 if ~isfield(handles, 'data_struct')
    delete(gcf);
    return;
@@ -274,15 +276,48 @@ if handles.data.num_tseries == 0
    delete(gcf);
    return;
 end
+
+% make sure user wants to close the gui
 response = userConfirmation('Do you want to close the GUI?',...
    'Close Request Function');
+
 switch response
    case 'Yes'
+      % gotta make sure we remove this gui from any other gui's handle list
+      if handles.data_struct.guihandles
+         for ti=2:length(handles.data_struct.guihandles)
+            other     = handles.data_struct.guihandles(ti);
+            % if other handle is valid remove this gui from its handles
+            if ishandle(other)
+               other_handles = guidata(other);
+               other_guis    = other_handles.data_struct.guihandles;
+      
+               try
+                  tf = eq(other_guis, hObject);
+                  if any(tf)
+                     % remove this gui from other window's handles
+                     other_guis(tf) = [];
+                     % update other window's handles
+                     other_handles.data_struct.guihandles = other_guis;
+                     % save other window's handle changes
+                     guidata(other_handles.figure1, other_handles);
+                  end
+               catch ME
+                  disp('error removing this gui from other window''s handles list');
+               end
+               % if handle is invalid the gui's been deleted, so ditch
+            else
+               handles.data_struct.guihandles(ti) = [];
+            end
+         end
+      end
+
       delete(gcf)
    case 'No'
       diary on % Reactivates the log
       return
 end
+
 end
 
 function figure1_WindowButtonMotionFcn(hObject, eventdata, handles)
@@ -731,7 +766,8 @@ end
 function access_voltage_Callback(hObject, eventdata, handles)
 [tseries, ~, ~, ts_name] = handles.f.getCurrentVoltage(handles);
 assignin('base', title2Str(ts_name,1,1,'_'), tseries);
-
+str = sprintf('\n\tVariable %s is now available in the base workspace\n', ts_name);
+cprintf('Strings+', str);
 end
 
 % --- Executes on button press in new_figure.

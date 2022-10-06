@@ -533,10 +533,16 @@ methods (Static)
       data    = h.data;    % get user data from gui handle
 
       % open smr, txt, or mat file
-      str = 'Path to open file is hardcoded. This is informative';
-      printMessage('off', 'SystemCommands', str);
-      if ~exist(data,[last_dir,'file'])
-         data.last_dir = userpath;
+
+%       str = sprintf('\tWarning! The path to open a file is hardcoded (It won''t crash, this is informative. Check ''frontEndFunctions.load_voltage'').\n');
+%       printMessage('off', 'SystemCommands', str);
+      try
+        temp_dir = data.last_dir;
+        data.last_dir = '/Users/cedavey/Library/CloudStorage/OneDrive-TheUniversityofMelbourne/unimelb/research/darpa/paper2/Matlab Simulations and Extractions/Axon 3 data (Highest layer)';
+        [data, success] = openVoltageFile(data);  
+      catch 
+        data.last_dir = temp_dir;
+        [data, success] = openVoltageFile(data);  
       end
 
      [data, success] = openVoltageFile(data);  
@@ -577,6 +583,7 @@ methods (Static)
       if strcmp('gui',h.f.uiType), guidata(hObject,h); end
    end
 
+   % create a new gui using the current data displayed
    function new_figure(h)
       new_gui     = SpikeExtractionTool;
       new_handles = guidata(gcf);
@@ -595,10 +602,10 @@ methods (Static)
       new_gui.vlim        = h.data.vlim;
       new_gui.last_tool   = 1;                     % record of user's last tool
       new_gui.params      = getDefaultToolParams;  % default params for all tools & implementation methods
-      new_gui.last_dir    = h.data.last_dir; % where they opened gui from
+      new_gui.last_dir    = h.data.last_dir;       % where they opened gui from
       % copy of all SET gui handles - for each gui, make sure it's own handle is 1st
       new_gui.guihandles  = [new_gui.guihandles; h.data.guihandles(1:end-1)];
-      new_app.data    = new_gui;               % record user data in handle
+      new_app.data        = new_gui;               % record user data in handle
       new_handles         = toggleSETGUIstate(new_handles, 'on'); % switch everything off until data's loaded
 
       % udpate voltage timeseries drop down list
@@ -751,6 +758,8 @@ methods (Static)
         I2=imresize(x, [22 22]); % Resize icon
         h.toggleZoomButton.CData = I2; % Assign icon to the button
         h.toggleZoomButton.UserData = 'zoom'; % Change state to zoom
+        set(h.zoom_out_label,'Visible', 'on');
+        set(h.zoom_in_label,'Visible', 'on');
       else
         h.toggleZoomButton.Icon = [path 'fig' filesep 'magnifierIcon.png'];
       end
@@ -922,6 +931,11 @@ methods (Static)
                      APnumsamples        = cellfun(@(f) size(f,2), APfamily);
                      normAPs             = method_params.normalise_aps.value; % separate for when gen APs separately
                      [APspikes,APtimes]  = extractSpikesUsingTemplates( APtemplates, APnumsamples, tseries, method, method_params, normAPs, h.options );
+                     if isempty(APspikes)
+                        str = sprintf('\tNo axon families could be identified.\n');
+                        printMessage('off', 'Error', str);
+                        return;
+                     end
                      new_tseries.type    = 'spike';
                      new_tseries.data    = APspikes;
                      new_tseries.time    = tseries.time;
@@ -1559,7 +1573,7 @@ methods (Static)
          for ti=2:length(h.data.guihandles)
             other_gui     = h.data.guihandles(ti);
             other_handles = guidata(other_gui);
-            other_data    = other_h.data;
+            other_data    = other_handles.data;
             other_tlim    = other_data.tlim;
             if all( compareFloats( prev_tlim, other_tlim, 0.1, 'percent' ) )
                set(other_h.time_min, 'String', sprintf('%.2f',newt)); % reset to new val
@@ -1698,22 +1712,22 @@ methods (Static)
             if percent == 1
                percent = 0.99999;
                h.time_slider.SliderStep(2) = 1;
-               h.time_slider.SliderStep(1) = 0.00005;
+               h.time_slider.SliderStep(1) = 5e-5;
                h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
             elseif percent > 0.999
                h.time_slider.SliderStep(2) = 1;
-               h.time_slider.SliderStep(1) = 0.00005;
+               h.time_slider.SliderStep(1) = 5e-5;
                h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
             elseif percent > 0.95
                h.time_slider.SliderStep(2) = 1;
-               h.time_slider.SliderStep(1) = 0.001;
+               h.time_slider.SliderStep(1) = 1e-3;
                h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
             else
                h.time_slider.SliderStep = [0.01 0.1];
             end
          end
 
-         h.data.zoomPercentage(1) = min(percent, 0.99999);
+         h.data.zoomPercentage(1) = min(percent, 1e-5);
 
          prev_tlim  = h.data.tlim; % record time lims before slider was moved
 
@@ -1759,22 +1773,27 @@ methods (Static)
          h.time_max.Value = sprintf('%0.2f',h.data.tlim(2));
       end
 
-      tseries = h.f.getCurrentVoltage(h);
-      h = updateSETFigure(h, tseries);
-
+      tseries  = h.f.getCurrentVoltage(h);
+      h        = updateSETFigure(h, tseries);
+      this_gui = h.figure1;
       % if there are any other SET gui's open, update their lims if current
       % time axes limits are the same for both (gui's own handle is always 1st)
       if strcmp('gui', h.f.uiType) && length(h.data.guihandles) > 1
          for ti=2:length(h.data.guihandles)
             other_gui     = h.data.guihandles(ti);
             % if other handle is valid update time if time lims match
-            if ishandle(other_gui)
+            if ishandle(other_gui) && ~isequal(this_gui, other_gui)
                other_handles = guidata(other_gui);
                other_data    = other_handles.data;
                other_tlim    = other_data.tlim;
                if all( compareFloats( prev_tlim, other_tlim, 0.1, 'percent' ) )
                   set( other_handles.time_slider, 'Value', percent );
-                  time_slider_Callback( other_handles.time_slider, [], other_handles );
+                  try
+                     other_handles.time_slider.Callback( other_handles.time_slider, other_handles );
+%                      time_slider_Callback( other_handles.time_slider, [], other_handles );
+                  catch ME
+                     disp('check time slider update for other gui');
+                  end
                end
                % if handle is invalid the gui's been deleted, so ditch
             else
@@ -1819,6 +1838,9 @@ methods (Static)
          h.time_slider.Value = h.data.displacementPercentage(1); % Update the position of the slider to represent displacement.
          h.voltage_slider.Value = 0.5; % Update the position of the slider to represent displacement.
          h.data.displacementPercentage(2) = 0;
+         
+         set(h.zoom_out_label,'Visible', 'off');
+         set(h.zoom_in_label,'Visible', 'off');
       else
          if strcmp('gui', h.f.uiType)
             % Zoom function has been selected
@@ -1835,7 +1857,10 @@ methods (Static)
          hObject.UserData = 'zoom'; % Change state to zoom
          h.time_slider.Value = h.data.zoomPercentage(1); % Update the position of the slider to represent zoom.
          h.voltage_slider.Value = h.data.zoomPercentage(2); % Update the position of the slider to represent zoom.
-
+         
+         set(h.zoom_out_label,'Visible', 'on');
+         set(h.zoom_in_label,'Visible', 'on');
+         
          if strcmp('gui', h.f.uiType)
            percent = 1 - zoom(1);
            if percent == 1

@@ -19,9 +19,9 @@ function generateSpikeStatistics(tseries, method, method_params)
       end
       nfam( nfam > maxax ) = maxax;
       % calc num cols & num rows in each figure - same for each statistic so calculate once
-      ncols   = min( max( nfam ), maxcols );   % e.g. max of 2 rows per AP family, max 6 cols per row
-      AProws  = ceil( nfam / maxcols ); % number of rows allocated to this template
-      nrows   = sum( AProws ); % sum of rows for each template
+      ncols   = min( max( nfam ), maxcols );    % e.g. max of 2 rows per AP family, max 6 cols per row
+      AProws  = ceil( nfam / maxcols );         % number of rows allocated to this template
+      nrows   = sum( AProws );                  % sum of rows for each template
 
       % the colour matrix for each template is the same here as it is for the
       % debugging plots of spike peak mean & variance for
@@ -68,7 +68,7 @@ function generateSpikeStatistics(tseries, method, method_params)
                cols = getColourMatrix( nfam(ii) );
 
                % start new APs axes at beginning of new row
-               fi = ternaryOp( ii==1, 1, sum( AProws(1:ii-1) ) * maxcols + 1 ); 
+               fi = ternaryOp( ii==1, 1, sum( AProws(1:ii-1) ) * ncols + 1 ); 
                for jj=1:nfam(ii)
                   % for each spike, count the number of spikes in each time
                   % bins after it, up to numsecs after the spike

@@ -12,7 +12,7 @@
 %          index relative to 1 (defaults to no offset)
 %          (supports up to 3 dimensions)
 function ind = getMaxInd( x, dim, offset )
-   if nargin<2, dim = 1; end
+   if nargin<2,    dim = 1; end
    if nargin<3, offset = 0; end
    
    if iscell(x) 

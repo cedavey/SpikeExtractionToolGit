@@ -2,12 +2,13 @@
 %
 % Test each time series (or image, if spatial) for whiteness.
 % Inputs
-%   data - vox x samples
-%   test - white test to use
-%          'ljung-box' (lb), 'breusch-godfrey' (bg)
-%   p    - number of lagged samples to use in AR fit
+%   data  - vox x samples
+%   test  - white test to use
+%           'ljung-box' (lb), 'breusch-godfrey' (bg)
+%   alpha - confidence interval
+%   p     - number of lagged samples to use in AR fit
 % Outputs
-%   H    - whiteness hypothesis supported (1) or rejected (0)
+%   H     - whiteness hypothesis supported (1) or rejected (0)
 %
 % See also: isnormal, isstationary
 function [H, pval] = iswhite(data, varargin)
@@ -15,7 +16,7 @@ function [H, pval] = iswhite(data, varargin)
     if nargs>3
         error('isnormal:inputError','max 2 optional args');
     end
-    optargs = {'lb', 0.05, 3}; % test=anderson-darling, order=1, alpha=0.05
+    optargs = {'lb', 0.05, 2}; % test=anderson-darling, order=1, alpha=0.05
     optargs(1:nargs) = varargin;
     [test, alpha, p] = optargs{:};
     if isempty(test)
@@ -26,7 +27,7 @@ function [H, pval] = iswhite(data, varargin)
         data = data(:)';
     end
     if isempty(p)
-        p=3;
+        p=2;
     end
     
     n = size(data,1);

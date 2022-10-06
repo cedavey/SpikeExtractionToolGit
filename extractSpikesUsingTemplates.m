@@ -30,7 +30,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
    
    if exist('opts', 'var') && isfield(opts,'loadingWindowOn'), progress_window = opts.loadingWindowOn; 
    else, progress_window = false; end
-   if opts.auto_params
+   if strcmpi( opts.auto_params, 'true' )
       % Get auto params
       pp = getAutomaticParams(tseries, [], 'extractspikes', method, params);
       % If returned value is empty, leave the default parameters untouched
@@ -64,8 +64,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
    end
 
    APspikes  = [];  APtimes = [];
-   orig_nAP  = nAP; % if allowing new templates, record how many we started with
-   
+
    % peakdiff function calculates diff btwn peaks, e.g. btwn total range or
    % sums diff btwn maxes & mins, & perhaps accounts for time btwn spikes
    % and expects inputs of the form [peak_neg  peak_pos]
@@ -114,6 +113,9 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
    lambda      = params.forgetting_factor.value;
    kappa_pos   = params.kappa_pos.value; % Times variance
    kappa_neg   = params.kappa_neg.value; % Times variance
+   % if kappa are 0, then allow any amount of change
+   if kappa_neg==0, kappa_neg=Inf; end
+   if kappa_pos==0, kappa_pos=Inf; end
       
    % Print progress
    str = sprintf( '\tSorting spikes...\n' );
@@ -129,7 +131,8 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
    switch matchtype
          case 'corr'
             matchfn = @( sp, temp ) corr( temp, sp );
-            matchfn = @( sp, temp ) max( abs( xcorr( temp, sp ) ) );
+            % use lagged corr in case the spike peak causes delay/advance
+            matchfn = @( sp, temp ) max(xcorr(temp, sp, 'normalized', 5)); % consider max 5 lags
 
          case 'cov'
             % to compare using covariance means that the APs have to have
@@ -149,13 +152,24 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
             displayErrorMsg(str);
             return;
    end
-   
+   % backup noise if getting a white block of samples fails (taken from 
+   % the start of the signal acquisition so doesn't change with expmt changes)
+   noise_backup  = getNoise(stimes, 1, tseries); 
+   % keep a list of new axons so we can see if it was generated from a
+   % stray spike, and actually becomes very similar to another axons quickly
+   new_axon_check= 40;
+   num_new_axons = 0; 
+   is_new_axon   = false;
+   progress_str  = []; % allows us to write over prev progress rather than a new line every time it's report 
    try
       for si=1:nS % for each possible spike (format: time x spike)
          % Print current percentage
          if 10*floor(si/nS*10) ~= prevProg
-             fprintf( '\t%s is approx %d%% done\n', method, 10*floor(si/nS*10) );
-             prevProg = 10*floor(si/nS*10);
+            str = sprintf( '\n\t%s is approx %d%% done\n', method, 10*floor(si/nS*10) );
+            refreshdisp(str, progress_str);
+            progress_str = str;
+             
+            prevProg = 10*floor(si/nS*10);
          end
 
          % Update Progress window
@@ -165,7 +179,7 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                   [method ' is ', num2str(round( si/nS*100 )), '% done']);
             catch
                delete(waitbar_handles);
-               str = ['The process has been manually stopped on time: ',num2str(stimes{si}),' seconds.\n'];
+               str = ['The process has been manually stopped on time: ', num2str(stimes{si}(1)),' seconds.\n'];
                printMessage('off','Error',str);
                break;
             end
@@ -184,17 +198,20 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
          % if the spike amplitude is not sufficiently similar.
          % - gotta account for cov so rho has to be within band around 1
          if any( rho > matchthresh )
-            k = compare_templates(rho, curr_spike, APtemplates, APfamilies); % template with closest match
+            k = compare_templates(rho, curr_spike, APtemplates, APfamilies, matchthresh); % template with closest match
 
             % if no spike families yet, create one
             if isempty(APfamilies{k})
                % Distribution of peaks (mean and var)
                % Get noise samples prior to the current spike to initialize
                % the variance from the noise.
-               noise_samples = getNoise(stimes, si, tseries);
-               % Initialize mean and var
-               [fam_mu, fam_var] = initialize_mu( spikes, si, matchthresh, peakfn, peakdiff ,noise_samples); 
+               noise_samples     = getNoise(stimes, si, tseries, noise_backup);
+               % Initialize mean and var - can't use template since it
+               % gives shape, but not scale
+               [fam_mu, fam_var] = initialize_mu( spikes, si, matchthresh, peakfn, peakdiff, noise_samples); 
                APfamilies{k}{1}  = newAxonFamily( curr_spike, peakfn, curr_stime, timefn, fam_mu, fam_var, opts );
+               is_new_axon(k,1)  = true; 
+               num_new_axons(k,1)= 1; % record spike for new axon
 
             % if we have spike families see if we're at the right
             % scale, so get size of current peak, & time diff btwn
@@ -224,13 +241,32 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
 
                % spike peak (pos & neg) must be within range of a gaussian
                % distribution's mu and variance
+
+               % Because APtemplate gives shape but not scale, the first
+               % spike is used to initialise the axon's mean, which is a
+               % noisy estimate of the mean. Therefore, allow the
+               % distance from the mean to be larger at the beginning,
+               % until we've got 20-ish spikes to get a decent estimate
+%                Nconverge     = 20; % assume that mean est has converged by now
+%                scaleStd      = 10; % extra percent of std devs we'll allow at the beginning
+%                Naxons        = getStructFieldFromCell( APfamilies{k}, 'Nspikes', 'array' );
+%                % add scaleStd percent to number of std devs from mean (kappa)
+%                extra         = max( (Nconverge - Naxons) / Nconverge * scaleStd/100 + 1, 1 ); % e.g., additional 10%
+               extra  = ones(numel(mup),1); % initial variance estimate is good now, so don't need the extra
+
                stdn_  = sqrt(varn);
                stdp_  = sqrt(varp);
                valid1 = zeros(size(mup));
                valid2 = zeros(size(mun));
-               for ti = 1:numel(mup)
-                  valid1(ti) = (curr_peak(1) >= mun(ti) - kappa_neg * stdn_(ti)) && (curr_peak(1) <= mun(ti) + kappa_neg * stdn_(ti));
-                  valid2(ti) = (curr_peak(2) >= mup(ti) - kappa_pos * stdp_(ti)) && (curr_peak(2) <= mup(ti) + kappa_pos * stdp_(ti)); % max(stdp_(ti), stdn_(ti)));
+               try
+                  for ti = 1:numel(mup)
+                     valid1(ti) = ( curr_peak(1) >= ( mun(ti) - (kappa_neg*extra(ti)) * stdn_(ti) ) ) ...
+                               && ( curr_peak(1) <= ( mun(ti) + (kappa_neg*extra(ti)) * stdn_(ti) ) );
+                     valid2(ti) = ( curr_peak(2) >= ( mup(ti) - (kappa_pos*extra(ti)) * stdp_(ti) ) ) ...
+                               && ( curr_peak(2) <= ( mup(ti) + (kappa_pos*extra(ti)) * stdp_(ti) ) ); % max(stdp_(ti), stdn_(ti)));
+                  end
+               catch ME
+                  disp('err');
                end
                valid = valid1 & valid2;
 
@@ -238,26 +274,31 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                   % Adding one spike to axon family of best fit
                   [minrate, mini] = min( change_rates(valid) );
                   vind = find( valid );
-                  fi   = vind( mini );
-                  fam  = APfamilies{k}{fi};
+                  ai   = vind( mini );
+                  fam  = APfamilies{k}{ai};
 
                   % if current spike peak is within required rate of
                   % change in peak amplitude for a spike family, add it
-                  % to the fam. Else start a new family.              
+                  % to the fam. Else start a new family.
                   if uniqueAPLength
-                     [ fam.meanspike, fam.spikes, curr_stime, fam.stimes ] = addSpikeToTemplate( fam.meanspike, curr_spike, fam.spikes, curr_stime, fam.stimes );
+                     [ fam.meanspike, fam.spikes, curr_spike, curr_stime, fam.stimes ] = ...
+                           addSpikeToTemplateMaxCorr( fam.meanspike, curr_spike, fam.spikes, curr_stime, fam.stimes, lambda );
+                     Nspikes               = fam.Nspikes + 1;
+                     fam.Nspikes           = Nspikes;
                   else
-                     fam.spikes(:,end+1) = curr_spike;
-                     fam.stimes(:,end+1) = curr_stime;
-                     N = size( fam.spikes, 2 ); % update number of spikes
+                     fam.Nspikes           = fam.Nspikes + 1;
+                     fam.spikes(:,Nspikes) = curr_spike;
+                     fam.stimes(:,Nspikes) = curr_stime;
                      % efficient calculation of meanspike for large families
-                     fam.meanspike = ( fam.meanspike * (N-1) + curr_spike ) / N;
-                     % APfamilies{k}{i}.meanspike = APfamilies{k}{end}.meanspike + curr_spike * (1-lambda);
+                     fam.meanspike         = recursiveUpdate( fam.meanspike , [], lambda, curr_spike );
+%                      fam.meanspike         = ( fam.meanspike * (Nspikes-1) + curr_spike ) / Nspikes;
                   end
-
+       
+               try
                   % Distribution of peaks (mean and var)
                   [mup_curr, varp_curr] = recursiveUpdate( fam.mup, fam.varp, curr_peak(2), lambda );
                   [mun_curr, varn_curr] = recursiveUpdate( fam.mun, fam.varn, curr_peak(1), lambda );
+                  fam.mup       = mup_curr;
                   fam.mun       = mun_curr;
                   fam.varp      = varp_curr;
                   fam.varn      = varn_curr;             
@@ -266,36 +307,64 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                   if ~strcmp( 'none', opts.debugOption )
                      fam   = updateDebugInfo( fam, mup_curr, mun_curr, varp_curr, varn_curr );
                   end
-                  APfamilies{k}{fi} = fam;
+                  APfamilies{k}{ai} = fam;
+
+                  % check if this axon family is new, update its stats, and
+                  % merge with existing family if it turns out they're
+                  % heaps similar
+                  if is_new_axon(k,ai)
+                     num_new_axons(k,ai) = num_new_axons(k,ai) + 1; 
+
+                     % if we have enough axons for a decent mean, check if
+                     % it's very similar to another family, & merge
+                     if num_new_axons(k,ai) >= new_axon_check
+                        % we only check for similarity once (else it may
+                        % merge families that used to be heaps different)
+                        is_new_axon(k,ai) = false; 
+                        [APfamilies, is_new_axon, num_new_axons] = ...
+                                 mergeSimilarAxonFamilies( APfamilies, [k ai], is_new_axon, num_new_axons, ...
+                                                           matchthresh, kappa_pos, kappa_neg );
+                     end
+                  end
+
+               catch ME
+                  disp('something is wrong');
+               end
                else
                   % Creating new axon family
-                  noise_samples = getNoise(stimes, si, tseries);
+                  noise_samples         = getNoise(stimes, si, tseries, noise_backup);
                   [fam_mu, fam_var]     = initialize_mu( spikes, si, matchthresh, peakfn, peakdiff , noise_samples); 
                   APfamilies{k}{end+1}  = newAxonFamily( curr_spike, peakfn, curr_stime, timefn, fam_mu, fam_var, opts );
+                  is_new_axon(k,length(APfamilies{k}))   = true; 
+                  num_new_axons(k,length(APfamilies{k})) = 1; % record spike for new axon
                end
             end
 
-            % don't update template because we've probably already included
-            % these spikes, unless the template is a new one
-            if k > orig_nAP
-               % update template by incorporating current spike into
-               % mean - we don't care about amplitue
-               if normAPs
-                  curr_spike  = curr_spike / std(curr_spike); 
-               end
-               % Equal importance to all past spikes
-               % APtemplates(:,k) = (APtemplates(:,k)*APnumsamples(k) + ...
-               % curr_spike) / (APnumsamples(k)+1); % uncomment this line and
-               % comment the next one to go back
-               % Forgetting factor - lambda defines how much weight do older spikes
-               % have
-               APtemplates(:,k) = APtemplates(:,k) * lambda  +  curr_spike * (1 - lambda);
-               APnumsamples(k)  = APnumsamples(k) + 1;
-            end
+%             % don't update AP templates as they're typically already
+%             % comprised of several hundred samples, so adding a few more
+%             % won't make much difference
+%             % update template by incorporating current spike into
+%             % mean - we don't care about amplitue
+%             if normAPs
+%                curr_spike  = curr_spike / std(curr_spike); 
+%             end
+%             % Equal importance to all past spikes
+%             % APtemplates(:,k) = (APtemplates(:,k)*APnumsamples(k) + ...
+%             % curr_spike) / (APnumsamples(k)+1); % uncomment this line and
+%             % comment the next one to go back
+%             % Forgetting factor - lambda defines how much weight do older spikes
+%             % have
+%             if uniqueAPLength
+%                curr_spike = alignSpikeToTemplate( APtemplates{k}, curr_spike ); 
+%                APtemplates{k} = APtemplates{k} * lambda  +  curr_spike * (1 - lambda);
+%             else
+%                APtemplates(:,k) = APtemplates(:,k) * lambda  +  curr_spike * (1 - lambda);
+%             end
+%             APnumsamples(k)  = APnumsamples(k) + 1;
 
          % Spike is not sufficiently similar to one of the families
          % so start a new AP template if user has allowed new ones
-         else
+         else % rho does not exceed threshold
             if newTemplates
                % make a new AP family within the templates
                if uniqueAPLength 
@@ -307,16 +376,19 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                % Creating new axon family
                % Get noise samples prior to the current spike to initialize
                % the variance from the noise.
-               noise_samples = getNoise(stimes, si, tseries);
+               noise_samples         = getNoise(stimes, si, tseries, noise_backup);
                [fam_mu, fam_var]     = initialize_mu( spikes, si, matchthresh, peakfn, peakdiff, noise_samples ); 
                APfamilies{end+1}{1}  = newAxonFamily( curr_spike, peakfn, curr_stime, timefn, fam_mu, fam_var, opts );
                nAP = nAP + 1;
+               is_new_axon(nAP,length(APfamilies{k}))   = true; 
+               num_new_axons(nAP,length(APfamilies{k})) = 1; % record spike for new axon
+
             end
-         end
-      end
+         end % end if rho > match_thresh
+      end % end for each spike
    catch ME
-       str = getCatchMEstring( ME, 'main: ' );
-       runtimeErrorHandler(ME);
+      catchstr = getCatchMEstring( ME, 'main: ' );
+%        runtimeErrorHandler(ME);
    end
 
    % Close progress window
@@ -336,11 +408,11 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
 
    try
       % get rid of families with very few spikes
-      for fi=1:length( APfamilies )
-         if ~isempty(APfamilies{fi})
-             nf = cellfun( @(fam) size( fam.spikes,2 ), APfamilies{fi} );
+      for ai=1:length( APfamilies )
+         if ~isempty(APfamilies{ai})
+             nf = cellfun( @(fam) size( fam.spikes,2 ), APfamilies{ai} );
              toosmall = nf <= params.min_spiking_threshold.value; 
-             APfamilies{fi}( toosmall ) = [];
+             APfamilies{ai}( toosmall ) = [];
          end
       end
       % get rid of empty families, just in case they snuck in there!
@@ -358,33 +430,96 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
          figure; 
          % if not too many templates then plot each templates mean & var in
          % a different column
+         nP = 4; % number of features to plot (+/- mean & +/- var)
          if nAP<4
-            nc = nAP; nr = 2;
+            nc = nAP; nr = nP;
          else
             % too many templates --> just plot in pairs
-            nc = ceil( sqrt( nAP*2 ) ); nc = ternaryOp( round(nc/2)~=nc/2, nc+1, nc );
-            nr = ceil( nAP*2 / nc );
+            nc = ceil( sqrt( nAP*nP ) ); nc = ternaryOp( round(nc/2)~=nc/2, nc+1, nc );
+            nr = ceil( nAP*nP / nc );
          end
-         for ti = 1:size(APfamilies) % for each template
+         Nfam = length(APfamilies);
+         for ti = 1:Nfam % for each template
             mu_pos = -Inf; var_pos = -Inf;
             mu_neg =  Inf; var_neg = -Inf;
-            nfam   = size( APfamilies{ti}, 2 );
-            cols   = getColourMatrix( nfam );
-            for fi = 1:nfam % for each family within the template
-               subplot(nr,nc,ti); hold on;
-                  plot( APfamilies{ti}{fi}.stimes(1,:), APfamilies{ti}{fi}.mup_vector, 'color', cols(fi,:) );
-                  plot( APfamilies{ti}{fi}.stimes(1,:), APfamilies{ti}{fi}.mun_vector, 'color', cols(fi,:) );
-                  mu_pos = ternaryOp( mu_pos < max( APfamilies{ti}{fi}.mup_vector ), max( APfamilies{ti}{fi}.mup_vector ), mu_pos );
-                  mu_neg = ternaryOp( mu_neg > min( APfamilies{ti}{fi}.mun_vector ), min( APfamilies{ti}{fi}.mun_vector ), mu_neg );
-               subplot(nr,nc,nAP+ti); hold on;
-                  plot( APfamilies{ti}{fi}.stimes(1,:), APfamilies{ti}{fi}.varp_vector, 'color', cols(fi,:), 'linewidth', 1 );
-                  plot( APfamilies{ti}{fi}.stimes(1,:), APfamilies{ti}{fi}.varn_vector, '--', 'color', cols(fi,:), 'linewidth', 1 );
-                  var_pos = ternaryOp( var_pos < max( APfamilies{ti}{fi}.varp_vector ), max( APfamilies{ti}{fi}.varp_vector ), var_pos );
-                  var_neg = ternaryOp( var_neg < max( APfamilies{ti}{fi}.varn_vector ), max( APfamilies{ti}{fi}.varn_vector ), var_neg );
+            naxons = length( APfamilies{ti} );
+            cols   = getColourMatrix( naxons );
+
+            lw = 2;
+            for ai = 1:naxons % for each family within the template
+               % if unique length spikes then NaNs exist where spike
+               % doesn't have a value cuz it's shorter than others -
+               % therefore construct time vector based position of peak
+               % spike value within each spike
+               sp        = APfamilies{ti}{ai}.spikes(:,1);
+               [~,pind]  = nanmax(sp);
+               tvec      = APfamilies{ti}{ai}.stimes(pind,:);
+               peakvec   = APfamilies{ti}{ai}.spikes(pind,:); % aligned at peak
+               troughvec = nanmin( APfamilies{ti}{ai}.spikes, [], 1 );
+
+               subplot(nr,nc,0*nAP+ti); hold on;
+                  plot( tvec, APfamilies{ti}{ai}.mup_vector, 'color', cols(ai,:) );
+                  legend('\mu_{pos}');
+
+               subplot(nr,nc,1*nAP+ti); hold on;
+                  plot( tvec, APfamilies{ti}{ai}.mun_vector, 'color', cols(ai,:) );
+                  legend('\mu_{neg}');
+
+               subplot(nr,nc,2*nAP+ti); hold on;
+                  plot( tvec, +APfamilies{ti}{ai}.varp_vector, '-',  'color', cols(ai,:), 'linewidth', lw );
+                  plot( tvec, -APfamilies{ti}{ai}.varn_vector, '--', 'color', cols(ai,:), 'linewidth', lw );
+                  var_pos = ternaryOp( var_pos < max( APfamilies{ti}{ai}.varp_vector ), max( APfamilies{ti}{ai}.varp_vector ), var_pos );
+                  var_neg = ternaryOp( var_neg < max( APfamilies{ti}{ai}.varn_vector ), max( APfamilies{ti}{ai}.varn_vector ), var_neg );
+                  legend('\sigma^2_{pos}', '\sigma^2_{neg}');
+
+               subplot(nr,nc,3*nAP+ti); hold on;
+                  plot( tvec, peakvec,   '-', 'color', cols(ai,:), 'linewidth', lw );
+                  plot( tvec, troughvec, '-', 'color', cols(ai,:), 'linewidth', lw );
+                  legend('spike_{max}', 'spike_{min}');
+
             end
-            subplot(nr,nc,ti),     ylim( [ mu_neg,  mu_pos ] );
-            subplot(nr,nc,nAP+ti), ylim( [      0, var_pos ] );
          end
+
+         % now plot all family & axon peaks on the same plot
+         figure; 
+         Faxons = cellfun(@length, APfamilies); % number of axons within each family
+         Naxons = sum(Faxons); % total number of distinct axons
+         cols   = getColourMatrix( Naxons );
+
+         lw = 2; pp = 1; % number of peak plots so far
+         legstr = cell(0);
+         for ti = 1:length(APfamilies) % for each template
+            naxons = length( APfamilies{ti} ); % axons within this family
+
+            for ai = 1:naxons % for each family within the template
+               sp        = APfamilies{ti}{ai}.spikes(:,1);
+               [~,pind]  = nanmax(sp);
+               tvec      = APfamilies{ti}{ai}.stimes(pind,:);
+               peakvec   = APfamilies{ti}{ai}.spikes(pind,:); % aligned at peak
+               troughvec = nanmin( APfamilies{ti}{ai}.spikes, [], 1 );
+               legstr{end+1} = sprintf('fam %d, axons %d', ti, ai);
+
+               subplot(311); hold on;
+                  plot( tvec, peakvec,   '.', 'color', cols(pp,:) );
+                  title('Axon peaks');
+
+               subplot(312); hold on;
+                  plot( tvec, troughvec, '.', 'color', cols(pp,:) );
+                  title('Axon troughs');
+
+               subplot(313); hold on;
+                  plot( tvec, peakvec,   '.', 'color', cols(pp,:) );
+                  plot( tvec, troughvec, '.', 'color', cols(pp,:) );
+                  title('Axon peaks and troughs');
+
+               pp = pp+1;
+            end
+         end
+         a1 = subplot(311);
+            yl = get(a1,'ylim'); set(a1,'ylim', [0 yl(2)]);
+         a2 = subplot(312);
+            yl = get(a2,'ylim'); set(a2,'ylim', [yl(1) 0]);
+         if ~isempty(legstr), legend(legstr); end
       end
 
 
@@ -406,8 +541,9 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                   % appropriate times & copy into voltage timeseries
                   sind      = round(fam{ff}.stimes(:) / tseries.dt);
                   valid     = ~isnan( sind );
-                  invalid   = isnan( sind );
-                  fam_tseries(valid,ff) = fam{ff}.spikes(valid);
+                  sind(isnan(sind)) = [];
+%                   peakind   = max( fam{ff}.spikes, [], 1);
+                  fam_tseries(sind,ff) = fam{ff}.spikes(valid);
                   peakind   = round( median( getMaxInd( fam{ff}.spikes ) ) );
                   fam_stimes{ff}  = fam{ff}.stimes(peakind,:);
                end
@@ -461,110 +597,161 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
       end
    catch ME
       str = getCatchMEstring( ME, 'end: ' );
+%       runtimeErrorHandler(ME);
    end
 end
 
-function [mu, sig] = initialize_mu( spikes, si, matchthresh, peakfn, diffpeakfn ,noise_samples)
-   maxlag = 2; % number of lags in cross-corr
-   % Initialize the mean peak for a new family, triggered by spike at index 
-   % si not having a family of similar size. Goes through the first N
-   % spikes that match the template and chooses that value as the mean.
+function [mu, sig] = initialize_mu( spikes, si, matchthresh, peakfn, diffpeakfn, noise_samples)
    if iscell( spikes ), uniqueAPLength = true; else, uniqueAPLength = false; end
    if uniqueAPLength
-      nSp = length( spikes );
-      fsp = spikes{si}; % spike we're making the family from
+      sp  = spikes{si};
    else
-      nSp = size( spikes, 2 );
-      fsp = spikes(:,si);
+      sp  = spikes(:,si);
    end
-   fam_peaks = [ min(fsp) max(fsp) ];
-   si  = si + 1; % start matching with spikes after current spike
-   allowed_diff = 0.5; % Allowed difference between spikes to initialize mu
-   % if we've run outta spikes in the spike train, return
-   if si >= nSp
-      mu = peakfn( fsp ); sig = 0; 
-      return; 
-   end
-   
-   cnt = 0;
-   pk = [];
-   while cnt < 10 && si < nSp
-      if uniqueAPLength
-         sp = spikes{si}; % spike we're making the family from
-      else
-         sp = spikes(:,si);
-      end
-      sp_peaks = [ min(sp) max(sp) ];
-      % align the spikes at their peaks 
-      [ sp, fsp ] = alignDiffLengthSpikes( sp, fsp );
-      c   = xcorr( sp, fsp, maxlag, 'coeff' );
-      rho = max( abs(c) );
-      d1  = diffpeakfn( sp_peaks, fam_peaks ); % diff in peaks btwn family spike & sp
-      d2  = diffpeakfn( fam_peaks, sp_peaks ); % diff in peaks in reverse order
-      d   = min( d1, d2 ); % get largest diff btwn pos & neg peak changes
-%       d   = max( d1, d2 ); % get largest diff btwn pos & neg peak changes
-
-      % If spike is closeley correlated to the template
-      if rho > matchthresh && d < max(fsp)*0.3 % TO DO: DON'T HARD-CODE ALLOWABLE DIFFERENCE !! 
-         cnt     = cnt + 1;
-         if uniqueAPLength
-            pk_  = peakfn( spikes{si} );
-         else
-            pk_  = peakfn(spikes(:,si));
-         end
-         pk(cnt,:) = pk_;
-      end
-      si = si + 1;
-   end
-   
-   % If at least 2 spikes matched the template (hopefully 5+ did!)
-   if cnt > 2
-       mu  = mean(pk, 1);
-       
-       if noise_samples == 0
-           % We are setting sig from the noise now. This line only works if no
-           % noise samples could be found
-             sig = var(pk, [], 1 ); 
-       else
-           sig = var(noise_samples) * ones(1,2);
-       end
-   else
-       if uniqueAPLength
-           fsp = spikes{:,si};
-       else
-           fsp = spikes(:,si);
-       end
-           
-       mu  = peakfn( fsp );
-       if noise_samples == 0
-           % We are setting sig from the noise now. This line only works if no
-           % noise samples could be found
-           sig = sqrt( max( fsp ) - min( fsp ) ) * ones(1,2);
-       else
-           sig = var(noise_samples) * ones(1,2);
-       end
-   end
+   mu  = [min(sp) max(sp)];    
+   sig = var(noise_samples);   % variance of noise
+   sig = [sig sig];            % variance for peak & trough of spike
+    
+    % Before I was extracting the first N spikes that were correlated with
+    % the input spike, but this doesn't ensure that the spikes are the
+    % right scale, so it was fucking up the mean & variance estimates.
+    % Instead just use the first spike, but allow distance from the mean to
+    % be larger than the user requested number of std dev's from the mean,
+    % until there is a sufficient number of spikes to have converged to the mean 
+%    maxlag = 2; % number of lags in cross-corr
+%    % Initialize the mean peak for a new family, triggered by spike at index 
+%    % si not having a family of similar size. Goes through the first N
+%    % spikes that match the template and chooses that value as the mean.
+%    if iscell( spikes ), uniqueAPLength = true; else, uniqueAPLength = false; end
+%    if uniqueAPLength
+%       nSp = length( spikes );
+%       fsp = spikes{si}; % spike we're making the family from
+%    else
+%       nSp = size( spikes, 2 );
+%       fsp = spikes(:,si);
+%    end
+%    fam_peaks = [ min(fsp) max(fsp) ];
+%    si  = si + 1; % start matching with spikes after current spike
+%    allowed_diff = 0.5; % Allowed difference between spikes to initialize mu
+%    % if we've run outta spikes in the spike train, return
+%    if si >= nSp
+%       mu = peakfn( fsp ); sig = 0; 
+%       return; 
+%    end
+%    
+%    cnt = 0;
+%    pk = [];
+%    while cnt < 10 && si < nSp
+%       if uniqueAPLength
+%          sp = spikes{si}; % spike we're making the family from
+%       else
+%          sp = spikes(:,si);
+%       end
+%       sp_peaks = [ min(sp) max(sp) ];
+%       % align the spikes at their peaks 
+%       [ sp, fsp ] = alignDiffLengthSpikes( sp, fsp );
+%       c   = xcorr( sp, fsp, maxlag, 'coeff' );
+%       rho = max( abs(c) );
+%       d1  = diffpeakfn( sp_peaks, fam_peaks ); % diff in peaks btwn family spike & sp
+%       d2  = diffpeakfn( fam_peaks, sp_peaks ); % diff in peaks in reverse order
+%       d   = min( d1, d2 ); % get largest diff btwn pos & neg peak changes
+% %       d   = max( d1, d2 ); % get largest diff btwn pos & neg peak changes
+% 
+%       % If spike is closeley correlated to the template
+%       if rho > matchthresh && d < max(fsp)*0.3 % TO DO: DON'T HARD-CODE ALLOWABLE DIFFERENCE !! 
+%          cnt     = cnt + 1;
+%          if uniqueAPLength
+%             pk_  = peakfn( spikes{si} );
+%          else
+%             pk_  = peakfn(spikes(:,si));
+%          end
+%          pk(cnt,:) = pk_;
+%       end
+%       si = si + 1;
+%    end
+%    
+%    % If at least 2 spikes matched the template (hopefully 5+ did!)
+%    if cnt > 2
+%        mu  = mean(pk, 1);
+%        
+%        if noise_samples == 0
+%            % We are setting sig from the noise now. This line only works if no
+%            % noise samples could be found
+%              sig = var(pk, [], 1 ); 
+%        else
+%            sig = var(noise_samples) * ones(1,2);
+%        end
+%    else
+%        if uniqueAPLength
+%            fsp = spikes{:,si};
+%        else
+%            fsp = spikes(:,si);
+%        end
+%            
+%        mu  = peakfn( fsp );
+%        if noise_samples == 0
+%            % We are setting sig from the noise now. This line only works if no
+%            % noise samples could be found
+%            sig = sqrt( max( fsp ) - min( fsp ) ) * ones(1,2);
+%        else
+%            sig = var(noise_samples) * ones(1,2);
+%        end
+%    end
 end
 
 % Extract some noise samples from a few samples before the current spike's
 % onset.
-function noise_samples = getNoise(stimes, si, tseries)
-    no_samples = 50; % 50 samples to check for noise
+function noise_samples = getNoise(stimes, si, tseries, noise_backup)
+
+    Nsamples  = 400;
+    havenoise = false; 
+
+    % try getting 100 samples of white noise - if not white reduce size
+    % until find a contiguous block of signal that is white noise
     current_sample = ceil(stimes{si}(1) / tseries.dt);
-    idx = [max(current_sample - no_samples, 1):current_sample];
-    noise_samples = tseries.data(idx);
-    while idx(1) > 1
+    idx            = [max(current_sample - Nsamples, 1):current_sample];
+    noise_samples  = tseries.data(idx);
+    while ~havenoise && idx(1)>1 && Nsamples>20
+        % test current noise sample to see if it's white
         if iswhite(noise_samples)
-            % If white, return the noise
-            return
+            havenoise = true; % successfully have contiguous block of white noise
+            return;
+            
+        % reduce size of contiguous block to see if we can get white noise
         else
-            % If not white, take previous samples
-            idx = idx - no_samples;
-            noise_samples = tseries.data(idx(idx>0));
+           % trim from both ends just in case we have a spike right at the
+           % beginning or end, so end up with no white noise
+            Ntrim          = round(Nsamples*1/3);     % trim 1/3, keep 2/3
+            Ntrim          = ceil(Ntrim/2);           % trim from both ends
+            Nsamples       = round(Nsamples * 2/3);
+            idx            = [max(current_sample - Nsamples - Ntrim, 1):(current_sample - Ntrim)];
+            noise_samples  = tseries.data(idx);
+            current_sample = idx(end);                % shift current sample by Ntrim
         end
     end
-    % If it reaches this point, it didn't find any noisy period
-    noise_samples = 0;
+    
+    % If we're here we were unsuccessful in finding a contiguous block of
+    % white noise samples that has length at least 20. Try setting length
+    % and moving back through the timeseries, rather than staying where we
+    % are & reducing the length of the timeseries
+    if Nsamples < 20
+        Nsamples       = 100; % 50 samples to check for noise
+        current_sample = ceil(stimes{si}(1) / tseries.dt);
+        idx            = [max(current_sample - Nsamples, 1):current_sample];
+        noise_samples  = tseries.data(idx);
+        while idx(1) > 1
+            if iswhite(noise_samples)
+                % If white, return the noise
+                return
+            else
+                % If not white, take previous samples
+                idx = idx - Nsamples;
+                noise_samples = tseries.data(idx(idx>0));
+            end
+        end
+        % If it reaches this point, it didn't find any noisy period
+        noise_samples = noise_backup;
+    end
 end
 
 % Spawn a new axon family with all the necessary struct fields
@@ -578,6 +765,7 @@ function family = newAxonFamily( curr_spike, peakfn, curr_stime, timefn, fam_mu,
    family.mup       = fam_mu(2); 
    family.varn      = fam_var(1);
    family.varp      = fam_var(2);
+   family.Nspikes   = 1;
   
    if ~strcmp( 'none', opts.debugOption )
       family.mup_vector  = fam_mu(2);

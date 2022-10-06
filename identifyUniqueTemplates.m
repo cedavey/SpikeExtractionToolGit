@@ -86,6 +86,7 @@ function [templates, Nsamples, templateAPs] = identifyUniqueTemplates(spikes, va
    switch matchtype
       case 'corr'
          matchfn = @( sp, temp ) corr( temp, sp );
+         matchfn = @( sp, temp ) max(xcorr(temp, sp, 'normalized', 5)); % consider max 5 lags
 
       case 'cov'
          % to compare using covariance means that the APs have to have
@@ -238,7 +239,6 @@ function [mergedTemp, mergedComp] = mergeTemplates( templates, componentAPs )
    if tbefore == 0 || tafter == 0
       str = sprintf( 'identifyUniqueTemplates:mergeTemplates:error: tbefore=%d, tafter=%d\n', tbefore, tafter );
       cprintf( 'Keywords*', str );
-      runtimeErrorHandler( ME );
    end
    
    % append NaNs to template spikes or new spike to make them the same size
@@ -359,7 +359,8 @@ function [ templates, templateAPs, Nsamples ] = mergeSimilarTemplates( templates
       end
 
    catch ME
-      str = getCatchMEstring( ME, 'fucking runtime error handler !!\n' );
+      str = getCatchMEstring( ME, 'end: ' );
+      runtimeErrorHandler(ME);
    end
 end
 

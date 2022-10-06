@@ -55,6 +55,7 @@ function varargout = getKmeansClusters(spikes,stimes,varargin)
    for k = min_k:max_k
       sse(k) = 0;
       warning('off','stats:kmeans:FailedToConverge')
+      rng(0);
 %       [idx(k,:), c, e, ~] = kmeans([score(:,1:5) pos_peak' pos_peak' pos_peak' pos_peak' neg_peak' neg_peak' diff_peaks' pos_duration' neg_duration'],k, 'EmptyAction','drop','MaxIter',200); % K-means with k clusters Other option: %
 %       [idx(k,:), c, e, ~] = kmeans([pos_peak;neg_peak;diff_peaks;pos_duration;neg_duration]',k); % Arbitrary parameters from user.
       [idx(k,:), c, e, ~] = kmeans(score(:,1:5),k); % Principal component analysis

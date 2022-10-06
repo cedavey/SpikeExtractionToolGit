@@ -9,7 +9,7 @@
 % the larger lambda is the more slowly the mean and variance are allowed to
 % change (the smoother the estimates change over time)
 function [mu_curr, var_curr] = recursiveUpdate( mu_prev, var_prev, new_obs, lambda )
-   if nargin<5 || isempty( lambda ), lamba = 1; end
+   if nargin<4 || isempty( lambda ), lambda = 1; end
    
    % mu_curr  = mu_prev * lambda  +  (mu_prev + (new_obs - mu_prev)) * (1-lambda);
    
