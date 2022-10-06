@@ -533,8 +533,9 @@ methods (Static)
       data    = h.data;    % get user data from gui handle
 
       % open smr, txt, or mat file
+      str = 'Path to open file is hardcoded. This is informative';
       printMessage('off', 'SystemCommands', str);
-      if ~exist(data,last_dir,'file')
+      if ~exist(data,[last_dir,'file'])
          data.last_dir = userpath;
       end
 
