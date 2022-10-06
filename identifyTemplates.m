@@ -9,12 +9,12 @@ function [APtemplates, componentAPs] = identifyTemplates(tseries, method, params
    else
       opts = struct;
       opts.debugOption = 'none';
-      opts.auto_params = true;
+      opts.auto_params = false;
    end
    
    debug = opts.debugOption;
    
-   if opts.auto_params
+   if strcmp(opts.auto_params, 'true')
       % Get auto params
       pp = getAutomaticParams(tseries, [], 'identifyAP', method, params);
       % If returned value is empty, leave the default parameters untouched
@@ -34,10 +34,10 @@ function [APtemplates, componentAPs] = identifyTemplates(tseries, method, params
          [ spikes, stimes, spikesFull ] = getSpikesByThresholding( tseries, params );
       case 'wavelets'
          % now most of the signal is 0's we can use spike extraction tool
-         [ spikes, stimes ] = getWaveletSpikes( tseries, params );
+         [ spikes, stimes ]             = getWaveletSpikes( tseries, params );
       case 'k means'
-         [ spikes, stimes, ~ ] = getSpikesByThresholding( tseries, params );
-         [componentAPs, APtemplates] = getKmeansClusters( spikes, stimes, varargin );
+         [ spikes, stimes, ~ ]          = getSpikesByThresholding( tseries, params );
+         [componentAPs, APtemplates]    = getKmeansClusters( spikes, stimes, varargin );
          return
       otherwise 
          str = 'No such method for identifying AP templates, ...exiting';

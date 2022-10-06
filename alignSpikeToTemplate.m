@@ -13,28 +13,30 @@ function sp = alignSpikeToTemplate( temp, sp )
 
    nSp      = length( sp   );    % length of spike
    nT       = length( temp );    % length of template
-   tbefore  = max( peaktemp, peakspike );
-   tafter   = max( nT - peaktemp, nSp - peakspike );
+   Tbefore  = peaktemp-1;        % time before template peak
+   Tafter   = nT - peaktemp;     % time after template peak
+   Sbefore  = peakspike-1;       % time before spike peak 
+   Safter   = nSp - peakspike;   % time after spike peak
 
-   % make spike match template by aligning its peak with the templates
-   if peaktemp < peakspike
-      % remove initial 
-      sp(1:(peakspike - peakind)) = [];
-   end
-   
    % append NaNs to template spikes or new spike to make them the same size
    prependfn= @( sp, N ) [ NaN( N, size(sp,2)); sp ];
    appendfn = @( sp, N ) [ sp; NaN( N, size(sp,2)) ];
+
+   % we're modifying the spike to match the template, not the other way
+   % around
+
    % spike peak occurs before template peak
-   if peakspike < tbefore 
+   if Sbefore < Tbefore 
       % if spike has fewer samples before peak, prepend NaNs 
-      sp = prependfn( sp, tbefore - peakspike );
-   elseif peaktemp < tbefore
+      sp = prependfn( sp, Tbefore - Sbefore );
+   elseif Sbefore > Tbefore
+      sp(1:(peakspike - peaktemp)) = [];
    end
-   if nSp - peakspike < tafter  
+   if Safter < Tafter  
       % if spike has fewer samples after peak, append NaNs 
-      sp = appendfn( sp,     -(nSp - peakspike - tafter) );
-   elseif nT - peaktemp < tafter
+      sp = appendfn( sp, -(nSp - peakspike - Tafter) );
+   elseif Safter > Tafter
+      sp(end-(Safter-Tafter)+1:end) = [];
    end
    
    if all( isnan( sp ) )

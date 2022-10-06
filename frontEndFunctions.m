@@ -580,6 +580,7 @@ methods (Static)
       if strcmp('gui',h.f.uiType), guidata(hObject,h); end
    end
 
+   % create a new gui using the current data displayed
    function new_figure(h)
       new_gui     = SpikeExtractionTool;
       new_handles = guidata(gcf);
@@ -598,10 +599,10 @@ methods (Static)
       new_gui.vlim        = h.data.vlim;
       new_gui.last_tool   = 1;                     % record of user's last tool
       new_gui.params      = getDefaultToolParams;  % default params for all tools & implementation methods
-      new_gui.last_dir    = h.data.last_dir; % where they opened gui from
+      new_gui.last_dir    = h.data.last_dir;       % where they opened gui from
       % copy of all SET gui handles - for each gui, make sure it's own handle is 1st
       new_gui.guihandles  = [new_gui.guihandles; h.data.guihandles(1:end-1)];
-      new_app.data    = new_gui;               % record user data in handle
+      new_app.data        = new_gui;               % record user data in handle
       new_handles         = toggleSETGUIstate(new_handles, 'on'); % switch everything off until data's loaded
 
       % udpate voltage timeseries drop down list
@@ -1569,7 +1570,7 @@ methods (Static)
          for ti=2:length(h.data.guihandles)
             other_gui     = h.data.guihandles(ti);
             other_handles = guidata(other_gui);
-            other_data    = other_h.data;
+            other_data    = other_handles.data;
             other_tlim    = other_data.tlim;
             if all( compareFloats( prev_tlim, other_tlim, 0.1, 'percent' ) )
                set(other_h.time_min, 'String', sprintf('%.2f',newt)); % reset to new val
@@ -1708,22 +1709,22 @@ methods (Static)
             if percent == 1
                percent = 0.99999;
                h.time_slider.SliderStep(2) = 1;
-               h.time_slider.SliderStep(1) = 0.00005;
+               h.time_slider.SliderStep(1) = 5e-5;
                h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
             elseif percent > 0.999
                h.time_slider.SliderStep(2) = 1;
-               h.time_slider.SliderStep(1) = 0.00005;
+               h.time_slider.SliderStep(1) = 5e-5;
                h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
             elseif percent > 0.95
                h.time_slider.SliderStep(2) = 1;
-               h.time_slider.SliderStep(1) = 0.001;
+               h.time_slider.SliderStep(1) = 1e-3;
                h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*1.01);
             else
                h.time_slider.SliderStep = [0.01 0.1];
             end
          end
 
-         h.data.zoomPercentage(1) = min(percent, 0.99999);
+         h.data.zoomPercentage(1) = min(percent, 1e-5);
 
          prev_tlim  = h.data.tlim; % record time lims before slider was moved
 
@@ -1769,22 +1770,27 @@ methods (Static)
          h.time_max.Value = sprintf('%0.2f',h.data.tlim(2));
       end
 
-      tseries = h.f.getCurrentVoltage(h);
-      h = updateSETFigure(h, tseries);
-
+      tseries  = h.f.getCurrentVoltage(h);
+      h        = updateSETFigure(h, tseries);
+      this_gui = h.figure1;
       % if there are any other SET gui's open, update their lims if current
       % time axes limits are the same for both (gui's own handle is always 1st)
       if strcmp('gui', h.f.uiType) && length(h.data.guihandles) > 1
          for ti=2:length(h.data.guihandles)
             other_gui     = h.data.guihandles(ti);
             % if other handle is valid update time if time lims match
-            if ishandle(other_gui)
+            if ishandle(other_gui) && ~isequal(this_gui, other_gui)
                other_handles = guidata(other_gui);
                other_data    = other_handles.data;
                other_tlim    = other_data.tlim;
                if all( compareFloats( prev_tlim, other_tlim, 0.1, 'percent' ) )
                   set( other_handles.time_slider, 'Value', percent );
-                  time_slider_Callback( other_handles.time_slider, [], other_handles );
+                  try
+                     other_handles.time_slider.Callback( other_handles.time_slider, other_handles );
+%                      time_slider_Callback( other_handles.time_slider, [], other_handles );
+                  catch ME
+                     disp('check time slider update for other gui');
+                  end
                end
                % if handle is invalid the gui's been deleted, so ditch
             else

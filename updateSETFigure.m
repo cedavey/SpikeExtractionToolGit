@@ -165,18 +165,18 @@ tscale=1; tlabel='s';
          xlim( tlim/tscale );
          ylim( vlim/vscale );
          % Count total found spikes to display the value on the title
-         method_idx = ternaryOp(length(data) == size(tseries.APstimes,2), 2, 1); % 2 for moving average, 1 for k-means
-         num_templates = length(data);% size(tseries.APstimes,method_idx);
-         total_found_spikes = zeros(num_templates,1);
          try
+            method_idx = ternaryOp(length(data) == size(tseries.APstimes,2), 2, 1); % 2 for moving average, 1 for k-means
+            num_templates = length(data);% size(tseries.APstimes,method_idx);
+            total_found_spikes = zeros(num_templates,1);
              for j = 1:num_templates % debugging, not sure if num_templates is correct under every possibility
                  if method_idx > 1
                      for k = 1:numel(tseries.APstimes{1,j})
-                        total_found_spikes(j) = total_found_spikes(j) + size(tseries.APstimes{1,j}{k},method_idx);
+                        total_found_spikes(j) = total_found_spikes(j) + size( tseries.APstimes{1,j}{k}, method_idx );
                      end
                  else
                      for k = 1:numel(tseries.APstimes{j})
-                        total_found_spikes(j) = total_found_spikes(j) + size(tseries.APstimes{j}{k},method_idx);
+                        total_found_spikes(j) = total_found_spikes(j) + size( tseries.APstimes{j}{k}, method_idx );
                      end
                  end
              end
@@ -185,7 +185,7 @@ tscale=1; tlabel='s';
                                                    sum(total_found_spikes)), fopts{:});
          catch E
                str = 'Couldn''t display the spike count here. Check in the workspace.\n';
-               runtimeErrorHandler(E,'message',str);           
+               total_found_spikes(:) = 0;
          end
          
          if i==1
