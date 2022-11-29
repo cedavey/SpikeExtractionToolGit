@@ -749,8 +749,43 @@ function noise_samples = getNoise(stimes, si, tseries, noise_backup)
                 noise_samples = tseries.data(idx(idx>0));
             end
         end
+        
+        % If everything failed, re-start with index 'si' and start
+        % reducing the sample size one by one until size = 30, then start
+        % moving forward. (Artemio 29/Nov/2022)
+        Nsamples = 100;
+        current_sample = ceil(stimes{si}(1) / tseries.dt);
+        while Nsamples > 20
+            idx = [current_sample : min(current_sample + Nsamples, length(tseries.data))];
+            noise_samples  = tseries.data(idx);
+            if ~iswhite(tseries.data(idx))
+                Nsamples = Nsamples-1;
+            else
+                return
+            end
+        end
+        % If still fails, same logic, now shift forward 
+        current_sample = ceil(stimes{si}(1) / tseries.dt);
+        Nsamples = 30;
+        idx = [current_sample : min(current_sample + Nsamples, length(tseries.data))];
+        while idx(end) <  length(tseries.data)
+            noise_samples  = tseries.data(idx);
+            if ~iswhite(tseries.data(idx))
+                current_sample = current_sample + 1;
+                idx = [current_sample : min(current_sample + Nsamples, length(tseries.data))];
+            else
+                return
+            end
+        end
+        
+        
         % If it reaches this point, it didn't find any noisy period
-        noise_samples = noise_backup;
+        if exist('noise_backup', 'var')
+            noise_samples = noise_backup;
+        else
+            str = 'Couldn''t find any noise samples with current parameters. ''noise_backup'' was not set as an input to getNoise()';
+            displayErrorMsg(str);
+        end
     end
 end
 

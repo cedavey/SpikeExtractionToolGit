@@ -152,7 +152,7 @@ function generateSpikeStatistics(tseries, method, method_params)
             for ii=1:nap
                nT      = size( tseries.data{ii}, 1 ); 
                max_cnt = 0; ah1 = zeros( nfam(ii), 1 ); ah2 = ah1;
-               fi      = ternaryOp( ii==1, 1, sum( AProws(1:ii-1) ) * maxcols + 1 );            
+               fi      = ternaryOp( ii==1, 1, sum( AProws(1:ii-1) ) * ncols + 1 );            
                for jj=1:nfam(ii)
                   cols      = getColourMatrix( nfam(ii) );
                   numspikes = length( tseries.APstimes{ii}{jj} ); 
