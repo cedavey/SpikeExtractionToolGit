@@ -1,8 +1,18 @@
-% ISCOLVEC runs iscolumn
-%
-% Some methods in SET use isColVec, but the file did not exist
-%
-% Artemio - Nov 2022
-function iscol = isColVec(v)
-    iscol = iscolumn(v);
+% y = isColVec(v)
+function y = isColVec(v)
+   if nargin==0
+      help isColVec; 
+      return;
+   end
+    if ~any( size(v) == 1 )
+%         cprintf('Error', 'Input is not a vector at all');
+        y = false;
+        return;
+    end
+
+    if size(v,1)>size(v,2)
+        y = true;
+    else
+        y = false;
+    end
 end
