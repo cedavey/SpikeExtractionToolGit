@@ -260,10 +260,32 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                valid2 = zeros(size(mun));
                try
                   for ti = 1:numel(mup)
-                     valid1(ti) = ( curr_peak(1) >= ( mun(ti) - (kappa_neg*extra(ti)) * stdn_(ti) ) ) ...
-                               && ( curr_peak(1) <= ( mun(ti) + (kappa_neg*extra(ti)) * stdn_(ti) ) );
-                     valid2(ti) = ( curr_peak(2) >= ( mup(ti) - (kappa_pos*extra(ti)) * stdp_(ti) ) ) ...
-                               && ( curr_peak(2) <= ( mup(ti) + (kappa_pos*extra(ti)) * stdp_(ti) ) ); % max(stdp_(ti), stdn_(ti)));
+                     trough_lowerbound = ( mun(ti) - (kappa_neg*extra(ti)) * stdn_(ti) );
+                     trough_lowerbound = ternaryOp( trough_lowerbound<=0, trough_lowerbound, 0);
+
+                     trough_upperbound = ( mun(ti) + (kappa_neg*extra(ti)) * stdn_(ti) );
+                     trough_upperbound = ternaryOp( trough_upperbound<=0, trough_upperbound, 0);
+
+                     peak_lowerbound   = ( mup(ti) - (kappa_pos*extra(ti)) * stdp_(ti) );
+                     peak_lowerbound   = ternaryOp( peak_lowerbound>=0, peak_lowerbound, 0);
+                     
+                     peak_upperbound   = ( mup(ti) + (kappa_pos*extra(ti)) * stdp_(ti) );
+                     peak_upperbound   = ternaryOp( peak_upperbound>=0, peak_upperbound, 0);
+                     if trough_lowerbound > 0 || trough_upperbound > 0
+                        str = sprintf('trough = %.2f, lower = %.2f, upper = %.2f\n', ...
+                                      curr_peak(1), trough_lowerbound, trough_upperbound );
+                        cprintf('Error*', str );
+                     end
+                     if peak_lowerbound < 0 || peak_upperbound < 0
+                        str = sprintf('peak = %.2f, lower = %.2f, upper = %.2f\n', ...
+                                      curr_peak(2), peak_lowerbound, peak_upperbound );
+                        cprintf('Error*', str );
+                     end
+
+                     valid1(ti) = ( curr_peak(1) >= trough_lowerbound ) ...
+                               && ( curr_peak(1) <= trough_upperbound );
+                     valid2(ti) = ( curr_peak(2) >= peak_lowerbound ) ...
+                               && ( curr_peak(2) <= peak_upperbound ); %
                   end
                catch ME
                   disp('err');

@@ -1,7 +1,7 @@
 % [ sp1, sp2, time1, time2 ] = alignDiffLengthSpikes( sp1, sp2, time1, time2, varargin )
 %
 % For spikes that are different lengths, this function aligns them at the
-% peak and then gets the min/max number of samples of either spikes before the 
+% peak corr and then gets the min/max number of samples of either spikes before the 
 % peak, and the min/max number of samples of either spike after the peak, to 
 % ensure both spikes have valid samples when aligned. If time vectors are
 % provided they are adjusted to match the size of the resulting spikes. If

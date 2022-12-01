@@ -63,12 +63,10 @@ function varargout = readSpikeData(filename, type, varargin)
     % if data is a structure then this may be a previously generated SET
     % structure that has been saved - e.g. AP templates, spike rates etc   
     if isstruct(data)
-       dname = fieldnames(data);
-       SETdata  = data.(dname{1});
        % if we have a field 'type' then assume it's a SET struct
-       if isfield(SETdata, 'type')
+       if isfield(data, 'type')
           if nargout>=1
-             varargout{1} = SETdata;
+             varargout{1} = data;
           end
           if nargout>1
              varargout(2:nargout) = cell(length(2:nargout),1);

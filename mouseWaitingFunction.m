@@ -20,6 +20,10 @@
 % Artemio - 19/June/2019
 function mouseWaitingFunction(fig1,fun,varargin)
    isApp = false;
+   % make sure fig1 hasn't been deleted
+   if ~ishandle(fig1)
+      fig1 = findobj(0,'type','figure');
+   end
    try
       % Set the mouse pointer to waiting to know the function is running.
       set(fig1, 'pointer', 'watch');
