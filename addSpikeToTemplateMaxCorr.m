@@ -54,6 +54,7 @@ function [ temp, tempAPs, sp, sptime, tempTimes ] = addSpikeToTemplateMaxCorr( .
    peakind      = ind(peak);
 
 try
+   % Align spikes to maximise the cross-correlation
    if peakind>0
       sp      = [zeros( peakind,1);   sp(1:end-peakind)];
    elseif peakind<0
