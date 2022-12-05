@@ -747,6 +747,8 @@ methods (Static)
       if strcmp('gui', h.f.uiType) && (nargin > 1)
         hObject = varargin{1};
       end
+      
+      h.data.time_slider_max = false;
 
       h.data.zoomPercentage = [0 0]; % Records currently chosen zoom value
       h.data.displacementPercentage = [0 0.5]; % Records currently chosen displacement value
@@ -1563,7 +1565,6 @@ methods (Static)
       if ~(newt < maxt)
          currtseries = h.data.curr_tseries;
          maxt = h.data.tseries{currtseries}.time(end);
-         h.time_max.String = num2str(maxt);
          if strcmp('gui', h.f.uiType)
            h.time_max.String = num2str(maxt);
          else
@@ -1573,10 +1574,10 @@ methods (Static)
       h.data.tlim(2) = maxt;
 
       % Update time sliders
-      h = h.f.updateTimeSlider(h, hObject);
-
-      h = updateSETFigure(h, tseries);
+      h = h.f.update_displacement_and_zoom(h, hObject);
       if strcmp('gui',h.f.uiType), guidata(hObject, h); end
+      h = h.f.updateTimeSlider(h, hObject);
+      h = updateSETFigure(h, tseries);
 
       % if there are any other SET gui's open, update their lims if current
       % time axes limits are the same for both (gui's own handle is always 1st)
@@ -1676,7 +1677,9 @@ methods (Static)
       end
       h.data.tlim(1) = mint;
 
-       % Update time sliders
+      % Update time sliders
+      h = h.f.update_displacement_and_zoom(h, hObject);
+      if strcmp('gui', h.f.uiType), guidata(hObject, h); end
       h.f.updateTimeSlider(h);
       h = updateSETFigure(h, tseries);
 
@@ -1760,6 +1763,7 @@ methods (Static)
       else
          % Displacement
          displacement = hObject.Value;
+         prev_displacement = h.data.displacementPercentage(1);
          h.data.displacementPercentage(1) = displacement;
          prev_tlim  = h.data.tlim; % record time lims before slider was moved
 
@@ -1770,18 +1774,21 @@ methods (Static)
 
          if disp_max > tseries.time(end)
             % Displacement has reached the maximum time.
+            temp_max = disp_max;
             disp_max = tseries.time(end);
             disp_min = disp_max - (h.data.tlim(2) - h.data.tlim(1));
             
-            if prev_tlim(2) ~= disp_max
+            if (prev_tlim(2) < disp_max) && h.data.time_slider_max
                 % The slider has reached maximum, but user keeps pressing
                 % button, so we will move the sliding bar to the end.
+                h.data.time_slider_max = true;
                 h.data.displacementPercentage(1) = 1; % Testing
                 h.time_slider.Value = 1;
-            else
+            elseif displacement < prev_displacement
                 % The slider is at the max, but now the user is sliding to
                 % the other direction (left). We need to make sure that the
                 % slider actually moves.
+                h.data.time_slider_max = false;
                 disp_max = (displacement) * (tseries.time(end) - tseries.time(1));
                 disp_min = disp_max - (h.data.tlim(2) - h.data.tlim(1));
             end
@@ -2327,6 +2334,20 @@ methods (Static)
 
       h = updateSETFigure(h, tseries);
       if strcmp('gui', h.f.uiType), guidata(hObject, h); end
+   end
+   
+   function h = update_displacement_and_zoom(h, hObject)
+       % To update the values for horizontal displacement and zoom when the
+       % user modifies the values in the textboxes
+       disp('updates updates');
+       
+       maxt    = h.data.tlim(2);
+       mint    = h.data.tlim(1);
+       trange  = maxt - mint;
+       curr_ts = h.data.curr_tseries;
+       
+       h.data.zoomPercentage(1) = 1 - ((maxt-mint) / (h.data.tseries{curr_ts}.time(end) - h.data.tseries{curr_ts}.time(1)));
+       h.data.displacementPercentage(1) = (maxt - trange) / h.data.tseries{curr_ts}.time(end);
    end
 
 end % Methods
