@@ -36,7 +36,7 @@ function printMessage( logMessage, varargin )
       
       % ensure error ends with double newline to make command 
       % window cursor start at the beginning of a newline
-       if ~strcmp('\n',str(end-1:end))
+       if (~strcmp('\n',str(end-1:end))) || (length(str)<2)
            str = [str '\n'];
        end
        % Send the text and options to the command window
