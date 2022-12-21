@@ -726,6 +726,7 @@ end
 function noise_samples = getNoise(stimes, si, tseries, noise_backup)
 
     Nsamples  = 400;
+    Nmin      = 20;
     havenoise = false; 
 
     % try getting 100 samples of white noise - if not white reduce size
@@ -733,7 +734,7 @@ function noise_samples = getNoise(stimes, si, tseries, noise_backup)
     current_sample = ceil(stimes{si}(1) / tseries.dt);
     idx            = [max(current_sample - Nsamples, 1):current_sample];
     noise_samples  = tseries.data(idx);
-    while ~havenoise && idx(1)>1 && Nsamples>20
+    while ~havenoise && idx(1)>1 && Nsamples>Nmin
         % test current noise sample to see if it's white
         if iswhite(noise_samples)
             havenoise = true; % successfully have contiguous block of white noise
@@ -753,10 +754,10 @@ function noise_samples = getNoise(stimes, si, tseries, noise_backup)
     end
     
     % If we're here we were unsuccessful in finding a contiguous block of
-    % white noise samples that has length at least 20. Try setting length
+    % white noise samples that has length at least Nmin. Try setting length
     % and moving back through the timeseries, rather than staying where we
     % are & reducing the length of the timeseries
-    if Nsamples < 20
+    if Nsamples < Nmin
         Nsamples       = 100; % 50 samples to check for noise
         current_sample = ceil(stimes{si}(1) / tseries.dt);
         idx            = [max(current_sample - Nsamples, 1):current_sample];
@@ -771,8 +772,47 @@ function noise_samples = getNoise(stimes, si, tseries, noise_backup)
                 noise_samples = tseries.data(idx(idx>0));
             end
         end
+        
+        % If everything failed, re-start with index 'si' and start
+        % reducing the sample size one by one until size = Nmin, then start
+        % moving forward. (Artemio 29/Nov/2022)
+        Nsamples = 100;
+        current_sample = ceil(stimes{si}(1) / tseries.dt);
+        while Nsamples > Nmin
+            idx = [current_sample : min(current_sample + Nsamples, length(tseries.data))];
+            noise_samples  = tseries.data(idx);
+            if ~iswhite(tseries.data(idx))
+                Nsamples = Nsamples-1;
+            else
+                return
+            end
+        end
+        % If still fails, rather than reducing the size of the contiguous 
+        % block, we try shifting forward to find a block of white noise
+        current_sample = ceil(stimes{si}(1) / tseries.dt);
+        Nsamples = 30;
+        idx = [current_sample : min(current_sample + Nsamples, length(tseries.data))];
+        while idx(end) <  length(tseries.data)
+            noise_samples  = tseries.data(idx);
+            if ~iswhite(tseries.data(idx))
+                current_sample = current_sample + 1;
+                idx = [current_sample : min(current_sample + Nsamples, length(tseries.data))];
+            else
+                return
+            end
+        end
+        
+        
         % If it reaches this point, it didn't find any noisy period
-        noise_samples = noise_backup;
+        if exist('noise_backup', 'var')
+            noise_samples = noise_backup;
+        else
+            % If no approach found a long enough period of white noise and
+            % there was no 'noise_backup' input to this function, return 
+            % the first Nmin samples of the recording. It is rarely
+            % expected for the code to enter this segment.
+            noise_samples = tseries.data(1:Nmin);
+        end
     end
 end
 

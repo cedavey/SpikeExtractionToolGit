@@ -747,6 +747,8 @@ methods (Static)
       if strcmp('gui', h.f.uiType) && (nargin > 1)
         hObject = varargin{1};
       end
+      
+      h.data.time_slider_max = false;
 
       h.data.zoomPercentage = [0 0]; % Records currently chosen zoom value
       h.data.displacementPercentage = [0 0.5]; % Records currently chosen displacement value
@@ -755,7 +757,7 @@ methods (Static)
 
       [x,~]=imread([path 'fig' filesep 'magnifierIcon.png']);% Load the zoom icon
       if strcmp('gui', h.f.uiType)
-        I2=imresize(x, [22 22]); % Resize icon
+        I2=imresize(x, [28.6 85.8]); % Resize icon
         h.toggleZoomButton.CData = I2; % Assign icon to the button
         h.toggleZoomButton.UserData = 'zoom'; % Change state to zoom
         set(h.zoom_out_label,'Visible', 'on');
@@ -774,9 +776,17 @@ methods (Static)
 
       if exist('hObject')
         % Update tooltip
-        h = setTooltips(h, {hObject.Tag}, getTooltips({'toggleZoomButton_toDisplace'}));
+        h = setTooltips(h, {hObject.Tag}, getTooltips({'reset_button'}));
+      elseif isfield(h, 'reset_button')
+        h = setTooltips(h, {h.reset_button.Tag}, getTooltips({'reset_button'}));
+      end
+      
+      if strcmp('gui', h.f.uiType)
+        guidata(h.reset_button, h);% guidata(hObject,h); 
       end
 
+      h.f.time_slider_updated(h, h.time_slider);
+      
    end
 
    function varargout = run_tool(h)
@@ -1505,16 +1515,7 @@ methods (Static)
       else
          str = get(h.time_min, 'Value');
       end
-      [ok, newt] = checkStringInput(str, 'float', mint, maxt);
-      % if user's put in 0 assume they want the smallest time value, dt
-      if strcmp(str,'0')
-         newt = mint; ok = true;
-         if strcmp('gui', h.f.uiType)
-            set(h.time_min, 'String', sprintf('%.2f', tseries.dt));
-         else
-            set(h.time_min, 'Value', sprintf('%.2f', tseries.dt));
-         end
-      end
+      [ok, newt] = checkStringInput(str, 'float', mint, maxt);      
       if ~ok
          % users input is dodgy - gotta reverse engineer old text box min from
          % slider value & min display limit (zoom_min)
@@ -1536,6 +1537,17 @@ methods (Static)
          end
          return
       end
+      
+      % if user's put in 0 assume they want the smallest time value, dt
+      if strcmp(str,'0')
+         newt = mint; ok = true;
+         if strcmp('gui', h.f.uiType)
+            set(h.time_min, 'String', sprintf('%.2f', tseries.dt));
+         else
+            set(h.time_min, 'Value', sprintf('%.2f', tseries.dt));
+         end
+      end
+      
       % Gotta get min time from other text box because need to reset displayed
       % time lims just in case new min is larger than the last displayed max
       % (zoom allows you to zoom in from text box mins/maxes)
@@ -1553,16 +1565,19 @@ methods (Static)
       if ~(newt < maxt)
          currtseries = h.data.curr_tseries;
          maxt = h.data.tseries{currtseries}.time(end);
-         h.time_max.String = num2str(maxt);
-         set(h.time_max, 'Value', num2str(maxt));
+         if strcmp('gui', h.f.uiType)
+           h.time_max.String = num2str(maxt);
+         else
+           set(h.time_max, 'Value', num2str(maxt));
+         end
       end
       h.data.tlim(2) = maxt;
 
       % Update time sliders
-      h.f.updateTimeSlider(h);
-
-      h = updateSETFigure(h, tseries);
+      h = h.f.update_displacement_and_zoom(h, hObject);
       if strcmp('gui',h.f.uiType), guidata(hObject, h); end
+      h = h.f.updateTimeSlider(h, hObject);
+      h = updateSETFigure(h, tseries);
 
       % if there are any other SET gui's open, update their lims if current
       % time axes limits are the same for both (gui's own handle is always 1st)
@@ -1588,6 +1603,8 @@ methods (Static)
    end
 
    function time_max(h,varargin)
+   % "Maximum time" text box has changed, i.e. the user has changed the
+   % zoom settings by manually entering a number in the time_max text box
       if nargin > 1
          hObject = varargin{1};
       end
@@ -1600,15 +1617,17 @@ methods (Static)
       tseries    = h.f.getCurrentVoltage(h);
       prev_tlim  = h.data.tlim; % previous user time limits
       data_tlims = getTimeAndVoltageLimits(tseries, 'tlim'); % min/max poss time lims
-      mint       = data_tlims(1); maxt = data_tlims(2);
+      mint       = data_tlims(1); 
+      maxt       = data_tlims(2);
 
       if strcmp('gui', h.f.uiType)
          str        = get(h.time_max, 'String');
       else
          str        = get(h.time_max, 'Value');
       end
-
-      [ok, newt] = checkStringInput(str, 'float', mint, maxt);
+      
+      [ok, newt] = checkStringInput(str, 'float', mint, maxt); % Validate string
+      
       if ~ok
          % users input is dodgy - gotta reverse engineer old text box max from
          % slider value & max display limit (zoom_max)
@@ -1633,6 +1652,7 @@ methods (Static)
          h = updateSETFigure(h, tseries);
          return
       end
+      
       % Gotta get min time from other text box because need to reset displayed
       % time lims just in case new max is smaller than the last displayed min
       % (zoom allows you to zoom in from text box mins/maxes)
@@ -1657,7 +1677,9 @@ methods (Static)
       end
       h.data.tlim(1) = mint;
 
-       % Update time sliders
+      % Update time sliders
+      h = h.f.update_displacement_and_zoom(h, hObject);
+      if strcmp('gui', h.f.uiType), guidata(hObject, h); end
       h.f.updateTimeSlider(h);
       h = updateSETFigure(h, tseries);
 
@@ -1726,8 +1748,8 @@ methods (Static)
                h.time_slider.SliderStep = [0.01 0.1];
             end
          end
-
-         h.data.zoomPercentage(1) = min(percent, 1e-5);
+         min_zoom = 1e-5;
+         h.data.zoomPercentage(1) = max(percent, min_zoom);%min(percent, min_zoom);
 
          prev_tlim  = h.data.tlim; % record time lims before slider was moved
 
@@ -1741,6 +1763,7 @@ methods (Static)
       else
          % Displacement
          displacement = hObject.Value;
+         prev_displacement = h.data.displacementPercentage(1);
          h.data.displacementPercentage(1) = displacement;
          prev_tlim  = h.data.tlim; % record time lims before slider was moved
 
@@ -1750,13 +1773,38 @@ methods (Static)
          disp_max = disp_min + (h.data.tlim(2) - h.data.tlim(1));
 
          if disp_max > tseries.time(end)
+            % Displacement has reached the maximum time.
+            temp_max = disp_max;
             disp_max = tseries.time(end);
             disp_min = disp_max - (h.data.tlim(2) - h.data.tlim(1));
+            
+            if (prev_tlim(2) < disp_max) && h.data.time_slider_max
+                % The slider has reached maximum, but user keeps pressing
+                % button, so we will move the sliding bar to the end.
+                h.data.time_slider_max = true;
+                h.data.displacementPercentage(1) = 1; % Testing
+                h.time_slider.Value = 1;
+            elseif displacement < prev_displacement
+                % The slider is at the max, but now the user is sliding to
+                % the other direction (left). We need to make sure that the
+                % slider actually moves.
+                h.data.time_slider_max = false;
+                disp_max = (displacement) * (tseries.time(end) - tseries.time(1));
+                disp_min = disp_max - (h.data.tlim(2) - h.data.tlim(1));
+            end
          end
 
          if disp_min < tseries.time(1)
+            % Displacement has reached minimum time
             disp_min = tseries.time(1);
             disp_max = disp_min + (h.data.tlim(2) - h.data.tlim(1));
+            
+            if prev_tlim(1) ~= disp_min
+                % The slider has reached maximum, but user keeps pressing
+                % button, so we will move the sliding bar to the end.
+                h.data.displacementPercentage(1) = 0; % Testing
+                h.time_slider.Value = 0;
+            end
          end
 
          h.data.tlim(1) = max( disp_min, tseries.time(1) );
@@ -1801,6 +1849,7 @@ methods (Static)
             end
          end
       end
+      
       if strcmp('gui', h.f.uiType)
          guidata(hObject, h);
       end
@@ -1817,17 +1866,27 @@ methods (Static)
       mint = h.data.tlim(1);
       zoom = 1 - h.data.zoomPercentage;
 
-      if strcmp('zoom',hObject.UserData)
+      if strcmp('zoom',hObject.UserData) % 
          % Displacement function has been selected
          if strcmp('gui', h.f.uiType)
             [x,~]=imread([path 'fig' filesep 'arrowsIcon.png']);% Load the displacement icon
-            I2=imresize(x, [22 22]); % Resize icon
+            I2=imresize(x, [28.6 85.8]); % Resize icon
             hObject.CData = I2; % Assign icon to the button
             h.voltage_slider.SliderStep =  [0.01 0.1];
-
-            h.time_slider.SliderStep(2) = 1;
-            h.time_slider.SliderStep(1) = zoom(1) / 3;% max(handles.time_slider.SliderStep(1) , handles.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
-            h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*2);
+            
+            % Check if the user has zoomed in, otherwise, there's nothing
+            % to displace, i.e. the displacement step should be 0 and
+            % the displacement bar should take the whole slider.
+            if h.data.zoomPercentage(1) <= 1e-5
+                % There's no zoom applied, i.e. the whole time series is
+                % visible.
+                h.time_slider.SliderStep = [0 1];
+                h.data.displacementPercentage(1) = 0;
+            else
+                h.time_slider.SliderStep(2) = 1;
+                h.time_slider.SliderStep(1) = zoom(1) / 3;% max(handles.time_slider.SliderStep(1) , handles.data.zoomPercentage(1));% Change the size of the vertical slider indicator to match the value zoomed in.
+                h.time_slider.SliderStep(2) = min(1, h.time_slider.SliderStep(1)*2);
+            end
             % Update tooltip
             h = setTooltips(h, {hObject.Tag}, getTooltips({'toggleZoomButton_toZoom'}));
          else
@@ -1845,7 +1904,7 @@ methods (Static)
          if strcmp('gui', h.f.uiType)
             % Zoom function has been selected
             [x,~]=imread([path 'fig' filesep 'magnifierIcon.png']);% Load the displacement icon
-            I2=imresize(x, [22 22]); % Resize icon
+            I2=imresize(x, [28.6 85.8]); % Resize icon
             hObject.CData = I2; % Assign icon to the button
 
             h.time_slider.SliderStep =  [0.001 0.1];%max(app.time_slider.SliderStep(1) , app.data.displacementPercentage(1)); % Change the size of the horizontal slider indicator to match the value displaced in.
@@ -1925,15 +1984,20 @@ methods (Static)
       guidata(hObject,h); % saves changes to handles
    end
 
-   function updateTimeSlider(h)
+   function h = updateTimeSlider(h, varargin)
+      if nargin > 1
+          hObject = varargin{1};
+      end
+      
       maxt    = h.data.tlim(2);
       mint    = h.data.tlim(1);
       trange  = maxt - mint;
       curr_ts = h.data.curr_tseries;
 
+      h.data.zoomPercentage(1) = 1 - ((maxt-mint) / (h.data.tseries{curr_ts}.time(end) - h.data.tseries{curr_ts}.time(1)));
+      h.data.displacementPercentage(1) = (maxt - trange) / h.data.tseries{curr_ts}.time(end);
+      
       if strcmp( 'zoom', h.toggleZoomButton.UserData )
-         h.data.zoomPercentage(1) = 1 - ((maxt-mint) / (h.data.tseries{curr_ts}.time(end) - h.data.tseries{curr_ts}.time(1)));
-         h.data.displacementPercentage(1) = (maxt - trange) / h.data.tseries{curr_ts}.time(end);
          h.time_slider.Value = h.data.zoomPercentage(1); % Update the position of the slider to represent zoom.
 
          percent = h.data.zoomPercentage(1);
@@ -1976,10 +2040,12 @@ methods (Static)
           h.time_slider.SliderStep(2) = min( 1, h.time_slider.SliderStep(1)*2 );
         end
       end
-
+            
       if strcmp('gui', h.f.uiType) % Only if its GUI
         guidata(h.time_slider, h);
       end
+      
+      h.f.time_slider_updated(h, h.time_slider);
    end
 
    function updateVoltageSlider(h)
@@ -2268,6 +2334,20 @@ methods (Static)
 
       h = updateSETFigure(h, tseries);
       if strcmp('gui', h.f.uiType), guidata(hObject, h); end
+   end
+   
+   function h = update_displacement_and_zoom(h, hObject)
+       % To update the values for horizontal displacement and zoom when the
+       % user modifies the values in the textboxes
+       disp('updates updates');
+       
+       maxt    = h.data.tlim(2);
+       mint    = h.data.tlim(1);
+       trange  = maxt - mint;
+       curr_ts = h.data.curr_tseries;
+       
+       h.data.zoomPercentage(1) = 1 - ((maxt-mint) / (h.data.tseries{curr_ts}.time(end) - h.data.tseries{curr_ts}.time(1)));
+       h.data.displacementPercentage(1) = (maxt - trange) / h.data.tseries{curr_ts}.time(end);
    end
 
 end % Methods
