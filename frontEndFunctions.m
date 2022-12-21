@@ -52,11 +52,11 @@ methods (Static)
    end
 
    function add_voltage(h)
-      h.data.last_tseries    = h.data.curr_tseries;
-      new_num_tseries = h.data.num_tseries + 1;
+      h.data.last_tseries = h.data.curr_tseries;
+      new_num_tseries     = h.data.num_tseries + 1;
 
       % open image files & retrieve matrices
-      [h.data, success] = openVoltageFile(h.data);
+      [h.data, success]   = openVoltageFile(h.data);
 
       h = h.f.resetSliders(h);
 
@@ -534,25 +534,22 @@ methods (Static)
 
       % open smr, txt, or mat file
 
-%       str = sprintf('\tWarning! The path to open a file is hardcoded (It won''t crash, this is informative. Check ''frontEndFunctions.load_voltage'').\n');
-%       printMessage('off', 'SystemCommands', str);
       try
         temp_dir = data.last_dir;
-        data.last_dir = '/Users/cedavey/Library/CloudStorage/OneDrive-TheUniversityofMelbourne/unimelb/research/darpa/paper2/Matlab Simulations and Extractions/Axon 3 data (Highest layer)';
+        data.last_dir = userpath;
         [data, success] = openVoltageFile(data);  
       catch 
         data.last_dir = temp_dir;
         [data, success] = openVoltageFile(data);  
       end
 
-     [data, success] = openVoltageFile(data);  
       data.last_tseries = 1;
       data.curr_tseries = 1;
       data.last_tool    = 1;
       data.curr_tool    = 1;
 
       if success==0 % if success==0 --> no valid images found or user cancelled
-         displayErrorMsg('No valid voltage data found - please reload');
+         displayErrorMsg('No valid voltage data found.');
          % don't update handles with the data_struct changes
          return;
       elseif success==-1

@@ -20,26 +20,27 @@ function printMessage( logMessage, varargin )
 % Artemio - 12/June/2019
 
 % If logMessage is false, turn off the log file.
-isLogCurrentlyActive = strcmp('on',get(0,'Diary'));
-if isLogCurrentlyActive && strcmp('off',logMessage), diary off; end
-
-try
-   % The string is formatted already, escaped characters, like %% now
-   % appear like a single %. 
-   format = varargin{1};
-   str    = varargin{2};
-   idx    = strfind(str,'%');
-   if ~isempty(idx) && ~strcmp(str(idx + 1),'%')
-      str(idx + 1 : end + 1) = ['%' str(idx+1:end)];
+   isLogCurrentlyActive = strcmp('on',get(0,'Diary'));
+   if isLogCurrentlyActive && strcmp('off',logMessage), diary off; end
+   
+   try
+      % The string is formatted already, escaped characters, like %% now
+      % appear like a single %. 
+      format = varargin{1};
+      str    = varargin{2};
+      idx    = strfind(str,'%');
+      if ~isempty(idx) && ~strcmp(str(idx + 1),'%')
+         str(idx + 1 : end + 1) = ['%' str(idx+1:end)];
+      end
+      % Send the text and options to the command window
+      cprintf(format, str);
+   catch ME
+      % If an error, reactivate the diary
+      if isLogCurrentlyActive, diary on; end
+      rethrow(ME);
    end
-   % Send the text and options to the command window
-   cprintf(format, str);
-catch ME
-   % If an error, reactivate the diary
+   
    if isLogCurrentlyActive, diary on; end
-   rethrow(ME);
+   
 end
 
-if isLogCurrentlyActive, diary on; end
-
-end

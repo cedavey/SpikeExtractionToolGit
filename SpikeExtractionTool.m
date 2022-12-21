@@ -424,7 +424,7 @@ if handles.data.num_tseries == 0
 end
 % Ask for confirmation
 if ~okToClear
-   response = userConfirmation('All the currently loaded data will be cleared. Do you accept?', 'Don''t lose your data.');
+   response = userConfirmation('All currently loaded data will be cleared. Do you accept?', 'Don''t lose your data.');
    switch response
       case 'Yes'
          okToClear = true;
