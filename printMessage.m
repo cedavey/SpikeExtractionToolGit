@@ -29,17 +29,25 @@ function printMessage( logMessage, varargin )
       format = varargin{1};
       str    = varargin{2};
       idx    = strfind(str,'%');
+      
       if ~isempty(idx) && ~strcmp(str(idx + 1),'%')
          str(idx + 1 : end + 1) = ['%' str(idx+1:end)];
       end
-      % Send the text and options to the command window
-      cprintf(format, str);
-   catch ME
-      % If an error, reactivate the diary
-      if isLogCurrentlyActive, diary on; end
-      rethrow(ME);
+      
+      % ensure error ends with double newline to make command 
+      % window cursor start at the beginning of a newline
+       if ~strcmp('\n',str(end-1:end))
+           str = [str '\n'];
+       end
+       % Send the text and options to the command window
+       cprintf(format, str);
+       
+    catch ME
+       % If an error, reactivate the diary      
+       if isLogCurrentlyActive, diary on; end
+       rethrow(ME);
    end
-   
+
    if isLogCurrentlyActive, diary on; end
    
 end

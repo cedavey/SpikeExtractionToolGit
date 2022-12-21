@@ -2336,8 +2336,6 @@ methods (Static)
    function h = update_displacement_and_zoom(h, hObject)
        % To update the values for horizontal displacement and zoom when the
        % user modifies the values in the textboxes
-       disp('updates updates');
-       
        maxt    = h.data.tlim(2);
        mint    = h.data.tlim(1);
        trange  = maxt - mint;
