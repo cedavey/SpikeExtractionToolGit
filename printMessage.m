@@ -32,6 +32,9 @@ try
    if ~isempty(idx) && ~strcmp(str(idx + 1),'%')
       str(idx + 1 : end + 1) = ['%' str(idx+1:end)];
    end
+   if ~strcmp('\n',str(end-1:end))
+       str = [str '\n'];
+   end
    % Send the text and options to the command window
    cprintf(format, str);
 catch ME
