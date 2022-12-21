@@ -121,11 +121,15 @@ function data = loadMatlabSpike2file(filename, verbose)
       try
          data   = load(filename); % returns data in struct
          if isempty(data), error('File is empty perhaps??'); end
-      catch ME
+      catch 
          % assume we've run outta memory
-         str = sprintf('\nI think you''ve run outta memory - gotta get smart\n\n');
-         cprintf('Keywords*', str);
-         return;
+         try
+            data = load(filename, '-ascii'); % returns data in struct
+         catch ME
+            str = sprintf('\nYour file may be in the cloud or there is insufficient memory\n\n');
+            cprintf('Keywords*', str);
+            rethrow(ME);
+         end
       end
    else
       str = sprintf('\n%s file not found, exiting...\n\n', filename);
