@@ -36,11 +36,12 @@ function printMessage( logMessage, varargin )
       
       % ensure error ends with double newline to make command 
       % window cursor start at the beginning of a newline
-       if (~strcmp('\n',str(end-1:end))) || (length(str)<2)
+      if isstring(str), str = str{1}; end % First check if variable is a character vector or a string
+      if (length(str)<2)||(~strcmp('\n',str(end-1:end)))
            str = [str '\n'];
-       end
-       % Send the text and options to the command window
-       cprintf(format, str);
+      end
+      % Send the text and options to the command window
+      cprintf(format, str);
        
     catch ME
        % If an error, reactivate the diary      

@@ -1,5 +1,5 @@
 <deployment-project plugin="plugin.apptool" plugin-version="1.0">
-  <configuration build-checksum="1300287455" file="C:\Users\artemios\OneDrive - The University of Melbourne\Documents\GitHub\SpikeExtractionToolGit\Spike Extraction Tool.prj" location="C:\Users\artemios\OneDrive - The University of Melbourne\Documents\GitHub\SpikeExtractionToolGit" name="Spike Extraction Tool" target="target.mlapps" target-name="Package App">
+  <configuration build-checksum="1300287455" file="C:\Users\artemios\Documents\GitHub2\SpikeExtractionToolGit\Spike Extraction Tool.prj" location="C:\Users\artemios\Documents\GitHub2\SpikeExtractionToolGit" name="Spike Extraction Tool" target="target.mlapps" target-name="Package App">
     <param.appname>Spike Extraction Tool</param.appname>
     <param.authnamewatermark>Artemio Soto-Breceda, Katie Davey</param.authnamewatermark>
     <param.email>catherine.davey@unimelb.edu.au</param.email>
@@ -12,7 +12,7 @@
     </param.icons>
     <param.summary>Automatic drift correction and spike sorting of single electrode recordings.</param.summary>
     <param.description>Spike extraction tool uses Recursive Lease Squares to perform automatic drift correction of single channel recordings of spiking data. It includes tools to identify Action Potential templates, spike sorting and analysis of spike rates and statistics of spike trains.</param.description>
-    <param.screenshot>C:\Users\artemios\Pictures\SETscreenshot.png</param.screenshot>
+    <param.screenshot />
     <param.version>1.0.9</param.version>
     <param.products.name>
       <item>Econometrics Toolbox</item>
@@ -27,15 +27,16 @@
       <item>19</item>
     </param.products.id>
     <param.products.version>
-      <item>5.2</item>
-      <item>2.2</item>
-      <item>8.2</item>
-      <item>11.5</item>
+      <item>5.4</item>
+      <item>3.1</item>
+      <item>8.4</item>
+      <item>11.7</item>
     </param.products.version>
     <param.platforms />
     <param.output>C:\Users\artemios\OneDrive - The University of Melbourne\PostDoc\Code\SET Production</param.output>
     <param.guid>f2607247-aa86-489e-986b-3243d8405be3</param.guid>
     <unset>
+      <param.screenshot />
       <param.platforms />
     </unset>
     <fileset.main>
@@ -143,10 +144,16 @@
     </build-deliverables>
     <workflow />
     <matlab>
-      <root>C:\Program Files\MATLAB\R2019a</root>
+      <root>C:\Program Files\MATLAB\R2020a</root>
       <toolboxes>
+        <toolbox name="matlabcoder" />
         <toolbox name="neuralnetwork" />
       </toolboxes>
+      <toolbox>
+        <matlabcoder>
+          <enabled>true</enabled>
+        </matlabcoder>
+      </toolbox>
       <toolbox>
         <neuralnetwork>
           <enabled>true</enabled>
