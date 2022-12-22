@@ -65,6 +65,7 @@ classdef SpikeExtractionApp < matlab.apps.AppBase
         time_min               matlab.ui.control.EditField
         access_voltage         matlab.ui.control.Button
         new_figure             matlab.ui.control.Button
+        new_figure_workspace   matlab.ui.control.Button
         scroll_axes_slider     matlab.ui.control.Slider
         toggleZoomButton       matlab.ui.control.Button
         data
@@ -1125,6 +1126,15 @@ classdef SpikeExtractionApp < matlab.apps.AppBase
             app.new_figure.Position = [306 605 133 26];
             app.new_figure.Text = 'Plot in new figure';
 
+            % Create new_figure_workspace
+            app.new_figure_workspace = uibutton(app.figure1, 'push');
+            app.new_figure_workspace.ButtonPushedFcn = createCallbackFcn(app, @new_figure_Callback, true);
+            app.new_figure_workspace.BackgroundColor = [1 0.6 0.6];
+            app.new_figure_workspace.FontSize = 13;
+            app.new_figure_workspace.FontWeight = 'bold';
+            app.new_figure_workspace.Position = [306+50 605 133 26];
+            app.new_figure_workspace.Text = 'Plot in new figure';
+            
             % Create scroll_axes_slider
             app.scroll_axes_slider = uislider(app.figure1);
             app.scroll_axes_slider.Limits = [0 1];
