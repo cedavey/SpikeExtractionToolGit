@@ -259,6 +259,11 @@ function [APspikes, APtimes] = extractSpikesUsingTemplates( APtemplates, APnumsa
                valid1 = zeros(size(mup));
                valid2 = zeros(size(mun));
                try
+                  % calculate the probability of a spike belonging to a
+                  % particular neuron using Bayesian inference.
+                  % Prior probability: current firing rate rather than
+                  % number of spikes to allow for axons to start and stop
+                  % firing
                   for ti = 1:numel(mup)
                      trough_lowerbound = ( mun(ti) - (kappa_neg*extra(ti)) * stdn_(ti) );
                      trough_lowerbound = ternaryOp( trough_lowerbound<=0, trough_lowerbound, 0);
