@@ -6,6 +6,8 @@
 %  Inputs: 
 %     tseries  -  Should be a spike type tseries
 %
+% GitHub example ()delete this line
+%
 % Artemio Soto-Breceda | 10 September 2019
 function exportToExcel(tseries) 
    Ntemplates = numel(tseries.APstimes);
