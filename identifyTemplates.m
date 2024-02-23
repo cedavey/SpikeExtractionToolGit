@@ -3,7 +3,7 @@
 % positive and negative peaks, as well as minimum duration positive and
 % negative components. Require APs to have user specified similarity to be
 % considered part of the same family.
-function [APtemplates, componentAPs] = identifyTemplates(tseries, method, params, varargin)
+function [APtemplates, componentAPs,alignment_ind_templates] = identifyTemplates(tseries, method, params, varargin)
    if nargin > 3
       opts = varargin{1};
    else
@@ -31,7 +31,7 @@ function [APtemplates, componentAPs] = identifyTemplates(tseries, method, params
    matchtype  = params.match_type.value; % statistic for matching (cov/corr)
    switch lower(method)
       case 'threshold'
-         [ spikes, stimes, spikesFull ] = getSpikesByThresholding( tseries, params );
+         [ spikes, stimes, spikesFull, ~,alignment_inds ] = getSpikesByThresholding( tseries, params );
       case 'wavelets'
          % now most of the signal is 0's we can use spike extraction tool
          [ spikes, stimes ]             = getWaveletSpikes( tseries, params );
@@ -55,7 +55,7 @@ function [APtemplates, componentAPs] = identifyTemplates(tseries, method, params
                                                    params.normalise_aps.value);
    else
       % this version uses a cell array of templates, so diff lengths
-      [APtemplates, Nsamples, componentAPs] = identifyUniqueTemplates(spikesFull, matchtype, ...
+      [APtemplates,alignment_ind_templates, Nsamples, componentAPs] = identifyUniqueTemplates(spikesFull,alignment_inds, matchtype, ...
                                                    params.match_similarity.value,      ...
                                                    params.normalise_aps.value);
    end
@@ -71,12 +71,12 @@ function [APtemplates, componentAPs] = identifyTemplates(tseries, method, params
             APtemplates(:,remove)= [];
             Nsamples(remove)     = [];
             componentAPs(remove) = [];
-
+            
          else
             APtemplates(remove)  = [];
             Nsamples(remove)     = [];
             componentAPs(remove) = [];
-
+            alignment_ind_templates(remove) = [];
          end
       catch
          fprintf( 'Unknown error...\n' );

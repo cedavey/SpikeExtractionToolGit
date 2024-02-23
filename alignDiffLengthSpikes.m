@@ -1,4 +1,4 @@
-% [ sp1, sp2, time1, time2 ] = alignDiffLengthSpikes( sp1, sp2, time1, time2, varargin )
+% [ sp1, sp2, time1, time2,ai1,ai2] = alignDiffLengthSpikes( sp1, sp2, time1, time2,ai1,ai2 varargin )
 %
 % For spikes that are different lengths, this function aligns them at the
 % peak corr and then gets the min/max number of samples of either spikes before the 
@@ -13,9 +13,10 @@
 % determine where the peaks match, but will be adjusted in line with the
 % spike 1, for example where sp1 is a mean template, and the varargin 
 % spikes are spikes in the template family (only works for sp1). 
-function [ sp1, sp2, time1, time2, varargout ] = alignDiffLengthSpikes( sp1, sp2, time1, time2, shorten, varargin )
-   markerfn = @getMaxInd; % @getZeroCrossingInd; %
-   if nargin<5 || isempty(shorten), shorten = false; end
+% ai1 and ai2 are the alignment indexes
+function [ sp1, sp2, time1, time2,ai1,ai2 varargout ] = alignDiffLengthSpikes( sp1, sp2, time1, time2,ai1,ai2,shorten, varargin )
+   %markerfn = @getMaxInd; % @getZeroCrossingInd; %
+   if nargin<7 || isempty(shorten), shorten = false; end
    
    % if spikes & templates can have diff lengths, use the smaller length
    % to calculate the match, but centre both around the peak 
@@ -29,19 +30,45 @@ function [ sp1, sp2, time1, time2, varargout ] = alignDiffLengthSpikes( sp1, sp2
    end
 
    % remove any NaNs to begin with (sometimes added to align)
+   % since we add nans for alignment, we don't actually think them to be
+   % signal so we do want to shorten the nan part rather than keep making
+   % things pointlessly longer - remove nans, make sure to edit the
+   % varargout thing below so we do the same thing to other spikes.
+   
+ 
+   
+   
    sp1_nan  = isnan(sp1);
    sp2_nan  = isnan(sp2);
-   sp1(sp1_nan) = 0;
-   sp2(sp2_nan) = 0;
+   
+   % in terms of robustness it is worth just removing nans at start or end
+   % of the sequence. nans in middle will be set to zero
+   within_sequence_1 = (1:length(sp1))'>=find(sp1_nan==0,1,'first')| (1:length(sp1))'<=find(sp1_nan==0,1,'last');
+   within_sequence_2 = (1:length(sp2))'>=find(sp2_nan==0,1,'first')| (1:length(sp2))'<=find(sp2_nan==0,1,'last');
+   sp1_nan_middle = sp1_nan.*within_sequence_1;
+   sp2_nan_middle = sp2_nan.*within_sequence_2;
+   %set the nans in the sequence to zero
+   sp1(sp1_nan_middle==1) = 0;
+   sp2(sp2_nan_middle==1) = 0;
+   
+   %now specifically select nans on the edges of sequence (padding nans)
+   sp1_nan = sp1_nan.*within_sequence_1;
+   sp2_nan = sp2_nan.*within_sequence_2;
+
+   sp1(sp1_nan==1) = [];
+   sp2(sp2_nan==1) = [];
+   
    if havetime
-      dt    = mean(diff(time1));
-      time1(sp1_nan) = 0;
-      time2(sp2_nan) = 0;
+%       dt    = mean(diff(time1));
+       time1(sp1_nan_middle==1) = 0;
+       time2(sp2_nan_middle==1) = 0;
+       time1(sp1_nan==1) = [];
+       time2(sp2_nan==1) = [];
    end
    nSp1     = size( sp1, 1 );
    nSp2     = size( sp2, 1 ); % length of each template
-   peakSp1  = round( mean( markerfn( sp1 ) ) ); % in case of many spikes
-   peakSp2  = round( mean( markerfn( sp2 ) ) );
+   peakSp1  = round( mean( ai1 ) ); % in case of many spikes
+   peakSp2  = round( mean( ai2 ) );
 
    if shorten
       tbefore = min( peakSp2, peakSp1 );
@@ -51,10 +78,13 @@ function [ sp1, sp2, time1, time2, varargout ] = alignDiffLengthSpikes( sp1, sp2
       tafter  = max( nSp2 - peakSp2, nSp1 - peakSp1 );
    end
 
-   [sp1, time1] = adjustSpike( shorten, sp1, tbefore, tafter, peakSp1, time1 );
-   [sp2, time2] = adjustSpike( shorten, sp2, tbefore, tafter, peakSp2, time2 );
+   [sp1, time1,ai2] = adjustSpike( shorten, sp1, tbefore, tafter, peakSp1, time1 );
+   [sp2, time2,ai2] = adjustSpike( shorten, sp2, tbefore, tafter, peakSp2, time2 );
    while ~isempty(varargin)
-      varargout{end+1} = adjustSpike( shorten, varargin{:}, tbefore, tafter, peakSp1 );
+      %if we had nans that we removed, we need to edit peakSp1 to reflect
+      %same location: We use sum here because we only removed nans at edges
+      peak_with_nans = peakSp1 + sum(sp1_nan(1:peakSp1));
+      varargout{end+1} = adjustSpike( shorten, varargin{1}, tbefore, tafter, peak_with_nans );
       varargin(1) = [];
    end
    
@@ -69,7 +99,7 @@ end
 % If any additional inputs provided, assume they need to be modified in the
 % same way as the input spike
 
-function [sp_resz, time_resz, varargout] = adjustSpike( shorten, sp, tbefore, tafter, peakSp, sptime, varargin )
+function [sp_resz, time_resz,peakSp, varargout] = adjustSpike( shorten, sp, tbefore, tafter, peakSp, sptime, varargin )
    % if time before spike peak (or zero crossing) is too short, append 0s
    % (time before includes the peak)
 
@@ -143,6 +173,7 @@ function [sp_resz, time_resz, varargout] = adjustSpike( shorten, sp, tbefore, ta
             varargin(1)  = [];
          end
       end
+
    end
    if appendTest(peakSp)
       append    = abs(tafter - (N-peakSp));   % needs to work for shortening & lengthening

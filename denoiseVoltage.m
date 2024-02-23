@@ -45,7 +45,7 @@ function denoised_voltage = denoiseVoltage(tseries, method, params)
                denoised_voltage = FiltFiltM(b, a, tseries.data);
             end
 %          catch ME
-%             displayErrorMsg('You''ve fucked something up - check denoiseVoltage:filter');
+%             displayErrorMsg('Something has gone wrong - check denoiseVoltage:filter');
 %          end
          
       case 'threshold'
@@ -61,7 +61,7 @@ function denoised_voltage = denoiseVoltage(tseries, method, params)
             end
             
          catch ME
-            displayErrorMsg('You''ve fucked something up - check denoiseVoltage:threshold');
+            displayErrorMsg('Something has gone wrong - check denoiseVoltage:threshold');
          end
                                  
       case 'wavelets'
@@ -80,7 +80,7 @@ function denoised_voltage = denoiseVoltage(tseries, method, params)
                denoised_voltage = wden(C, L, method, 'h', 'mln', levels, name);
             end
          catch ME
-            displayErrorMsg('You''ve fucked something up - check denoiseVoltage:wavelets');
+            displayErrorMsg('Something has gone wrong - check denoiseVoltage:wavelets');
          end
          
       otherwise
