@@ -12,7 +12,7 @@
 %  Ntemplates - number of current templates
 %  matchfn    - match function to calc similarity of spike with templates
 function rho = spikeCorrWithTemplates( sp, templates, alignment_ind_sp,alignment_ind_templates,matchfn )
-   if nargin<3 || isempty( matchfn )
+   if nargin<5 || isempty( matchfn )
       matchfn = @( sp, temp ) corr( temp, sp );
    end
    

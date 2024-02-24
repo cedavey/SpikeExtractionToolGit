@@ -10,7 +10,7 @@
 %  tseries     - tseries struct from SET gui of type voltage, to find spikes in 
 %  method      - method used to extract potential spikes
 %                'matched filter', or 'wavelets'
-%  params      - parameters for extrac14/9/2023ting spikes, set using SET gui
+%  params      - parameters for extracting spikes, set using SET gui
 % Outputs:
 %  APspikes    - spike for each AP template, organised by family (scale)
 %                within each template, so that there's a matrix of 
@@ -205,21 +205,21 @@ function [APspikes, APtimes,AP_alignment_inds] = extractSpikesUsingTemplates( AP
             if isempty(APfamilies{k})
                 
                %ADD A NEW AXON TO THE FAMILY
-               [APfamilies{k}{1},is_new_axon(k,1),num_new_axons(k,1)] = add_new_axon_to_family(stimes,si,curr_spike,alignment_inds(si),tseries,noise_backup,peakfn,timefn,opts);
+               [APfamilies{k}{1},is_new_axon(k,1),num_new_axons(k,1)] = add_new_axon_to_family(stimes,si,curr_spike,curr_stime,alignment_inds(si),tseries,noise_backup,peakfn,timefn,opts);
             else
                 
                 
                %There are axons within the family, so let's see which one
                %fits
-               [axon_ind] = match_spike_to_axon_using_peaks(APfamilies{k},curr_spike);
+               [axon_ind] = match_spike_to_axon_using_peaks(APfamilies{k},peakfn(curr_spike),peakdiff,kappa_neg,kappa_pos);
                
                if axon_ind ~= 0
                   %WE FOUND A GOOD MATCH, ADD SPIKE TO AXON
                   was_new = is_new_axon(k,axon_ind);
-                  [APfamilies{k}{axon_ind},num_new_axons(k,axon_ind),is_new_axon(k,axon_ind)] = update_axon_with_spike(APfamilies{k}{axon_ind},curr_spike,curr_stime,alignment_inds(si),uniqueAPLength,is_new_axon(k,axon_ind),num_new_axons(k,axon_ind));
+                  [APfamilies{k}{axon_ind},num_new_axons(k,axon_ind),is_new_axon(k,axon_ind)] = update_axon_with_spike(APfamilies{k}{axon_ind},curr_spike,curr_stime,alignment_inds(si),uniqueAPLength,is_new_axon(k,axon_ind),num_new_axons(k,axon_ind),peakfn,timefn,lambda,opts);
                  % if we have enough axons for a decent mean, check if
                  % it's very similar to another family, & merge
-                 if was_new == true && is_new_axon(k,ai)==false
+                 if was_new == true && is_new_axon(k,axon_ind)==false
                     [APfamilies, is_new_axon, num_new_axons] = ...
                              mergeSimilarAxonFamilies( APfamilies, [k ai], is_new_axon, num_new_axons, ...
                                                        matchthresh, kappa_pos, kappa_neg );
@@ -228,7 +228,7 @@ function [APspikes, APtimes,AP_alignment_inds] = extractSpikesUsingTemplates( AP
                else
                   % There was no good match - add a new axon to the family
                   %ADD A NEW AXON TO THE FAMILY
-                  [APfamilies{k}{end+1},is_new_axon(k,end+1),num_new_axons(k,end+1)] = add_new_axon_to_family(stimes,si,curr_spike,alignment_inds(si),tseries,noise_backup,peakfn,timefn,opts);
+                  [APfamilies{k}{end+1},is_new_axon(k,end+1),num_new_axons(k,end+1)] = add_new_axon_to_family(stimes,si,curr_spike,curr_stime,alignment_inds(si),tseries,noise_backup,peakfn,timefn,opts);
                end
             end
 
@@ -728,7 +728,7 @@ function [APspikes,APtimes] = construct_APfamily_timeseries(APfamilies,nAP,param
 end
 
 %initialise a new axon within a family
-function [APfam_axon,is_new_axon,num_new_axons] = add_new_axon_to_family(stimes,si,curr_spike,alignment_inds,tseries,noise_backup,peakfn,timefn,opts)
+function [APfam_axon,is_new_axon,num_new_axons] = add_new_axon_to_family(stimes,si,curr_spike,curr_stime,curr_alignment_ind,tseries,noise_backup,peakfn,timefn,opts)
        % Distribution of peaks (mean and var)
        % Get noise samples prior to the current spike to initialize
        % the variance from the noise.
@@ -736,7 +736,7 @@ function [APfam_axon,is_new_axon,num_new_axons] = add_new_axon_to_family(stimes,
        % Initialize mean and var - can't use template since it
        % gives shape, but not scale
        [fam_mu, fam_var] = initialize_mu( curr_spike, noise_samples);
-       APfam_axon = newAxonFamily( curr_spike, peakfn, curr_stime, timefn, fam_mu, fam_var, alignment_inds(si), opts );
+       APfam_axon = newAxonFamily( curr_spike, peakfn, curr_stime, timefn, fam_mu, fam_var, curr_alignment_ind, opts );
        is_new_axon  = true; 
        num_new_axons= 1; % record spike for new axon
         % if we have spike families see if we're at the right
@@ -749,8 +749,15 @@ end
 %If thare are any valid matches between the spike and the axons within
 %APfam, the best one is selected (index of the best is output), else 0 is
 %output.
-function [axon_ind] = match_spike_to_axon_using_peaks(APfam,curr_spike)
-      curr_peak = peakfn(curr_spike);           
+
+%right now this is done using a normal distribution of peaks and troughs
+%and creating acceptable bounds of these values to be included in the
+%neuron - we want to make this a bayesian classifier instead.
+function [axon_ind] = match_spike_to_axon_using_peaks(APfam,curr_peak,peakdiff,kappa_neg,kappa_pos)
+
+      %Right now doing a max and a min, consider doing it based on an
+      %extreme value for each segment
+      
                varn      = getStructFieldFromCell( APfam, 'varn', 'array' );
                varp      = getStructFieldFromCell( APfam, 'varp', 'array' );
                mun       = getStructFieldFromCell( APfam, 'mun', 'array' );
@@ -842,9 +849,9 @@ end
 
 %Now we've decided that this spike matches the axon, we need to the axon
 %with the spike
-function [Axon,num_new_axons,is_new_axon] = update_axon_with_spike(Axon,curr_spike,curr_stime,curr_alignment_ind,uniqueAPLength,is_new_axon,num_new_axons)
+function [Axon,num_new_axons,is_new_axon] = update_axon_with_spike(Axon,curr_spike,curr_stime,curr_alignment_ind,uniqueAPLength,is_new_axon,num_new_axons,peakfn,timefn,lambda,opts)
                   
-               
+      curr_peak = peakfn(curr_spike);         
       if uniqueAPLength
 
          [ Axon.meanspike, Axon.spikes, curr_spike, curr_stime, Axon.stimes,Axon.alignment_ind,~] = ...

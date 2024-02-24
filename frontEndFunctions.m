@@ -1041,6 +1041,12 @@ methods (Static)
                   normAPs  = tseries.params.normalise_aps.value; % get from AP generation
                   % get number of samples that each AP template is estimated from
                   APnumsamples = cellfun(@(f) size(f,2), tseries.APfamily);
+                  
+                  %copy template params over from APtemplate 
+                  method_params.phasenumber = tseries.params.phasenumber;
+                  method_params.first_phase_pos = tseries.params.first_phase_pos;
+                  method_params.alignment_phase = tseries.params.alignment_phase;
+                  
                   [APspikes, APstimes,alignment_ind_templates] = ...
                      extractSpikesUsingTemplates(APtemplates, APnumsamples,alignment_ind_templates, voltage_tseries, method, method_params, normAPs, h.options);
                   if isempty(APspikes)
