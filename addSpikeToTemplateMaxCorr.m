@@ -2,8 +2,8 @@
 % current spike, all the same length, and then optimising lagged
 % correlation. Spike times for the family spikes and current spike are
 % updated to have the same length vectors also. 
-function [ temp, tempAPs, sp, sptime, tempTimes ] = addSpikeToTemplateMaxCorr( ...
-                                                         template, curr_spike, tempAPs, sptime, tempTimes, lambda )
+function [ temp, tempAPs, sp, sptime, tempTimes,alignment_ind_template,alignment_ind_spike] = addSpikeToTemplateMaxCorr( ...
+                                                         template, curr_spike,alignment_ind_template,alignment_ind_spike, tempAPs, sptime, tempTimes, lambda )
    % We can either cull the longer spike, or append 0s to the shorter spike
    % (Note that we treat the samples before and after the peak or zero
    % crossing separately, so there will be 2 culling/appending events)
@@ -11,12 +11,12 @@ function [ temp, tempAPs, sp, sptime, tempTimes ] = addSpikeToTemplateMaxCorr( .
 
    % align at peak first to make sure we're not using wiggly beginning or end bits
    tempcopy = template; spcopy = curr_spike; timecopy = tempTimes; sptimecopy = sptime; tempAPcopy = tempAPs;
-   [ template, curr_spike, tempTimes, sptime, tempAPs ] = alignDiffLengthSpikes( template, curr_spike, tempTimes, sptime, shorten, tempAPs );
-   
-   if size(template,1) ~= size(curr_spike,1) || size(template,1)   ~= size(tempAPs,1) ...
-      size(sptime,1)    ~= size(template,1)  || size(curr_spike,1) ~= size(tempTimes,1)
-      disp('problem with sizes');
-   end
+%    [ template, curr_spike, tempTimes, sptime, tempAPs,pad_inds] = alignDiffLengthSpikes( template, curr_spike, tempTimes, sptime, shorten, tempAPs ,(1:length(template))');
+%    pad_inds = pad_inds==0;
+%    if size(template,1) ~= size(curr_spike,1) || size(template,1)   ~= size(tempAPs,1) ...
+%       size(sptime,1)    ~= size(template,1)  || size(curr_spike,1) ~= size(tempTimes,1)
+%       disp('problem with sizes');
+%    end
    % anchor to max corr when using lagged corr, rather than spike peaks
    nT      = numel(template); 
    nS      = numel(curr_spike); 
@@ -30,7 +30,9 @@ function [ temp, tempAPs, sp, sptime, tempTimes ] = addSpikeToTemplateMaxCorr( .
    temp    = template;
    sp      = curr_spike; 
    % pad with zeros if one is smaller than the other - if a lagged corr is
-   % the optimal, make sure to move in the direction of overwriting 0s
+   % the optimal, make sure to move in the direction of overwriting 0s...
+   % This correction is meaningless since we've already aligned the spikes
+   % earlier - if remove that alignement, will this solve the problem
    if nT > nS
       sp         = zeros(nT,1); 
       sp(1:nS)   = curr_spike; 
@@ -52,23 +54,33 @@ function [ temp, tempAPs, sp, sptime, tempTimes ] = addSpikeToTemplateMaxCorr( .
    [ rho, peak ] = max(rho);
    % if lag is positive, move spike forward, if negative, move temp forward
    peakind      = ind(peak);
-
+    
 try
-   % Align spikes to maximise the cross-correlation
+   % Align spikes to maximise the cross-correlation. 
+   
+   %are we correctly adjustign the time functions?
    if peakind>0
-      sp      = [zeros( peakind,1);   sp(1:end-peakind)];
+        sp      = [zeros(peakind,1);   sp(1:end-peakind)];
+        sptime =  sptime-peakind*dt;
+        alignment_ind_spike = alignment_ind_spike+peakind;
    elseif peakind<0
-      temp    = [zeros(-peakind,1); temp(1:end+peakind)];
-      tempAPs = [zeros(-peakind,size(tempAPs,2)); tempAPs(1:end+peakind,:)];
+        temp    = [zeros(-peakind,1); temp(1:end+peakind)];
+        tempAPs = [zeros(-peakind,size(tempAPs,2)); tempAPs(1:end+peakind,:)];
+        tempTimes = tempTimes+peakind*dt;
+        alignment_ind_template = alignment_ind_template - peakind;
    end
 
    tempAPs    = [tempAPs sp]; % add spike to template's spikes
    Nspikes    = size(tempAPs,2);
    % efficient calculation of mean template
-   temp       = recursiveUpdate( temp, [], curr_spike, lambda );
+   temp       = recursiveUpdate( temp, [], sp, lambda );
 %    template  = ( template * (Nspikes-1) + curr_spike ) / Nspikes;
 %    template  = nanmean( tempAPs, 2 );
    tempTimes  = [tempTimes sptime];
+%FInd peak nearby old peak location (incase the update has shifted
+%it a few indices away
+   alignment_ind_template = getMaxInd(temp*sign(temp(alignment_ind_template)).*(((1:length(temp))'-alignment_ind_template)<5));
+
 catch ME
    disp('problem');
 end

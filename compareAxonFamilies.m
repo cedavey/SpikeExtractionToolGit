@@ -25,10 +25,11 @@ function [similar, mergedfam] = compareAxonFamilies( fam1, fam2, rhothresh, kapp
    stdn1   = sqrt(fam1.varn);  % moving average std dev of negative peaks in family 1
    stdn2   = sqrt(fam2.varn);
    minvar  = min( fam1.varp, fam2.varp );
-
+   alignment_ind1 = fam1.alignment_ind;
+   alignment_ind2 = fam2.alignment_ind;
    %% Check if the shapes highly correlated
    % lagged corr btwn template & spike
-   [ mutmp1, mutmp2, stimes1, stimes2 ] = alignDiffLengthSpikes( mutmp1, mutmp2, fam1.stimes, fam2.stimes, true );
+   [ mutmp1, mutmp2,stimes1, stimes2,alignment_ind1, alignment_ind2  ] = alignDiffLengthSpikes( mutmp1, mutmp2, fam1.stimes, fam2.stimes,alignment_ind1,alignment_ind2, true );
    [ rho, ind ]  = xcorr( mutmp1, mutmp2, 'normalized' );
    [ rho, peak ] = max(rho);
    % if lag is positive, move spike forward, if negative, move temp forward
@@ -78,9 +79,10 @@ function [similar, mergedfam] = compareAxonFamilies( fam1, fam2, rhothresh, kapp
 
    % The following functions align the family spikes to the templates by
    % aligning their peaks to the template peaks
-   [ spikes1 ]  = alignToMarkerInd( mutmp1, fam1.spikes );
-   [ spikes2 ]  = alignToMarkerInd( mutmp2, fam2.spikes );
-
+%    [ spikes1 ]  = alignToMarkerInd( mutmp1, fam1.spikes );
+%    [ spikes2 ]  = alignToMarkerInd( mutmp2, fam2.spikes ); 
+    % REMOVED BECAUSE THEY ARE ALREADY FULLY ALIGNED WITHIN OWN FAMILY
+    
    % The following functions align the family spikes to the templates by
    % shifting to maximise the cross-correlation between the templates
    % Align spikes to maximise the cross-correlation. We only need to shift
@@ -92,12 +94,14 @@ function [similar, mergedfam] = compareAxonFamilies( fam1, fam2, rhothresh, kapp
       spikes2   = alignToMaxCorr( spikes2,  peakind );
       stimes2   = stimes2 - dt*peakind;
        mutmp2   = alignToMaxCorr(  mutmp2,  peakind );
+       alignment_ind2 = alignment_ind2+peakind; 
    else
       % gotta take negative of peakind since index was relative to fam1,
       % and tells us how much ahead/behind fam2 is for max corr
       spikes1   = alignToMaxCorr( spikes1, -peakind );
       stimes1   = stimes1 + dt*peakind;
        mutmp1   = alignToMaxCorr(  mutmp1, -peakind );
+      alignment_ind1 = alignment_ind1-peakind;
    end
    % Now that we're aligned to max cross correlation, we need to make the
    % spikes in each family a consistent size with the templates

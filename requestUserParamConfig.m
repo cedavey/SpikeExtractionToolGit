@@ -135,7 +135,31 @@ function [params, cancel] = requestUserParamConfig(params, dlg_title)
          end
       end
    end
+   
+   %if we're doing extract AP templates, show a diagram of 
+   if strcmpi(names{end}, 'alignment_phase')
+      fi = figure;
+      fi.Position = fi.Position+[500 0 0 0];
+      fi.Name = 'Some Examples of spike templates and how they are aligned';
+      r = 2;c=2;i = 1;
+      
+      
+      subplot(r,c,i); i = i+1;
+      make_example_spike(2,1,1)
+      
+      subplot(r,c,i); i = i+1;
+      make_example_spike(2,-1,1)
+      
+      subplot(r,c,i); i = i+1;
+      make_example_spike(3,1,1)
+      
+      subplot(r,c,i); i = i+1;
+      make_example_spike(3,1,2)
+      
+   end
  
+   
+   
    dlg_title = ['Set parameters for ' dlg_title];
    try
       % Fixing bug about wrong parameter format on APs view
@@ -221,4 +245,10 @@ function [params, cancel] = requestUserParamConfig(params, dlg_title)
       end
 
    end
+   if exist('fi','var')
+        if ishandle(fi)
+            delete(fi);
+        end
+   end
+
 end
