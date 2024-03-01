@@ -880,7 +880,7 @@ methods (Static)
                   str = sprintf( 'Identifying action potential templates from timeseries\n' );
                   cprintf( printcol, str );
                   % get time series to apply AP templates to
-                  [APtemplates, APfamily] = identifyTemplates(tseries, method, method_params,  h.options);
+                  [APtemplates, APfamily,alignment_inds_templates] = identifyTemplates(tseries, method, method_params,  h.options);
                   if isempty(APtemplates)
                      str = sprintf('\tNo templates could be identified.\n');
                      printMessage('off', 'Error', str);
@@ -901,6 +901,8 @@ methods (Static)
                   new_tseries.params.tool   = tool;
                   new_tseries.params.method = method;
                   new_tseries.APfamily= APfamily;
+                  new_tseries.alignment_inds = alignment_inds_templates;
+                 
                   tool_str            = [tseries.name '_APs'];
                   instruct            = ['Creating ' tool_str ': rename?'];
 
@@ -933,6 +935,7 @@ methods (Static)
                      cprintf( printcol, str );
                      [APtemplates, APfamily]= identifyTemplates(tseries, 'threshold', method_params);
                      if isempty(APtemplates)
+                        str = sprintf('No templates found\n');
                         return;
                      end
                      APnumsamples        = cellfun(@(f) size(f,2), APfamily);
@@ -1028,6 +1031,7 @@ methods (Static)
                   end
                   voltage_tseries     = h.data.tseries{voltage_index};
                   APtemplates         = tseries.data;
+                  alignment_ind_templates = tseries.alignment_inds;
                   if isempty(APtemplates)
                      return;
                   end
@@ -1037,8 +1041,14 @@ methods (Static)
                   normAPs  = tseries.params.normalise_aps.value; % get from AP generation
                   % get number of samples that each AP template is estimated from
                   APnumsamples = cellfun(@(f) size(f,2), tseries.APfamily);
-                  [APspikes, APstimes] = ...
-                     extractSpikesUsingTemplates(APtemplates, APnumsamples, voltage_tseries, method, method_params, normAPs, h.options);
+                  
+                  %copy template params over from APtemplate 
+                  method_params.phasenumber = tseries.params.phasenumber;
+                  method_params.first_phase_pos = tseries.params.first_phase_pos;
+                  method_params.alignment_phase = tseries.params.alignment_phase;
+                  
+                  [APspikes, APstimes,alignment_ind_templates] = ...
+                     extractSpikesUsingTemplates(APtemplates, APnumsamples,alignment_ind_templates, voltage_tseries, method, method_params, normAPs, h.options);
                   if isempty(APspikes)
                      return;
                   end
@@ -1401,7 +1411,7 @@ methods (Static)
    %   params = getDefaultToolParams; % allows to force to default params when testing
       method_params= getToolAndMethodParams(params, data_type, tool, method);
       dlg_name     = [tool ' using ' method];
-
+        
       % if using AP templates for matched filtering need to select voltage
       % timseries to apply it to - add list to params for selection (unless
       % it's applied directly to a voltage timeseries)
@@ -1450,17 +1460,46 @@ methods (Static)
          displayErrorMsg('There are no parameters for this tool');
          return;
       end
-
-      try
-        [method_params, cancel] = requestUserParamConfig(method_params, dlg_name);
-      catch ME
-        if strcmp('MATLAB:unassignedOutputs', ME.identifier)
-          cancel = 1;
-        else
-          caught_error = runtimeErrorHandler(ME,'message', 'Something went wrong setting the parameters.');
-          if ~isempty(caught_error), rethrow(caught_error); end
-        end
+      % Now we switch based on the tool and method.
+      % some methods have special windows, others have simple inputdlg boxes
+      switch tool
+          case  'Identify AP templates'
+              try 
+                  [method_params, cancel] = requestUserParamConfig_identify_AP_template(method_params, dlg_name);
+              catch ME
+                if strcmp('MATLAB:unassignedOutputs', ME.identifier)
+                  cancel = 1;
+                else
+                  caught_error = runtimeErrorHandler(ME,'message', 'Something went wrong setting the parameters.');
+                  if ~isempty(caught_error), rethrow(caught_error); end
+                end
+              end    
+          case 'extract_spikes'
+              try 
+                  
+              catch ME
+                if strcmp('MATLAB:unassignedOutputs', ME.identifier)
+                  cancel = 1;
+                else
+                  caught_error = runtimeErrorHandler(ME,'message', 'Something went wrong setting the parameters.');
+                  if ~isempty(caught_error), rethrow(caught_error); end
+                end
+              end    
+          otherwise
+              %these tools do not have special panels for them
+              try
+                [method_params, cancel] = requestUserParamConfig(method_params, dlg_name);
+              catch ME
+                if strcmp('MATLAB:unassignedOutputs', ME.identifier)
+                  cancel = 1;
+                else
+                  caught_error = runtimeErrorHandler(ME,'message', 'Something went wrong setting the parameters.');
+                  if ~isempty(caught_error), rethrow(caught_error); end
+                end
+              end
       end
+      
+      
 
       % if merging templates, user must select template ID now we know how
       % many they want to merge (can't do simultaneously)
@@ -1752,11 +1791,14 @@ methods (Static)
 
          % calculate new min & max time lims by zoomin in from both ends
          tseries = h.f.getCurrentVoltage(h);
-         zoom_min = h.data.tlim(1);
-         zoom_max = h.data.tlim(1) + ((tseries.time(end) - tseries.time(1))*(1-percent));
+         if ~iscell(tseries.time)
+            zoom_min = h.data.tlim(1);
+            zoom_max = h.data.tlim(1) + ((tseries.time(end) - tseries.time(1))*(1-percent));
 
-         h.data.tlim(1) = max( zoom_min, tseries.time(1) );
-         h.data.tlim(2) = min( zoom_max, tseries.time(end) );
+             h.data.tlim(1) = max( zoom_min, tseries.time(1) );
+             h.data.tlim(2) = min( zoom_max, tseries.time(end) );
+         end
+         
       else
          % Displacement
          displacement = hObject.Value;
