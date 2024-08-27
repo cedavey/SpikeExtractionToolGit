@@ -1463,17 +1463,18 @@ methods (Static)
       % Now we switch based on the tool and method.
       % some methods have special windows, others have simple inputdlg boxes
       switch tool
-          case  'Identify AP templates'
-              try 
-                  [method_params, cancel] = requestUserParamConfig_identify_AP_template(method_params, dlg_name);
-              catch ME
-                if strcmp('MATLAB:unassignedOutputs', ME.identifier)
-                  cancel = 1;
-                else
-                  caught_error = runtimeErrorHandler(ME,'message', 'Something went wrong setting the parameters.');
-                  if ~isempty(caught_error), rethrow(caught_error); end
-                end
-              end    
+          % TODO: Fix this part of the code. Commented by Artemio 24 July 2024
+          % case  'Identify AP templates'
+          %     try 
+          %         [method_params, cancel] = requestUserParamConfig_identify_AP_template(method_params, dlg_name);
+          %     catch ME
+          %       if strcmp('MATLAB:unassignedOutputs', ME.identifier)
+          %         cancel = 1;
+          %       else
+          %         caught_error = runtimeErrorHandler(ME,'message', 'Something went wrong setting the parameters.');
+          %         if ~isempty(caught_error), rethrow(caught_error); end
+          %       end
+          %     end    
           case 'extract_spikes'
               try 
                   
@@ -1493,6 +1494,7 @@ methods (Static)
                 if strcmp('MATLAB:unassignedOutputs', ME.identifier)
                   cancel = 1;
                 else
+                  cancel = 0; % Added by Artemio 24 July 2024  (trying to fix Identify IP templates param selection)
                   caught_error = runtimeErrorHandler(ME,'message', 'Something went wrong setting the parameters.');
                   if ~isempty(caught_error), rethrow(caught_error); end
                 end

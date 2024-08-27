@@ -62,15 +62,15 @@ function [method_params,cancel] = requestUserParamConfig_identify_AP_template(me
     [parameters, objects] = addSpike([],[],parameters, objects,def_parameters);
     
     % Functions
-    function [parameters,objects] = addSpike(~, ~, parameters, objects,def_parameters)
+    function [parameters,objects] = addSpike(~, ~, parameters, objects, def_parameters)
         spikeNumber = numel(parameters) + 1;
         parameters(spikeNumber) = def_parameters;
 
         % Create a new radio button for the added spike
         objects.spike_buttons(spikeNumber) = uicontrol('Parent', objects.radioGroup, 'Style', 'radiobutton', 'String', ['Spike ', num2str(spikeNumber)], 'UserData', spikeNumber, 'Position', [10, 10 + 25 * (spikeNumber-1), 120, 20], 'Callback', {@updatePanels,parameters,objects});
 
-        updatePanels([],[],parameters,objects);
-        updatePanel3([], [], parameters, objects);
+        objects = updatePanels([],[],parameters,objects);
+        objects = updatePanel3([], [], parameters, objects);
     end
 
     function deleteSpike(~, ~, parameters, objects)
@@ -78,12 +78,12 @@ function [method_params,cancel] = requestUserParamConfig_identify_AP_template(me
         if ~isempty(selectedIdx)
             delete(objects.radioGroup.SelectedObject);
             parameters(selectedIdx) = [];
-            updatePanels();
-            updatePanel3([], [], parameters, objects);
+            objects = updatePanels();
+            objects = updatePanel3([], [], parameters, objects);
         end
     end
 
-    function updatePanels(~, ~, parameters,objects)
+    function objects = updatePanels(~, ~, parameters,objects)
         selectedIdx = get(get(objects.radioGroup, 'SelectedObject'), 'UserData');
         if ~isempty(selectedIdx)
             selectedSpike = parameters(selectedIdx);
@@ -93,7 +93,7 @@ function [method_params,cancel] = requestUserParamConfig_identify_AP_template(me
         end
     end
 
-    function updatePanel3(~, ~, parameters, objects)
+    function objects = updatePanel3(~, ~, parameters, objects)
         selectedIdx = get(get(objects.radioGroup, 'SelectedObject'), 'UserData');
         if ~isempty(selectedIdx)
             numPhases = str2double(get(objects.numPhasesEdit, 'String'));
