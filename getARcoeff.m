@@ -39,7 +39,7 @@ function [A, e, e2] = getARcoeff(X, p, varargin)
     if na>3
         error('getARcoeff:TooManyInputs','requires at most 2 optional args');
     end
-    optargs(1:na)=varargin;
+    optargs(1:na)   = varargin;
     [Y,doplot,warn] = optargs{:};
     
     if ~isscalar(p) || p<0

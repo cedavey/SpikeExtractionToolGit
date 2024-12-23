@@ -61,6 +61,32 @@ function [spikes, stimes, spikesFull, stimesFull,alignment_inds] = getSpikesByTh
    minpostime = round((minpostime*1e-3)/dt);       % min duration given in ms
    minnegtime = round((minnegtime*1e-3)/dt);       % min duration given in ms
    
+%   % find where voltage goes from -ve to +ve
+%   posv       = voltage>0;
+%   changePos  = find(diff([0; posv; 0])==1);       % location of change from 0 to 1
+%   % find where voltage goes from +ve to -ve
+%   changeNeg  = find(diff([0; posv; 0])==-1);      % location of change from 0 to -1
+%   if voltage(1)<0
+%      timepos = changeNeg - changePos;             % duration of +ve
+%      timeneg = [changePos(1)-1; changePos(2:end) - changeNeg(1:end-1)];
+%      % spike starts with positive so ditch initial negative
+%      timeneg = [timeneg(2:end); 0];
+%   else
+%      timepos = changeNeg - changePos;          % duration of +ve
+%      timeneg = [changePos(2:end) - changeNeg(1:end-1); 0];
+%      % since we alternative from pos to neg, at each index position
+%      % we have a +ve spike, followed by a -ve spike, so apply thresh
+%   end        
+%   pass       = timepos>minpostime & timeneg>minnegtime; 
+%   if sum(pass)==0
+%      if sum( timepos > minpostime ) == 0
+%         displayErrorMsg('No spikes have sufficient positive duration, abandoning ship...');
+%      end
+%      if sum( timeneg>minnegtime ) == 0
+%         displayErrorMsg('No spikes have sufficient negative duration, abandoning ship...');
+%      end   
+%      return;
+
    % make the template - need to work out how to set this in gui
    getvalence = @(i) params.first_phase_pos.value.*prod(-1.*ones(i+1,1));
    template_params = arrayfun(@(i) struct('voltage_sign',getvalence(i),'min_duration_inds',ternaryOp(getvalence(i)==1,minpostime,minnegtime),...
@@ -72,6 +98,7 @@ function [spikes, stimes, spikesFull, stimesFull,alignment_inds] = getSpikesByTh
    if length(spikes) == 0
       displayErrorMsg('No thresholded spikes met positive/negative duration criteria, exiting...');
       return
+
    end
    [stddev,noise,ntime] = estimate_rolling_noise_std(voltage,time,Spike_start_ind,Spike_duration,avg_window,glitchthresh,params);
    
