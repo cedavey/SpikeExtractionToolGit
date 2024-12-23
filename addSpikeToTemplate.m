@@ -1,6 +1,6 @@
-% [ temp, tempAPs ] = addSpikeToTemplate( temp, sp, tempAPs ) 
+% [ temp, tempAPs, ai_temp] = addSpikeToTemplate( temp, sp,ai_temp,ai_sp tempAPs ) 
 %
-% [ temp, tempAPs, sptime, tempTimes ] = addSpikeToTemplate( temp, sp, tempAPs, sptime, tempTimes )
+% [ temp, tempAPs, ai_temp, sptime, tempTimes ] = addSpikeToTemplate( temp, sp,ai_temp,ai_sp, tempAPs, sptime, tempTimes )
 %
 % for spikes and templates that allow different lengths, when you add a new
 % spike to a template you need to align all the peaks, and then take an
@@ -9,15 +9,20 @@
 % Inputs:
 %  temp     - template vector containing a single AP shape
 %  sp       - spike vector to be merged with existing template
+%  ai_temp  - alignemnt index of template
+%  ai_sp    - alignment index of spike
 %  tempAPs  - matrix of spikes contributing to the template, aligned at the
 %             peak & with NaNs at beginning or end if a particular spike
 %             had no samples at this point
 %  sptimes  - vector of spike times
 %  tempTimes - time vector for spike templates
-function [ temp, tempAPs, sptime, tempTimes ] = addSpikeToTemplate( temp, sp, tempAPs, sptime, tempTimes )
-   if nargin==5, doTime = true; else, doTime = false; end
-   peakind  = getMaxInd( temp ); % find index of template peak 
-   peaksp   = getMaxInd( sp   ); % find index of spike peak 
+function [ temp, tempAPs,ai_temp, sptime, tempTimes ] = addSpikeToTemplate( temp, sp, ai_temp, ai_sp, tempAPs, sptime, tempTimes )
+   if nargin==7, doTime = true; else, doTime = false; end
+   
+   peakind = ai_temp;
+   peaksp = ai_sp;
+%    peakind  = getMaxInd( temp ); % find index of template peak 
+%    peaksp   = getMaxInd( sp   ); % find index of spike peak 
 
    nSp      = length( sp   );    % length of spike
    nT       = length( temp );    % length of template
@@ -40,6 +45,7 @@ function [ temp, tempAPs, sptime, tempTimes ] = addSpikeToTemplate( temp, sp, te
       if doTime
          tempTimes = prependfn( tempTimes, tbefore - peakind );
       end
+      ai_temp = tbefore; % since we're appending to the template, shift the alignment index
    end
    if nSp - peaksp < tafter  
       % if spike has fewer samples after peak, append NaNs 
@@ -81,30 +87,12 @@ function [ temp, tempAPs, sptime, tempTimes ] = addSpikeToTemplate( temp, sp, te
    % extra beginning bit, then the ensemble average there is just from it,
    % so the template goes a bit wacky, so then it matches the next slightly
    % wackier spike, and on it goes, until the whole template is wacky
-   perc  = 2/3; % need at least this percent of spikes to have a sample at each pt
-   temp  = nanmean( tempAPs, 2 );
-%    [temp, tempAPs] = cleanTemplates( temp, tempAPs, perc );
-   
-   nAPs  = size( tempAPs, 2 );
-   Nreqd = ceil( nAPs * perc );
-   if nAPs > Nreqd
-      % only do it randomly so there's a chance to build up some spikes
-      if rand(1) > 0.8
-         Nensemble = sum( ~isnan( tempAPs ), 2 );
-         ditch = Nensemble <= Nreqd;
-         if sum( ditch ) == size( temp, 1 )
-            str = sprintf( 'Attempting to ditch %d non-overlapping samples of %d template samples\n', ...
-                            sum( ditch ), sum( ~ditch ) );
-            cprintf( 'Keyword*', str );
-         else
-            temp( ditch ) = [];
-            tempAPs( ditch, : )   = [];
-            if doTime
-               tempTimes( ditch, : ) = [];
-            end
-         end
-      end
+   if doTime
+        [temp,tempAPs,ai_temp,tempTimes] = CalculateTemplateFromAPs(tempAPs,ai_temp,0.6,0.05,doTime,tempTimes);
+   else
+       [temp,tempAPs,ai_temp,tempTimes] = CalculateTemplateFromAPs(tempAPs,ai_temp,0.6,0.05,doTime,[]);
    end
+  
 
    if isempty( temp ) || isempty( tempAPs )
       str = sprintf( 'Adding spike to template has decimated it...moron\n' );

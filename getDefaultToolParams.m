@@ -435,6 +435,24 @@ function params = getDefaultToolParams
          voltage.identify_ap_templates.threshold.normalise_aps.descript         = 'Normalise APs so all spikes have the same amplitude?';
          voltage.identify_ap_templates.threshold.normalise_aps.type             = 'boolean';
          voltage.identify_ap_templates.threshold.normalise_aps.units            = 'true or false';
+        %%
+         voltage.identify_ap_templates.threshold.phasenumber.value            = 2;
+         voltage.identify_ap_templates.threshold.phasenumber.name             = 'Number of phases in spike';
+         voltage.identify_ap_templates.threshold.phasenumber.descript         = 'How many phases in a spike?';
+         voltage.identify_ap_templates.threshold.phasenumber.type             = 'positive integer';
+         voltage.identify_ap_templates.threshold.phasenumber.units            = 'phases';
+
+         voltage.identify_ap_templates.threshold.first_phase_pos.value            = true;
+         voltage.identify_ap_templates.threshold.first_phase_pos.name             = 'First phase has positive voltage';
+         voltage.identify_ap_templates.threshold.first_phase_pos.descript         = 'Does the first phase have positive voltage?';
+         voltage.identify_ap_templates.threshold.first_phase_pos.type             = 'boolean';
+         voltage.identify_ap_templates.threshold.first_phase_pos.units            = 'true or false';
+
+         voltage.identify_ap_templates.threshold.alignment_phase.value            = 1;
+         voltage.identify_ap_templates.threshold.alignment_phase.name             = 'Alignment phase of spike';
+         voltage.identify_ap_templates.threshold.alignment_phase.descript         = 'Which phase of the spike should we align based on?';
+         voltage.identify_ap_templates.threshold.alignment_phase.type             = 'positive integer';
+         voltage.identify_ap_templates.threshold.alignment_phase.units            = 'th phase';
 
 %          voltage.identify_ap_templates.threshold.reset_time.value            = 0;
 %          voltage.identify_ap_templates.threshold.reset_time.name             = 'reset time';

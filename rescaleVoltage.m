@@ -164,8 +164,12 @@ function [vrescale, Rest_vec, tpeak_vec, params] = rescaleVoltageRecursive(tseri
    Rcovprev = Rcov;
    vmu      = mean( vspike );
    vstd     = std( vspike );
-   pf       = initpf(Rest, Rstd, npoles); % initialise particle filter with initial resistance
+   
    Rvar     = Rstd^2;
+
+   if contains( method, 'particle filter' )
+        pf       = initpf(Rest, Rstd, npoles); % initialise particle filter with initial resistance
+   end
 
    % Particle filtering equations:
    % - predict:  R(t_sp) = a * R(t_prevsp) * (t_sp - t_prevsp) + e(t)

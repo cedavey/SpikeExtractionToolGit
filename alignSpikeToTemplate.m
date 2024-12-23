@@ -6,11 +6,18 @@
 % Inputs:
 %    temp  - vector template
 %      sp  - vector spike
-function sp = alignSpikeToTemplate( temp, sp )
-
-   peaktemp  = getMaxInd( temp ); % find index of template peak 
-   peakspike = getMaxInd( sp   ); % find index of spike peak 
-
+%    temp_alignment_ind - index of peak/trough whatever we do alignment on
+%                       of template
+%    sp_alignment_ind - index of peak/trough whatever we do alignment on
+%                       of spike
+function sp = alignSpikeToTemplate( temp, sp ,temp_alignment_ind,sp_alignment_ind)
+   if nargin == 2
+       peaktemp  = getMaxInd( temp ); % find index of template peak 
+       peakspike = getMaxInd( sp   ); % find index of spike peak 
+   else
+       peaktemp = temp_alignment_ind;
+       peakspike = sp_alignment_ind;
+   end
    nSp      = length( sp   );    % length of spike
    nT       = length( temp );    % length of template
    Tbefore  = peaktemp-1;        % time before template peak

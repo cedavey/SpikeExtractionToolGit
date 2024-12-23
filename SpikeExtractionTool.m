@@ -1178,6 +1178,7 @@ function toggleZoomButton_CreateFcn(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
    warning('off','MATLAB:imagesci:png:libraryWarning'); % Ignore PNG associated warning
+   warning('off','MATLAB:hg:uicontrol:StringMustBeNonEmpty'); % Ignore warning about 'empty string' in popup menu (there's no string in the 'voltage' popup menu when GUI starts)
 
    % Get location of log files
    path    = getFilePath();

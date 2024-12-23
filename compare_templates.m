@@ -3,7 +3,7 @@
 % rho's, chose the one with a smaller size difference.
 %
 % Artemio Soto-Breceda | 22-August-2019
-function [k, d] = compare_templates(rho, curr_spike, APtemplates, APfamilies, matchthresh)
+function [k, d] = compare_templates(rho, curr_spike, APtemplates, APfamilies, alignment_ind_spk,matchthresh)
    d = [];
    if iscell( APtemplates ) 
       uniqueAPLength = true;
@@ -13,7 +13,7 @@ function [k, d] = compare_templates(rho, curr_spike, APtemplates, APfamilies, ma
 
 
    % get difference btwn peaks and difference btwn troughs
-   compare  = @(s1, s2) 2*( abs( max(s1) - max(s2) ) ) + abs( min(s1) - min(s2) ); % wgt peak more impt
+   %compare  = @(s1, s2) 2*( abs( max(s1) - max(s2) ) ) + abs( min(s1) - min(s2) ); % wgt peak more impt
    compare  = @(s1, s2) abs( max(s1) - max(s2) ) + abs( min(s1) - min(s2) ); % wgt peak & trough the same
    rho_     = rho/max(rho); % normalize rho to current largest
 
@@ -52,9 +52,10 @@ function [k, d] = compare_templates(rho, curr_spike, APtemplates, APfamilies, ma
          
          % curr_spike & fspike may hae diff lengths
          if uniqueAPLength 
+            alignment_ind_family = APfamilies{ai}{fi}.alignment_ind;
             % if spikes & templates can have diff lengths, use the smaller length
             % to calculate the match, but centre both around the peak 
-            [ curr_spike, fspike ] = alignDiffLengthSpikes( curr_spike, fspike );
+            [ curr_spike, fspike ] = alignDiffLengthSpikes( curr_spike, fspike,[],[],alignment_ind_spk,alignment_ind_family);
 
             % gotta calc corr or cov separately for each template because
             % they're different lengths
