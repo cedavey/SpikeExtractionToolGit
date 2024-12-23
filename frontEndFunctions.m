@@ -549,7 +549,7 @@ methods (Static)
       data.curr_tool    = 1;
 
       if success==0 % if success==0 --> no valid images found or user cancelled
-         displayErrorMsg('No valid voltage data found.');
+         displayErrorMsg('No valid voltage data found (check file is not on the cloud).');
          % don't update handles with the data_struct changes
          return;
       elseif success==-1
@@ -832,7 +832,7 @@ methods (Static)
                case 'rescale'
                   str = sprintf( 'Rescaling voltage\n' );
                   cprintf( printcol, str );
-                  if ~strcmp('separate',method_params.select_peaks.value)
+                  if ~strcmp('separate', method_params.select_peaks.value)
                      [voltage, Rest] = rescaleVoltage(tseries, method, method_params, h.options);
                   else
                      method_params.select_peaks.value = 'positive';

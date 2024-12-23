@@ -82,6 +82,13 @@ function params = getDefaultToolParams
          voltage.rescale.variance.final_type.list                               = {'seconds', 'samples'};
          voltage.rescale.variance.final_type.units                              = '';
 
+         voltage.rescale.variance.select_peaks.value                            = 'separate';
+         voltage.rescale.variance.select_peaks.name                             = 'select peaks';
+         voltage.rescale.variance.select_peaks.descript                         = 'Select positive, negative, or both positive and negative peaks ';
+         voltage.rescale.variance.select_peaks.type                             = 'list';
+         voltage.rescale.variance.select_peaks.list                             = {'all', 'positive', 'negative','separate'};
+         voltage.rescale.variance.select_peaks.units                            = 'voltage';
+         
       % Rescale - based on a particle filter 
          voltage.rescale.particle_filter.voltage_magnitude.value                = 5; 
          voltage.rescale.particle_filter.voltage_magnitude.name                 = 'voltage magnitude';

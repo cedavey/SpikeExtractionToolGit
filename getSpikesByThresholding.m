@@ -60,11 +60,11 @@ function [spikes, stimes, spikesFull, stimesFull] = getSpikesByThresholding(tser
    
    % find where voltage goes from -ve to +ve
    posv       = voltage>0;
-   changePos  = find(diff([0; posv; 0])==1);    % location of change from 0 to 1
+   changePos  = find(diff([0; posv; 0])==1);       % location of change from 0 to 1
    % find where voltage goes from +ve to -ve
-   changeNeg  = find(diff([0; posv; 0])==-1);   % location of change from 0 to -1
+   changeNeg  = find(diff([0; posv; 0])==-1);      % location of change from 0 to -1
    if voltage(1)<0
-      timepos = changeNeg - changePos;          % duration of +ve
+      timepos = changeNeg - changePos;             % duration of +ve
       timeneg = [changePos(1)-1; changePos(2:end) - changeNeg(1:end-1)];
       % spike starts with positive so ditch initial negative
       timeneg = [timeneg(2:end); 0];

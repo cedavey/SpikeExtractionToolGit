@@ -78,6 +78,7 @@ function [k, d] = compare_templates(rho, curr_spike, APtemplates, APfamilies, ma
    d_currtemp = d_temps(k_red);  % best distance for template with best corr
    d_others   = d_temps;         % to contain distance btwn non-optimal templates & spike
    d_others(k_red) = [];         % get rid of current optimal template
+   
    % if distance to template with best corr is only marginally worse than
    % the others, prioritise the better correlation rather than the better
    % distance between peaks and troughs
